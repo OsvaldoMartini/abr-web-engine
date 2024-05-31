@@ -6,6 +6,7 @@ import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
 import com.allinweb.ch.util.Constants;
+import com.allinweb.ch.util.UtilsMethods;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -77,7 +78,8 @@ public class ExcelWriter {
 
         public void insertInstructionResult(
                 BlockLoopInstructionDTO instruction, Map<String, String> data, LocalTime time, String status) {
-            String[] splittedAction = instruction.getActions().split(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
+            String[] splittedAction =
+                    UtilsMethods.splitIfContains(instruction.getActions(), ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
             String action =
                     switch (splittedAction[0]) {
                         case ABRConstants.CLICK -> "CLICK";

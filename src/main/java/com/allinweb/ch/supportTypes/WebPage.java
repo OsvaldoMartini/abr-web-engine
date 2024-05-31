@@ -158,6 +158,9 @@ public class WebPage {
         List<Priority> priorityList = abrPriorities.getAllPriorityList();
         if (abrPriorities.getAllPriorityList().size() > 0) {
 
+            //            if (instruction.getActionCustomMaxWaitSec() > 5) {
+            //                instruction.setActionCustomMaxWaitSec(5);
+            //            }
             WebElement elementFound = null;
             //            for (int i = 0; i < priorityList.size() && elementFound == null; i++) {
             for (com.allinweb.ch.util.Priority priority : abrPriorities.getAllPriorityList()) {
@@ -225,42 +228,56 @@ public class WebPage {
                         for (By criteria : criterias) {
                             List<WebElement> foundElementList = driver.findElements(criteria);
 
-                            if (justCalledRefreshPage) {
-                                justCalledRefreshPage = false;
-                                try {
-                                    waitForPage.until(ExpectedConditions.visibilityOfElementLocated(criteria));
-                                } catch (Exception e) {
-                                    System.out.println("Could not fin the element");
-                                }
-                            } else if (instruction.getActionCustomMaxWaitSec() != null) {
-                                try {
-
-                                    new WebDriverWait(
-                                                    driver, Duration.ofSeconds(instruction.getActionCustomMaxWaitSec()))
-                                            .until(ExpectedConditions.presenceOfElementLocated(criteria));
-                                } catch (Exception e) {
-                                    System.out.println("Could not fin the element");
-                                }
-                            } else {
-                                try {
-
-                                    waitForAction.until(ExpectedConditions.visibilityOfElementLocated(criteria));
-                                } catch (Exception e) {
-                                    System.out.println("Could not fin the element");
-                                }
+                            try {
+                                elementFound = scroolUntilFindElement(criteria);
+                            } catch (Exception e) {
+                                e.printStackTrace();
                             }
-                            int k = 0;
-                            MAYBE THIS SHOUL BE NOT NECESSARY  USE UNIQUE ID   OR SESSION  SAVED TO GET THE SAME XPATHORELEMENT
-                            while (elementFound == null && k < foundElementList.size()) {
-                                String xpath = ABRWebUtil.extractWebElementXPath(foundElementList.get(k));
-                                Optional<InstructionReferenceDTO> xpathReference = instructionReferenceList.stream()
-                                        .filter(ref -> ref.getReferenceType().equals(PriorityTypeEnum.xpath.name()))
-                                        .findFirst();
-                                if (xpathReference.isPresent()
-                                        && xpath.equals(xpathReference.get().getValue())) {
-                                    elementFound = foundElementList.get(k);
+                            if (elementFound != null) {
+                                break;
+                            }
+                            if (foundElementList != null && foundElementList.size() > 0) {
+                                if (justCalledRefreshPage) {
+                                    justCalledRefreshPage = false;
+                                    try {
+                                        waitForPage.until(ExpectedConditions.visibilityOfElementLocated(criteria));
+                                    } catch (Exception e) {
+                                        System.out.println("Could not fin the element");
+                                    }
+                                } else if (instruction.getActionCustomMaxWaitSec() != null) {
+                                    try {
+
+                                        new WebDriverWait(
+                                                        driver,
+                                                        Duration.ofSeconds(instruction.getActionCustomMaxWaitSec()))
+                                                .until(ExpectedConditions.presenceOfElementLocated(criteria));
+                                    } catch (Exception e) {
+                                        System.out.println("Could not fin the element");
+                                    }
+                                } else {
+                                    try {
+
+                                        waitForAction.until(ExpectedConditions.visibilityOfElementLocated(criteria));
+                                    } catch (Exception e) {
+                                        System.out.println("Could not fin the element");
+                                    }
                                 }
-                                k++;
+                                int k = 0;
+                                //                            MAYBE THIS SHOUL BE NOT NECESSARY  USE UNIQUE ID   OR
+                                // SESSION  SAVED TO GET THE SAME XPATHORELEMENT
+                                while (elementFound == null && k < foundElementList.size()) {
+                                    String xpath = ABRWebUtil.extractWebElementXPath(foundElementList.get(k));
+                                    Optional<InstructionReferenceDTO> xpathReference = instructionReferenceList.stream()
+                                            .filter(ref ->
+                                                    ref.getReferenceType().equals(PriorityTypeEnum.xpath.name()))
+                                            .findFirst();
+                                    if (xpathReference.isPresent()
+                                            && xpath.equals(xpathReference.get().getValue())) {
+                                        elementFound = foundElementList.get(k);
+                                        break;
+                                    }
+                                    k++;
+                                }
                             }
                         }
                     }
@@ -270,6 +287,45 @@ public class WebPage {
         } else {
             return null;
         }
+    }
+
+    private WebElement scroolUntilFindElement(By criteria) {
+        // Set the JavaScript executor
+        JavascriptExecutor js = (JavascriptExecutor) driver;
+
+        // Define the element locator
+        //        By elementLocator = By.id("desiredElementId");
+
+        int maxScrollAttempts = 2;
+        int currentScrollAttempts = 0;
+
+        // Loop to keep scrolling until the element is found
+        while (currentScrollAttempts < maxScrollAttempts) {
+            try {
+                // Find the element
+                WebElement element = driver.findElement(criteria);
+
+                // Check if the element is displayed
+                if (element.isDisplayed()) {
+                    System.out.println("Element found!");
+                    break;
+                }
+            } catch (Exception e) {
+                // If element is not found, catch the exception and scroll down
+                //                js.executeScript("window.scrollBy(0, window.innerHeight);");
+                currentScrollAttempts++;
+            }
+
+            // Optionally, add a sleep to avoid excessive scrolling and hitting the server too frequently
+            try {
+                Thread.sleep(300);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        // Interact with the element (example: click the element)
+        return driver.findElement(criteria);
     }
 
     private void executeActionsAtInstructionCoordinates(BlockLoopInstructionDTO instruction, Map<String, String> data)
@@ -386,11 +442,13 @@ public class WebPage {
     }
 
     private void typeCharacters(BlockLoopInstructionDTO instruction, String action, Map<String, String> data) {
-        String value;
+        String value = null;
         if (data != null) {
-            String dataFieldName = action.split(Constants.ACTION_SPECIFICATIONS_SPLITTER)[1]
-                    .split(Constants.PATH_FIELD_SUBSTITUTION)[0];
-            value = data.get(dataFieldName);
+            String[] arr = UtilsMethods.splitIfContains(action, Constants.ACTION_SPECIFICATIONS_SPLITTER);
+            if (arr.length > 1) {
+                String dataFieldName = arr[1].split(Constants.PATH_FIELD_SUBSTITUTION)[0];
+                value = data.get(dataFieldName);
+            }
         } else {
             value = instruction.getDefaultValue();
         }
@@ -440,7 +498,7 @@ public class WebPage {
                 }
                 onHoldForSeconds(null);
             }
-        } else  {
+        } else {
             executeActionsAtInstructionCoordinates(instruction, data);
             onHoldForSeconds(null);
         }
@@ -455,7 +513,12 @@ public class WebPage {
             int firstIndexOfCloseTag = innerHTMLValue.indexOf(">");
             innerHTMLValue = innerHTMLValue.substring(firstIndexOfCloseTag + 1, firstIndexOfOpenTag);
         }
-        String fieldName = action.split(Constants.ACTION_SPECIFICATIONS_SPLITTER)[1];
+        String fieldName = null;
+        String[] arr = UtilsMethods.splitIfContains(action, Constants.ACTION_SPECIFICATIONS_SPLITTER);
+        if (arr.length > 1) {
+            fieldName = arr[1].split(Constants.PATH_FIELD_SUBSTITUTION)[0];
+        }
+
         BotJobDTO botJob = instruction.getBlock().getBotJob();
         new ExcelWriter(botJob).withPurpose("excel").insertValueFieldName(fieldName, innerHTMLValue);
     }
@@ -539,17 +602,18 @@ public class WebPage {
         UtilsMethods.exceptionIfNullWebElement(element);
         waitForAction.until(ExpectedConditions.visibilityOf(element));
         if (data != null) {
-            String dataFieldName = singleInstruction
-                    .split(Constants.ACTION_SPECIFICATIONS_SPLITTER)[1]
-                    .split(Constants.PATH_FIELD_SUBSTITUTION)[0];
+            String[] arr = UtilsMethods.splitIfContains(singleInstruction, Constants.ACTION_SPECIFICATIONS_SPLITTER);
+            if (arr.length > 1) {
+                String dataFieldName = arr[1].split(Constants.PATH_FIELD_SUBSTITUTION)[0];
 
-            String value = data.get(dataFieldName);
-            if (instructionDTO.isEncrypted()) {
-                value = CryptationAlgorithm.decrypt(value);
+                String value = data.get(dataFieldName);
+                if (instructionDTO.isEncrypted()) {
+                    value = CryptationAlgorithm.decrypt(value);
+                }
+                element.sendKeys(value);
+                element.sendKeys(Keys.TAB);
             }
-            element.sendKeys(value);
-            element.sendKeys(Keys.TAB);
-        } else {
+        } else if (instructionDTO.getDefaultValue() != null) {
             String defaultValue = instructionDTO.getDefaultValue();
             if (instructionDTO.isEncrypted()) {
                 defaultValue = CryptationAlgorithm.decrypt(defaultValue);
@@ -649,4 +713,5 @@ public class WebPage {
         Function for screenshot, left in case a screen is needed
         outside of the report
     } */
+
 }

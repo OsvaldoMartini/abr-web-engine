@@ -30,6 +30,11 @@ public class Engine {
     private static final String language = "en";
     private static File baseLogFile = null;
 
+    private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    private static final int MIN_LENGTH = 3;
+    private static final int MAX_LENGTH = 30;
+    private static final Random RANDOM = new Random();
+
     public static void main(String[] args) {
 
         System.out.println("ENGINE STARTED");
@@ -250,6 +255,21 @@ public class Engine {
                 }
             } else {
                 List<BlockDTO> blockList = selectedJob.getBlocks();
+
+                // Creating Dynamic Data if Default is Null
+                Map<String, String> dataDynamic = new HashMap<>();
+                for (BlockDTO blockDTO : blockList) {
+                    for (BlockLoopInstructionDTO currentInstruction : blockDTO.getBlockLoopInstructions()) {
+                        if (currentInstruction.getDefaultValue() == null) {
+                            String[] arr = UtilsMethods.splitIfContains(
+                                    currentInstruction.getActions(), Constants.ACTION_SPECIFICATIONS_SPLITTER);
+                            if (arr.length > 1) {
+                                String dataFieldName = arr[1].split(Constants.PATH_FIELD_SUBSTITUTION)[0];
+                                insertRandomName(dataDynamic, dataFieldName);
+                            }
+                        }
+                    }
+                }
                 for (int j = 0; success && j < blockList.size(); j++) {
                     writer.insertBlockSeparation(blockList.get(j).getName());
                     for (BlockLoopInstructionDTO currentInstruction :
@@ -260,11 +280,11 @@ public class Engine {
                             lastInstructionExecuted = currentInstruction.getName()
                                     + Constants.BLANK_STRING
                                     + currentInstruction.getPath();
-                            webPage.performActions(null, currentInstruction);
+                            webPage.performActions(dataDynamic, currentInstruction);
                             long currentInstructionEndTime = System.nanoTime();
                             writer.insertInstructionResult(
                                     currentInstruction,
-                                    null,
+                                    dataDynamic,
                                     LocalTime.ofNanoOfDay(currentInstructionEndTime - currentInstructionStartTime),
                                     "success");
                             totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
@@ -276,7 +296,7 @@ public class Engine {
                                 long currentInstructionEndTime = System.nanoTime();
                                 writer.insertInstructionResult(
                                         currentInstruction,
-                                        null,
+                                        dataDynamic,
                                         LocalTime.ofNanoOfDay(currentInstructionEndTime - currentInstructionStartTime),
                                         "optional skipped");
                                 System.err.println(
@@ -286,7 +306,7 @@ public class Engine {
                                 long currentInstructionEndTime = System.nanoTime();
                                 writer.insertInstructionResult(
                                         currentInstruction,
-                                        null,
+                                        dataDynamic,
                                         LocalTime.ofNanoOfDay(currentInstructionEndTime - currentInstructionStartTime),
                                         "failed");
                                 System.out.println(
@@ -299,7 +319,7 @@ public class Engine {
                             repository.write(report);
                             throw new RuntimeException(t);
                         }
-                        printLog(generateTimestamp(), logFileForSingleExcel, null, success);
+                        printLog(generateTimestamp(), logFileForSingleExcel, dataDynamic, success);
                     }
                 }
             }
@@ -390,6 +410,23 @@ public class Engine {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public static String generateRandomName() {
+        int length = RANDOM.nextInt(MAX_LENGTH - MIN_LENGTH + 1) + MIN_LENGTH;
+        StringBuilder nameBuilder = new StringBuilder(length);
+
+        for (int i = 0; i < length; i++) {
+            char randomChar = CHARACTERS.charAt(RANDOM.nextInt(CHARACTERS.length()));
+            nameBuilder.append(randomChar);
+        }
+
+        return nameBuilder.toString();
+    }
+
+    public static void insertRandomName(Map<String, String> map, String key) {
+        String randomName = generateRandomName();
+        map.put(key, randomName);
     }
 
     private static void showAlert(String title, String header, String content) {

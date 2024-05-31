@@ -29,4 +29,15 @@ public class UtilsMethods {
         String regex = "[0-9A-Za-z]{6}";
         return splittedValue[1].matches(regex);
     }
+
+    public static String[] splitIfContains(String input, String specificCharStr) {
+        // Check if the input contains the specific character
+        if (input.contains(specificCharStr)) {
+            // Split the input using the specific character
+            return input.split(specificCharStr);
+        } else {
+            // Return the original string as a single-element array
+            return new String[] {input};
+        }
+    }
 }
