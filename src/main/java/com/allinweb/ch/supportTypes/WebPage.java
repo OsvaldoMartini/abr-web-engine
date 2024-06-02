@@ -610,12 +610,12 @@ public class WebPage {
                 if (instructionDTO.isEncrypted()) {
                     value = CryptationAlgorithm.decrypt(value);
                 }
-                
-                if (value !=null){
+
+                if (value != null) {
                     element.sendKeys(value);
                     element.sendKeys(Keys.TAB);
-                    
-                }else{
+
+                } else {
                     element.sendKeys(UtilsMethods.generateRandomID(10));
                     element.sendKeys(Keys.TAB);
                 }
