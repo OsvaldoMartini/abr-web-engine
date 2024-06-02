@@ -610,8 +610,15 @@ public class WebPage {
                 if (instructionDTO.isEncrypted()) {
                     value = CryptationAlgorithm.decrypt(value);
                 }
-                element.sendKeys(value);
-                element.sendKeys(Keys.TAB);
+                
+                if (value !=null){
+                    element.sendKeys(value);
+                    element.sendKeys(Keys.TAB);
+                    
+                }else{
+                    element.sendKeys(UtilsMethods.generateRandomID(10));
+                    element.sendKeys(Keys.TAB);
+                }
             }
         } else if (instructionDTO.getDefaultValue() != null) {
             String defaultValue = instructionDTO.getDefaultValue();
