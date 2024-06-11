@@ -74,6 +74,7 @@ public class WebPage {
 
             ChromeOptions options = new ChromeOptions();
             options.setBinary(ABRConstants.CURRENT_PATH + "\\chrome\\chrome.exe");
+            options.setBinary("C:/Program Files (x86)/Google/Chrome/Application/chrome.exe");
             options.setExperimentalOption("useAutomationExtension", false);
             options.setExperimentalOption("excludeSwitches", Collections.singletonList("enable-automation"));
             driver = new ChromeDriver(options);
@@ -228,14 +229,14 @@ public class WebPage {
                         for (By criteria : criterias) {
                             List<WebElement> foundElementList = driver.findElements(criteria);
 
-                            try {
-                                elementFound = scroolUntilFindElement(criteria);
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                            if (elementFound != null) {
-                                break;
-                            }
+//                            try {
+//                                elementFound = scroolUntilFindElement(criteria);
+//                            } catch (Exception e) {
+//                                e.printStackTrace();
+//                            }
+//                            if (elementFound != null) {
+//                                break;
+//                            }
                             if (foundElementList != null && foundElementList.size() > 0) {
                                 if (justCalledRefreshPage) {
                                     justCalledRefreshPage = false;
