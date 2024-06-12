@@ -6,6 +6,30 @@ import org.openqa.selenium.WebElement;
 
 public class ABRWebUtil {
 
+    public static String extractXPath(String input) {
+        String marker = "-> xpath: ";
+        int markerIndex = input.indexOf(marker);
+
+        if (markerIndex != -1) {
+            // Extract the substring starting from the marker and trim any extra spaces
+            String extractedXPath =
+                    input.substring(markerIndex + marker.length()).trim();
+
+            // Replace double ']]' with single ']'
+            if (extractedXPath.contains("]]")) {
+                extractedXPath = extractedXPath.replace("]]", "]");
+            }
+            // Replace double ']]' with single ']'
+            if (extractedXPath.contains("[[")) {
+                extractedXPath = extractedXPath.replace("[[", "[");
+            }
+
+            return extractedXPath;
+        } else {
+            return null; // or throw an exception if preferred
+        }
+    }
+
     public static String extractWebElementXPath(WebElement element) {
         return generateXPATH(element, "");
     }

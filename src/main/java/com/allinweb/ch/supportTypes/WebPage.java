@@ -188,12 +188,14 @@ public class WebPage {
 
                 // Find the first matching instruction reference
                 Optional<InstructionReferenceDTO> instructionReference = instructionReferenceList.stream()
-                        .filter(reference -> priorityList.stream().anyMatch(prior -> prior.getName().stream()
-                                .anyMatch(name -> name.equalsIgnoreCase(reference.getReferenceType()))))
+                        .filter(reference ->
+                                priority.getPriorityType().toString().equalsIgnoreCase(reference.getReferenceType()))
                         .findFirst();
 
                 // Print or process the first matching instruction reference
-                instructionReference.ifPresent(System.out::println);
+                instructionReference.ifPresent((f) -> System.out.println(String.format(
+                        "Search for %s   Type:  %s   Value: %s",
+                        priority.getName(), f.getReferenceType(), f.getValue())));
 
                 if (instructionReference.isPresent()) {
                     List<By> criterias = null;
@@ -229,14 +231,14 @@ public class WebPage {
                         for (By criteria : criterias) {
                             List<WebElement> foundElementList = driver.findElements(criteria);
 
-//                            try {
-//                                elementFound = scroolUntilFindElement(criteria);
-//                            } catch (Exception e) {
-//                                e.printStackTrace();
-//                            }
-//                            if (elementFound != null) {
-//                                break;
-//                            }
+                            //                            try {
+                            //                                elementFound = scroolUntilFindElement(criteria);
+                            //                            } catch (Exception e) {
+                            //                                e.printStackTrace();
+                            //                            }
+                            //                            if (elementFound != null) {
+                            //                                break;
+                            //                            }
                             if (foundElementList != null && foundElementList.size() > 0) {
                                 if (justCalledRefreshPage) {
                                     justCalledRefreshPage = false;
@@ -267,7 +269,8 @@ public class WebPage {
                                 //                            MAYBE THIS SHOUL BE NOT NECESSARY  USE UNIQUE ID   OR
                                 // SESSION  SAVED TO GET THE SAME XPATHORELEMENT
                                 while (elementFound == null && k < foundElementList.size()) {
-                                    String xpath = ABRWebUtil.extractWebElementXPath(foundElementList.get(k));
+                                    String xpath = ABRWebUtil.extractXPath(
+                                            foundElementList.get(k).toString());
                                     Optional<InstructionReferenceDTO> xpathReference = instructionReferenceList.stream()
                                             .filter(ref ->
                                                     ref.getReferenceType().equals(PriorityTypeEnum.xpath.name()))

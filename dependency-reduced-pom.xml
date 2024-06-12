@@ -8,15 +8,15 @@
   <url>http://www.example.com</url>
   <build>
     <finalName>${project.artifactId}</finalName>
-    <pluginManagement>
-      <plugins>
-        <plugin>
-          <groupId>com.diffplug.spotless</groupId>
-          <artifactId>spotless-maven-plugin</artifactId>
-          <version>2.28.0</version>
-        </plugin>
-      </plugins>
-    </pluginManagement>
+<!--    <pluginManagement>-->
+<!--      <plugins>-->
+<!--        <plugin>-->
+<!--          <groupId>com.diffplug.spotless</groupId>-->
+<!--          <artifactId>spotless-maven-plugin</artifactId>-->
+<!--          <version>2.28.0</version>-->
+<!--        </plugin>-->
+<!--      </plugins>-->
+<!--    </pluginManagement>-->
     <plugins>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
@@ -70,26 +70,26 @@
           </execution>
         </executions>
       </plugin>
-      <plugin>
-        <groupId>com.diffplug.spotless</groupId>
-        <artifactId>spotless-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <phase>validate</phase>
-            <goals>
-              <goal>check</goal>
-            </goals>
-          </execution>
-        </executions>
-        <configuration>
-          <java>
-            <importOrder />
-            <palantirJavaFormat>
-              <version>2.28.0</version>
-            </palantirJavaFormat>
-          </java>
-        </configuration>
-      </plugin>
+<!--      <plugin>-->
+<!--        <groupId>com.diffplug.spotless</groupId>-->
+<!--        <artifactId>spotless-maven-plugin</artifactId>-->
+<!--        <executions>-->
+<!--          <execution>-->
+<!--            <phase>validate</phase>-->
+<!--            <goals>-->
+<!--              <goal>check</goal>-->
+<!--            </goals>-->
+<!--          </execution>-->
+<!--        </executions>-->
+<!--        <configuration>-->
+<!--          <java>-->
+<!--            <importOrder />-->
+<!--            <palantirJavaFormat>-->
+<!--              <version>2.28.0</version>-->
+<!--            </palantirJavaFormat>-->
+<!--          </java>-->
+<!--        </configuration>-->
+<!--      </plugin>-->
     </plugins>
   </build>
   <dependencies>
