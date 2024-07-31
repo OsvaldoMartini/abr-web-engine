@@ -14,6 +14,21 @@ public class HomeBankingDTO extends BaseDTO {
     @OrderBy("name DESC")
     private String name;
 
+    @Column(name = "priority")
+    private String priority;
+
+    @Column(name = "search_config")
+    private String searchConfig;
+
+    @Column(name = "options_config")
+    private String optionsConfig;
+
+    @Column(name = "cookies")
+    private String cookies;
+
+    @Column(name = "driverSession")
+    private String driverSession;
+
     @Column(name = "username")
     private String username;
 
@@ -47,6 +62,46 @@ public class HomeBankingDTO extends BaseDTO {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getPriority() {
+        return priority;
+    }
+
+    public void setPriority(String priority) {
+        this.priority = priority;
+    }
+
+    public String getSearchConfig() {
+        return searchConfig;
+    }
+
+    public void setSearchConfig(String searchConfig) {
+        this.searchConfig = searchConfig;
+    }
+
+    public String getOptionsConfig() {
+        return optionsConfig;
+    }
+
+    public void setOptionsConfig(String optionsConfig) {
+        this.optionsConfig = optionsConfig;
+    }
+
+    public String getCookies() {
+        return cookies;
+    }
+
+    public void setCookies(String cookies) {
+        this.cookies = cookies;
+    }
+
+    public String getDriverSession() {
+        return driverSession;
+    }
+
+    public void setDriverSession(String driverSession) {
+        this.driverSession = driverSession;
     }
 
     public String getUsername() {

@@ -10,6 +10,8 @@
         <property name="hbm2ddl.auto">update</property>
         <property name="show_sql">true</property>
 
+        <mapping class="com.allinweb.ch.dto.VariableDTO"/>
+        <mapping class="com.allinweb.ch.dto.ConfigurationDTO"/>
         <mapping class="com.allinweb.ch.dto.BaseDTO"/>
         <mapping class="com.allinweb.ch.dto.HomeBankingDTO"/>
         <mapping class="com.allinweb.ch.dto.BotJobDTO"/>

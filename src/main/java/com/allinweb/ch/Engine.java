@@ -191,7 +191,7 @@ public class Engine {
             boolean success = true;
             long botJobStartTime = System.nanoTime();
             long totalExecutionTime = 0;
-            String lastInstructionExecuted = "No istruction executed yet";
+            String lastInstructionExecuted = "No instruction executed yet";
             short status;
 
             if (extractedData.getNumberOfDataRows() > 0) {
