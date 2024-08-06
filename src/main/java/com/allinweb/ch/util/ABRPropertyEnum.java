@@ -9,6 +9,7 @@ public enum ABRPropertyEnum {
     FOLDER_PATH_REPORT("path_report"),
     FOLDER_PATH_PRIORITY("path_priority"),
     PATH_ENGINE("path_engine"),
+    PATH_WEBDRIVER("path_web_driver"),
     LOG_LEVEL("log_level"),
     BROWSER("browser"),
     WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC("page_update_timeout_sec"),

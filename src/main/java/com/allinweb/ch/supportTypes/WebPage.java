@@ -2,6 +2,7 @@ package com.allinweb.ch.supportTypes;
 
 import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.cryptingAlgorithm.CryptationAlgorithm;
+import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.dto.BlockLoopInstructionDTO;
 import com.allinweb.ch.dto.BotJobDTO;
 import com.allinweb.ch.dto.ComplexInstructionDTO;
@@ -12,6 +13,7 @@ import io.github.bonigarcia.wdm.WebDriverManager;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import javax.swing.*;
 import org.apache.commons.lang3.StringUtils;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
@@ -35,13 +37,19 @@ public class WebPage {
         abrPriorities = ABRPriorities.getInstance();
     }
 
+    private ABRWebDriver abrWebDriver;
     private WebDriver driver;
     private static Wait<WebDriver> waitForPage;
     private static Wait<WebDriver> waitForAction;
     private boolean justCalledRefreshPage = false;
 
-    public WebPage(String driverType, String url) {
-        this.driver = initDriver(driverType);
+    public WebPage(String driverType, String url, String optionsConfig) {
+
+        abrWebDriver = new ABRWebDriver();
+
+        this.driver = abrWebDriver.openDriver(url, optionsConfig);
+
+        //        this.driver = initDriver(driverType);
         if (waitForPage == null) {
             String updateTimeout =
                     ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
@@ -89,7 +97,19 @@ public class WebPage {
     }
 
     public void openBrowser(String url) {
-        driver.get(url);
+        try {
+            driver.get(url);
+
+        } catch (Exception e) {
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .fine("An error has occurred during driver.get(url) Load " + e.getMessage());
+            JOptionPane.showMessageDialog(
+                    null,
+                    "An error has occurred during WebDriver Load: \nError:" + e.getMessage() + " Cause: "
+                            + e.getCause(),
+                    "Error in WebDriver Load",
+                    JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     public static String extractTagName(String xPath) {

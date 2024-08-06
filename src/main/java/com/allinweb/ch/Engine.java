@@ -176,7 +176,7 @@ public class Engine {
                     .collect(Collectors.toSet());
 
             String browser = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.BROWSER);
-            WebPage webPage = new WebPage(browser, homeBankingDTO.getUrl());
+            WebPage webPage = new WebPage(browser, homeBankingDTO.getUrl(), homeBankingDTO.getOptionsConfig());
 
             String baseLogString =
                     selectedJob.getName() + Constants.FIELDS_SEPARATOR + labelsValue.getProperty(Labels.START);
@@ -351,7 +351,8 @@ public class Engine {
             }
             printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
         } catch (Throwable t) {
-            t.printStackTrace();
+            //            t.printStackTrace();
+            ABRLogger.getInstance(Engine.class).severe("Error Executing JOB \n" + t.getMessage());
         }
     }
 
