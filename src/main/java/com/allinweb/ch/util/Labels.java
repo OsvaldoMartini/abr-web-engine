@@ -1,5 +1,9 @@
 package com.allinweb.ch.util;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Properties;
 
 public class Labels {
@@ -13,11 +17,14 @@ public class Labels {
     public static void initializeLabelsInSpecLang(String language) {
         labelsValue = new Properties();
         String labelsFileName = Constants.LABELS_FILE_NAME_COMMON + language + Constants.PROPERTIES_FILE_EXTENSION;
-        try {
-            labelsValue.load(ClassLoader.getSystemResourceAsStream(labelsFileName));
-        } catch (Exception e) {
-            e.printStackTrace();
-            //            System.exit(1);
+        // Read in the LCO Probe properties file
+        try (InputStream inputStream =
+                new FileInputStream(new File(".").getCanonicalPath() + File.separator + labelsFileName)) {
+            labelsValue = new Properties();
+            // load a properties file
+            labelsValue.load(inputStream);
+        } catch (IOException ex) {
+            ABRLogger.getInstance(Labels.class).severe("Cannot Read Lang Labels: " + ex.getMessage());
         }
     }
 }
