@@ -21,6 +21,7 @@ import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import javax.swing.*;
 import org.apache.poi.ss.usermodel.Row;
@@ -82,7 +83,7 @@ public class Engine {
 
         try {
             baseLogFile = new File(ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_LOG)
-                    + ABRConstants.FILE_NAME_ENGINE_LOG);
+                    + ABRConstants.FILE_NAME_ENGINE_BASE_LOG);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -413,20 +414,25 @@ public class Engine {
                                                 }
                                                 success = true;
                                             } else {
-                                                Alert alert = new Alert(Alert.AlertType.ERROR);
-                                                alert.setTitle("Validation Error");
-                                                alert.setHeaderText("Check Validation Error");
-                                                alert.setContentText("The Value: "
-                                                        + mapOperators.get(operations[0]) + "\nis not " + operations[1]
-                                                        + " "
-                                                        + operations[2] + " Length: (" + operations[2].length() + ")"
-                                                        + "\nExpected value: "
-                                                        + mapOperators.get(operations[0]) + " Length: ("
-                                                        + mapOperators
-                                                                .get(operations[0])
-                                                                .length() + ")");
-                                                alert.showAndWait();
+                                                Platform.runLater(() -> {
+                                                    JOptionPane.showMessageDialog(
+                                                            null,
+                                                            "The Value: " + mapOperators.get(operations[0])
+                                                                    + "\nis not "
+                                                                    + operations[1] + " " + operations[2] + " Length: ("
+                                                                    + operations[2].length() + ")"
+                                                                    + "\nExpected value: "
+                                                                    + mapOperators.get(operations[0])
+                                                                    + " Length: ("
+                                                                    + mapOperators
+                                                                            .get(operations[0])
+                                                                            .length() + ")",
+                                                            "Check Validation Error!",
+                                                            JOptionPane.ERROR_MESSAGE);
+                                                });
 
+                                                //
+                                                // webPage.alertMessage(mapOperators, operations);
                                                 stopAll = true;
 
                                                 resultAcions = "Failed to Execute -> " + lastInstructionExecuted;

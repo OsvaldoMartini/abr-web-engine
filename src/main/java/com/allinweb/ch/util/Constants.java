@@ -25,6 +25,7 @@ public class Constants {
     public static final String QUIT = "Q";
     public static final String SCREEN = "P";
     public static final String EXTRACT = "E";
+    public static final String ALERT = "A";
     public static final String FIND_ALL_CHILD_ELEMENTS = ".//*";
 
     // actions specifications and various

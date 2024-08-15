@@ -563,6 +563,14 @@ public class WebPage {
                                         action,
                                         botLoadJobs.get(0).getName());
                         break;
+                    case Constants.ALERT:
+                        result = "insertValueFieldNameInExcel-->"
+                                + insertValueFieldNameInExcel(
+                                        instructionElement,
+                                        instruction,
+                                        action,
+                                        botLoadJobs.get(0).getName());
+                        break;
                     case Constants.SCREEN:
                         break;
                 }
@@ -842,6 +850,19 @@ public class WebPage {
         }
 
         return dataFieldName + "->" + dataFieldValue;
+    }
+
+    public void alertMessage(Map<String, String> mapOperators, String[] operations) {
+        JavascriptExecutor js = (JavascriptExecutor) driver;
+
+        String message = "The Value: " + mapOperators.get(operations[0]) + "\\nis not "
+                + operations[1] + " " + operations[2] + " Length: (" + operations[2].length() + ")"
+                + "\\nExpected value: " + mapOperators.get(operations[0]) + " Length: ("
+                + mapOperators.get(operations[0]).length() + ")";
+
+        String script = "alert('" + message + "');";
+
+        js.executeScript(script);
     }
 
     private void scrollToElement(WebElement element) throws Exception {

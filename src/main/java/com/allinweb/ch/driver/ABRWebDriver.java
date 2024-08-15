@@ -54,12 +54,8 @@ public class ABRWebDriver {
         try {
 
             optionsConfigLines = optionsConfig.split(lineSeparator);
-            for (String line : optionsConfigLines) {
-                ABRLogger.getInstance(ABRWebDriver.class).fine("WebDriver config: \n" + line);
-                System.out.println(line);
-            }
         } catch (Exception ex) {
-            ABRLogger.getInstance(ABRWebDriver.class).severe("Erro WebDriver config Options : \n" + ex.getMessage());
+            ABRLogger.getInstance(ABRWebDriver.class).severe("Error WebDriver config Options : \n" + ex.getMessage());
         }
 
         ABRLogger.getInstance(ABRWebDriver.class).fine("Going to call WebDriver for \n" + url);
