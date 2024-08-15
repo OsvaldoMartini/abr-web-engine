@@ -856,15 +856,38 @@ public class WebPage {
         return dataFieldName + "->" + dataFieldValue;
     }
 
-    public void alertMessage(Map<String, String> mapOperators, String[] operations) {
+    public void alertMessage(Map<String, String> mapOperators, String[] operations, String parentField) {
         JavascriptExecutor js = (JavascriptExecutor) driver;
 
-        String message = "The Value: " + mapOperators.get(operations[0]) + "\\nis not "
-                + operations[1] + " " + operations[2] + " Length: (" + operations[2].length() + ")"
-                + "\\nExpected value: " + mapOperators.get(operations[0]) + " Length: ("
-                + mapOperators.get(operations[0]).length() + ")";
+        String message = "The Value: <b style='color:red;'>" + operations[2] + "</b> is not "
+                + "<b>" + operations[1] + " " + mapOperators.get(parentField) + "</b> Length: (<b>"
+                + mapOperators.get(parentField).length() + "</b>)"
+                + "<br>----------------------------------------------<br>"
+                + "Check the SET/GET of <b style='color:red;'>" + operations[0] + "</b> for <b style='color:red;'>"
+                + parentField + "</b>"
+                + "<br>Current value: <b style='color:red;'>" + operations[2] + "</b> Length: (<b>"
+                + operations[2].length() + "</b>)"
+                + "<br>Expected value: <b style='color:green;'>" + mapOperators.get(parentField) + "</b> Length: (<b>"
+                + mapOperators.get(parentField).length() + "</b>)";
 
-        String script = "alert('" + message + "');";
+        // Escape the quotes in the JavaScript string
+        String script = "let alertBox = document.createElement('div');" + "alertBox.style.position = 'fixed';"
+                + "alertBox.style.top = '50%';"
+                + "alertBox.style.left = '50%';"
+                + "alertBox.style.transform = 'translate(-50%, -50%)';"
+                + "alertBox.style.padding = '20px';"
+                + "alertBox.style.backgroundColor = '#FFDA33';"
+                + // Light orange background
+                "alertBox.style.border = '2px solid #ff0000';"
+                + // Red border
+                "alertBox.style.borderRadius = '10px';"
+                + "alertBox.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';"
+                + "alertBox.style.zIndex = '10000';"
+                + "alertBox.innerHTML = \""
+                + message.replace("\"", "\\\"") + "\";" + "document.body.appendChild(alertBox);";
+        //                + "setTimeout(function() { document.body.removeChild(alertBox); }, 5000);"; // Auto-close
+        // after 5
+        // seconds
 
         js.executeScript(script);
     }

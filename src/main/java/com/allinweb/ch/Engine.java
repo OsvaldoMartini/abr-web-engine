@@ -430,24 +430,37 @@ public class Engine {
                                             } else {
                                                 //                                                Platform.runLater(()
                                                 // -> {
-                                                JOptionPane.showMessageDialog(
-                                                        null,
-                                                        "The Value: " + mapOperators.get(parentField)
-                                                                + "\nis not "
-                                                                + operations[1] + " " + operations[2] + " Length: ("
-                                                                + operations[2].length() + ")"
-                                                                + "\nExpected value: "
-                                                                + mapOperators.get(parentField)
-                                                                + " Length: ("
-                                                                + mapOperators
-                                                                        .get(parentField)
-                                                                        .length() + ")",
-                                                        "Check Validation Error!",
-                                                        JOptionPane.ERROR_MESSAGE);
+                                                //
+                                                // JOptionPane.showMessageDialog(
+                                                //                                                        null,
+                                                //                                                        "The Value: "
+                                                // + mapOperators.get(parentField)
+                                                //                                                                +
+                                                // "\nis not "
+                                                //                                                                +
+                                                // operations[1] + " " + operations[2] + " Length: ("
+                                                //                                                                +
+                                                // operations[2].length() + ")"
+                                                //                                                                +
+                                                // "\nExpected value: "
+                                                //                                                                +
+                                                // mapOperators.get(parentField)
+                                                //                                                                + "
+                                                // Length: ("
+                                                //                                                                +
+                                                // mapOperators
+                                                //
+                                                //  .get(parentField)
+                                                //
+                                                //  .length() + ")",
+                                                //                                                        "Check
+                                                // Validation Error!",
+                                                //
+                                                // JOptionPane.ERROR_MESSAGE);
                                                 //                                                });
 
                                                 //
-                                                // webPage.alertMessage(mapOperators, operations);
+                                                webPage.alertMessage(mapOperators, operations, parentField);
                                                 stopAll = true;
 
                                                 resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
