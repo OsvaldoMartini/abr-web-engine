@@ -21,7 +21,6 @@ import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import javax.swing.*;
 import org.apache.poi.ss.usermodel.Row;
@@ -261,6 +260,7 @@ public class Engine {
                                 boolean execOperation = false;
                                 boolean checkOperation = false;
                                 String xPathOperation = null;
+                                String parentField = null;
 
                                 String[] actions =
                                         currentInstruction.getActions().split(Constants.ACTIONS_AND_PATHS_SPLITTER);
@@ -279,7 +279,17 @@ public class Engine {
                                             .findFirst()
                                             .get()
                                             .getPath();
+                                    parentField = blockList.get(j).getBlockLoopInstructionLoadDTOS().stream()
+                                            .filter(f -> f.getId() == currentInstruction.getParentId())
+                                            .findFirst()
+                                            .get()
+                                            .getName();
                                 } else if (actions[0].equalsIgnoreCase(WebElementTagNameEnum.CK.getValue())) {
+                                    parentField = blockList.get(j).getBlockLoopInstructionLoadDTOS().stream()
+                                            .filter(f -> f.getId() == currentInstruction.getParentId())
+                                            .findFirst()
+                                            .get()
+                                            .getName();
                                     checkOperation = true;
                                 }
 
@@ -302,8 +312,8 @@ public class Engine {
                                         if (resultAcions != null) {
 
                                             ABRLogger.getInstance(WebPage.class)
-                                                    .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions + " --> "
-                                                            + lastInstructionExecuted);
+                                                    .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions
+                                                            + " Cmd: " + lastInstructionExecuted);
 
                                             currentInstruction.setExecuted(true);
 
@@ -332,7 +342,11 @@ public class Engine {
 
                                         if (operations.length == 2) {
                                             resultAcions = webPage.performActionOperator(
-                                                    currentInstruction, xPathOperation, actions[0], operations);
+                                                    currentInstruction,
+                                                    xPathOperation,
+                                                    actions[0],
+                                                    operations,
+                                                    parentField);
 
                                             long currentInstructionEndTime = System.nanoTime();
                                             totalExecutionTime +=
@@ -342,7 +356,7 @@ public class Engine {
 
                                                 ABRLogger.getInstance(WebPage.class)
                                                         .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions
-                                                                + " --> " + lastInstructionExecuted);
+                                                                + " Cmd: " + lastInstructionExecuted);
 
                                                 currentInstruction.setExecuted(true);
 
@@ -358,11 +372,11 @@ public class Engine {
                                                 }
                                                 success = true;
                                             } else {
-                                                resultAcions = "Failed to Execute -> " + lastInstructionExecuted;
+                                                resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
                                                 success = false;
                                             }
                                         } else {
-                                            resultAcions = "Failed to Execute -> " + lastInstructionExecuted;
+                                            resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
                                             success = false;
                                         }
                                     } else if (checkOperation) {
@@ -377,16 +391,16 @@ public class Engine {
                                             //                                        mapOperators =
                                             // performActionOperator(currentInstruction, xPathOperation, mapOperators,
                                             // actions[0],operations[1]);
-                                            resultAcions = String.join(":", operations);
+                                            resultAcions = "(" + parentField + ")" + String.join(":", operations);
                                             boolean isOperationValid = false;
                                             if (operations[1].equalsIgnoreCase("=")) {
                                                 isOperationValid = mapOperators
-                                                        .get(operations[0])
+                                                        .get(parentField)
                                                         .equalsIgnoreCase(operations[2]);
 
                                             } else if (operations[1].equalsIgnoreCase(">")) {
                                                 isOperationValid = mapOperators
-                                                        .get(operations[0])
+                                                        .get(parentField)
                                                         .equalsIgnoreCase(operations[2]);
                                             }
 
@@ -398,7 +412,7 @@ public class Engine {
 
                                                 ABRLogger.getInstance(WebPage.class)
                                                         .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions
-                                                                + " --> " + lastInstructionExecuted);
+                                                                + " Cmd: " + lastInstructionExecuted);
 
                                                 currentInstruction.setExecuted(true);
 
@@ -414,33 +428,34 @@ public class Engine {
                                                 }
                                                 success = true;
                                             } else {
-                                                Platform.runLater(() -> {
-                                                    JOptionPane.showMessageDialog(
-                                                            null,
-                                                            "The Value: " + mapOperators.get(operations[0])
-                                                                    + "\nis not "
-                                                                    + operations[1] + " " + operations[2] + " Length: ("
-                                                                    + operations[2].length() + ")"
-                                                                    + "\nExpected value: "
-                                                                    + mapOperators.get(operations[0])
-                                                                    + " Length: ("
-                                                                    + mapOperators
-                                                                            .get(operations[0])
-                                                                            .length() + ")",
-                                                            "Check Validation Error!",
-                                                            JOptionPane.ERROR_MESSAGE);
-                                                });
+                                                //                                                Platform.runLater(()
+                                                // -> {
+                                                JOptionPane.showMessageDialog(
+                                                        null,
+                                                        "The Value: " + mapOperators.get(parentField)
+                                                                + "\nis not "
+                                                                + operations[1] + " " + operations[2] + " Length: ("
+                                                                + operations[2].length() + ")"
+                                                                + "\nExpected value: "
+                                                                + mapOperators.get(parentField)
+                                                                + " Length: ("
+                                                                + mapOperators
+                                                                        .get(parentField)
+                                                                        .length() + ")",
+                                                        "Check Validation Error!",
+                                                        JOptionPane.ERROR_MESSAGE);
+                                                //                                                });
 
                                                 //
                                                 // webPage.alertMessage(mapOperators, operations);
                                                 stopAll = true;
 
-                                                resultAcions = "Failed to Execute -> " + lastInstructionExecuted;
+                                                resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
                                                 success = false;
                                             }
 
                                         } else {
-                                            resultAcions = "Failed to Execute -> " + lastInstructionExecuted;
+                                            resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
                                             success = false;
                                         }
                                     }
@@ -453,7 +468,7 @@ public class Engine {
                                         long duration = currentInstructionEndTime - botJobStartTime;
                                         ABRLogger.getInstance(WebPage.class)
                                                 .fine("FAILED OPTIONAL INSTRUCTION on element: " + resultAcions
-                                                        + " --> "
+                                                        + " Cmd: "
                                                         + lastInstructionExecuted + "- Duration: "
                                                         + LocalTime.ofNanoOfDay(duration)
                                                                 .format(FORMAT_TIME));
@@ -463,7 +478,7 @@ public class Engine {
                                         long duration = currentInstructionEndTime - botJobStartTime;
                                         ABRLogger.getInstance(WebPage.class)
                                                 .fine("FAILED MANDATORY INSTRUCTION on element: " + resultAcions
-                                                        + " --> "
+                                                        + " Cmd: "
                                                         + lastInstructionExecuted + "- Duration: "
                                                         + LocalTime.ofNanoOfDay(duration)
                                                                 .format(FORMAT_TIME));
@@ -522,7 +537,7 @@ public class Engine {
                                 totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
 
                                 ABRLogger.getInstance(WebPage.class)
-                                        .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions + " --> "
+                                        .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions + " Cmd: "
                                                 + lastInstructionExecuted);
 
                                 currentInstruction.setExecuted(true);
@@ -539,7 +554,7 @@ public class Engine {
                                 long duration = currentInstructionEndTime - botJobStartTime;
 
                                 ABRLogger.getInstance(WebPage.class)
-                                        .fine("FAILED OPTIONAL INSTRUCTION on element: " + resultAcions + " --> "
+                                        .fine("FAILED OPTIONAL INSTRUCTION on element: " + resultAcions + " Cmd: "
                                                 + lastInstructionExecuted + "- Duration: "
                                                 + LocalTime.ofNanoOfDay(duration)
                                                         .format(FORMAT_TIME));
@@ -549,7 +564,7 @@ public class Engine {
                                 long duration = currentInstructionEndTime - botJobStartTime;
 
                                 ABRLogger.getInstance(WebPage.class)
-                                        .fine("FAILED MANDATORY INSTRUCTION on element: " + resultAcions + " --> "
+                                        .fine("FAILED MANDATORY INSTRUCTION on element: " + resultAcions + " Cmd: "
                                                 + lastInstructionExecuted + "- Duration: "
                                                 + LocalTime.ofNanoOfDay(duration)
                                                         .format(FORMAT_TIME));

@@ -585,7 +585,11 @@ public class WebPage {
     }
 
     public String performActionOperator(
-            BlockLoopInstructionLoadDTO instruction, String targetXPath, String action, String[] operations)
+            BlockLoopInstructionLoadDTO instruction,
+            String targetXPath,
+            String action,
+            String[] operations,
+            String parentField)
             throws Exception {
 
         WebElement instructionElement = null;
@@ -598,11 +602,11 @@ public class WebPage {
             switch (action) {
                 case "SET":
                     insertTargetElement(instructionElement, operations[0], operations[1]);
-                    return "SET_VALUE : " + operations[0] + " <- " + operations[1];
+                    return "SET_VALUE to (" + parentField + ") Var:" + operations[0] + " <-- " + operations[1];
                 case "GET":
                     String valueElem = getValueInElement(instructionElement);
-                    mapOperators.put(operations[1].toLowerCase(), valueElem);
-                    return "GET_VALUE : " + operations[1] + " <- " + valueElem;
+                    mapOperators.put(parentField, valueElem);
+                    return "GET_VALUE from (" + parentField + ") Var" + operations[1] + " <-- " + valueElem;
                     //                    case "CK":
                     //                        if (operator.equalsIgnoreCase("=")) {
                     //                            result = "Equals -> "
