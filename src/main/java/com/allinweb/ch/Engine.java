@@ -388,79 +388,91 @@ public class Engine {
                                                 + currentInstruction.getOperation();
 
                                         if (operations.length == 3) {
-                                            //                                        mapOperators =
-                                            // performActionOperator(currentInstruction, xPathOperation, mapOperators,
-                                            // actions[0],operations[1]);
-                                            resultAcions = "(" + parentField + ")" + String.join(":", operations);
-                                            boolean isOperationValid = false;
-                                            if (operations[1].equalsIgnoreCase("=")) {
-                                                isOperationValid = mapOperators
-                                                        .get(parentField)
-                                                        .equalsIgnoreCase(operations[2]);
+                                            if (mapOperators.containsKey(parentField)) {
 
-                                            } else if (operations[1].equalsIgnoreCase(">")) {
-                                                isOperationValid = mapOperators
-                                                        .get(parentField)
-                                                        .equalsIgnoreCase(operations[2]);
-                                            }
+                                                //                                        mapOperators =
+                                                // performActionOperator(currentInstruction, xPathOperation,
+                                                // mapOperators,
+                                                // actions[0],operations[1]);
+                                                resultAcions = "(" + parentField + ")" + String.join(":", operations);
+                                                boolean isOperationValid = false;
+                                                if (operations[1].equalsIgnoreCase("=")) {
+                                                    isOperationValid = mapOperators
+                                                            .get(parentField)
+                                                            .equalsIgnoreCase(operations[2]);
 
-                                            long currentInstructionEndTime = System.nanoTime();
-                                            totalExecutionTime +=
-                                                    currentInstructionEndTime - currentInstructionStartTime;
-
-                                            if (isOperationValid) {
-
-                                                ABRLogger.getInstance(WebPage.class)
-                                                        .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions
-                                                                + " Cmd: " + lastInstructionExecuted);
-
-                                                currentInstruction.setExecuted(true);
-
-                                                // Assuming currentInstruction and instructionsExecuted are already
-                                                // defined
-                                                if (currentInstruction != null
-                                                        && instructionsExecuted.stream()
-                                                                .noneMatch(instruction ->
-                                                                        instruction.getInstructionOrderNumber()
-                                                                                == currentInstruction
-                                                                                        .getInstructionOrderNumber())) {
-                                                    instructionsExecuted.add(currentInstruction);
+                                                } else if (operations[1].equalsIgnoreCase(">")) {
+                                                    isOperationValid = mapOperators
+                                                            .get(parentField)
+                                                            .equalsIgnoreCase(operations[2]);
                                                 }
-                                                success = true;
-                                            } else {
-                                                //                                                Platform.runLater(()
-                                                // -> {
-                                                //
-                                                // JOptionPane.showMessageDialog(
-                                                //                                                        null,
-                                                //                                                        "The Value: "
-                                                // + mapOperators.get(parentField)
-                                                //                                                                +
-                                                // "\nis not "
-                                                //                                                                +
-                                                // operations[1] + " " + operations[2] + " Length: ("
-                                                //                                                                +
-                                                // operations[2].length() + ")"
-                                                //                                                                +
-                                                // "\nExpected value: "
-                                                //                                                                +
-                                                // mapOperators.get(parentField)
-                                                //                                                                + "
-                                                // Length: ("
-                                                //                                                                +
-                                                // mapOperators
-                                                //
-                                                //  .get(parentField)
-                                                //
-                                                //  .length() + ")",
-                                                //                                                        "Check
-                                                // Validation Error!",
-                                                //
-                                                // JOptionPane.ERROR_MESSAGE);
-                                                //                                                });
 
-                                                //
-                                                webPage.alertMessage(mapOperators, operations, parentField);
+                                                long currentInstructionEndTime = System.nanoTime();
+                                                totalExecutionTime +=
+                                                        currentInstructionEndTime - currentInstructionStartTime;
+
+                                                if (isOperationValid) {
+
+                                                    ABRLogger.getInstance(WebPage.class)
+                                                            .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions
+                                                                    + " Cmd: " + lastInstructionExecuted);
+
+                                                    currentInstruction.setExecuted(true);
+
+                                                    // Assuming currentInstruction and instructionsExecuted are already
+                                                    // defined
+                                                    if (currentInstruction != null
+                                                            && instructionsExecuted.stream()
+                                                                    .noneMatch(
+                                                                            instruction ->
+                                                                                    instruction
+                                                                                                    .getInstructionOrderNumber()
+                                                                                            == currentInstruction
+                                                                                                    .getInstructionOrderNumber())) {
+                                                        instructionsExecuted.add(currentInstruction);
+                                                    }
+                                                    success = true;
+                                                } else {
+
+                                                    String message = "The Value: <b style='color:red;'>" + operations[2]
+                                                            + "</b> is not "
+                                                            + "<b>" + operations[1] + " "
+                                                            + mapOperators.get(parentField)
+                                                            + "</b> Length: (<b>"
+                                                            + mapOperators
+                                                                    .get(parentField)
+                                                                    .length() + "</b>)"
+                                                            + "<br>----------------------------------------------<br>"
+                                                            + "Check the SET/GET of <b style='color:red;'>"
+                                                            + operations[0]
+                                                            + "</b> for <b style='color:red;'>"
+                                                            + parentField + "</b>"
+                                                            + "<br>Current value: <b style='color:red;'>"
+                                                            + operations[2]
+                                                            + "</b> Length: (<b>"
+                                                            + operations[2].length() + "</b>)"
+                                                            + "<br>Expected value: <b style='color:green;'>"
+                                                            + mapOperators.get(parentField) + "</b> Length: (<b>"
+                                                            + mapOperators
+                                                                    .get(parentField)
+                                                                    .length() + "</b>)";
+
+                                                    webPage.alertMessage(message);
+                                                    stopAll = true;
+
+                                                    resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
+                                                    success = false;
+                                                }
+                                            } else {
+                                                String message = "GET Value is Not Defined"
+                                                        + "<br>----------------------------------------------<br>"
+                                                        + "Validation Error: <b style='color:red;'>" + parentField
+                                                        + "</b>"
+                                                        + "<br>----------------------------------------------<br>"
+                                                        + "Check the GET Value for <b style='color:red;'>"
+                                                        + parentField + "</b>";
+
+                                                webPage.alertMessage(message);
                                                 stopAll = true;
 
                                                 resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;

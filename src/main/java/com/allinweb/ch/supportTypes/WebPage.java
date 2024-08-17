@@ -864,19 +864,8 @@ public class WebPage {
         return dataFieldName + "->" + dataFieldValue;
     }
 
-    public void alertMessage(Map<String, String> mapOperators, String[] operations, String parentField) {
+    public void alertMessage(String message) {
         JavascriptExecutor js = (JavascriptExecutor) driver;
-
-        String message = "The Value: <b style='color:red;'>" + operations[2] + "</b> is not "
-                + "<b>" + operations[1] + " " + mapOperators.get(parentField) + "</b> Length: (<b>"
-                + mapOperators.get(parentField).length() + "</b>)"
-                + "<br>----------------------------------------------<br>"
-                + "Check the SET/GET of <b style='color:red;'>" + operations[0] + "</b> for <b style='color:red;'>"
-                + parentField + "</b>"
-                + "<br>Current value: <b style='color:red;'>" + operations[2] + "</b> Length: (<b>"
-                + operations[2].length() + "</b>)"
-                + "<br>Expected value: <b style='color:green;'>" + mapOperators.get(parentField) + "</b> Length: (<b>"
-                + mapOperators.get(parentField).length() + "</b>)";
 
         // Escape the quotes in the JavaScript string
         String script = "let alertBox = document.createElement('div');" + "alertBox.style.position = 'fixed';"
