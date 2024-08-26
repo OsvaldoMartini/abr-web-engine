@@ -230,24 +230,17 @@ public class Engine {
             long totalExecutionTime = 0;
             String lastInstructionExecuted = "No instruction executed yet";
             String resultAcions = "";
+            short status = (short) ExcelReportStatusEnum.ERROR.ordinal();
             Map<String, String> dataExcel = null;
 
             loadBlockAll(botJobId);
-            
-            
-            List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
 
-            int blockId = -1;
+            List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
 
             if (extractedData.getNumberOfDataRows() > 0) {
                 for (int i = 0; success && i < extractedData.getNumberOfDataRows(); i++) {
                     List<BlockLoadDTO> blockList = blocksLoaded;
-                    
-                    if (blockId != blockList.get(0).getId()) {
-                        blockId = blockList.get(0).getId();
-                        writer.insertBlockSeparation(blockList.get(0).getName());
-                    }
-                    
+
                     if (stopAll) {
                         break;
                     }
@@ -256,11 +249,14 @@ public class Engine {
                             break;
                         }
 
+                        writer.insertBlockSeparation(blockList.get(j).getName());
+
                         // Call the method to get the filtered list
                         List<BlockLoopInstructionLoadDTO> unexecutedInstructions = getUnexecutedInstructions(
                                 instructionsExecuted, blockList.get(j).getBlockLoopInstructionLoadDTOS());
 
                         for (BlockLoopInstructionLoadDTO currentInstruction : unexecutedInstructions) {
+
                             if (stopAll) {
                                 break;
                             }
@@ -339,6 +335,13 @@ public class Engine {
                                             resultAcions = "Failed to Execute -> " + currentInstruction.getName();
                                             success = false;
                                         }
+
+                                        writer.insertInstructionResult(
+                                                currentInstruction,
+                                                dataExcel,
+                                                LocalTime.ofNanoOfDay(
+                                                        currentInstructionEndTime - currentInstructionStartTime),
+                                                success ? "success" : "failed");
 
                                     } else if (execOperation) {
                                         // Special Operators
@@ -505,7 +508,13 @@ public class Engine {
                                                         + lastInstructionExecuted + "- Duration: "
                                                         + LocalTime.ofNanoOfDay(duration)
                                                                 .format(FORMAT_TIME));
-
+                                        writer.insertInstructionResult(
+                                                currentInstruction,
+                                                dataExcel,
+                                                LocalTime.ofNanoOfDay(
+                                                        currentInstructionEndTime - currentInstructionStartTime),
+                                                "optional skipped");
+                                        status = (short) ExcelReportStatusEnum.WARNING.ordinal();
                                     } else {
                                         long currentInstructionEndTime = System.nanoTime();
                                         long duration = currentInstructionEndTime - botJobStartTime;
@@ -515,6 +524,13 @@ public class Engine {
                                                         + lastInstructionExecuted + "- Duration: "
                                                         + LocalTime.ofNanoOfDay(duration)
                                                                 .format(FORMAT_TIME));
+                                        writer.insertInstructionResult(
+                                                currentInstruction,
+                                                null,
+                                                LocalTime.ofNanoOfDay(
+                                                        currentInstructionEndTime - currentInstructionStartTime),
+                                                "failed");
+                                        status = (short) ExcelReportStatusEnum.ERROR.ordinal();
                                     }
                                     //                            throw new RuntimeException(t);
                                 }
@@ -565,9 +581,9 @@ public class Engine {
                                     + Constants.BLANK_STRING
                                     + currentInstruction.getPath();
                             resultAcions = webPage.performActions(dataDynamic, currentInstruction, botJobId);
+                            long currentInstructionEndTime = System.nanoTime();
+                            totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
                             if (resultAcions != null) {
-                                long currentInstructionEndTime = System.nanoTime();
-                                totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
 
                                 ABRLogger.getInstance(WebPage.class)
                                         .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions + " Cmd: "
@@ -579,30 +595,46 @@ public class Engine {
                                 resultAcions = "Failed to Execute -> " + currentInstruction.getName();
                                 success = false;
                             }
+                            writer.insertInstructionResult(
+                                    currentInstruction,
+                                    dataDynamic,
+                                    LocalTime.ofNanoOfDay(currentInstructionEndTime - currentInstructionStartTime),
+                                    success ? "success" : "failed");
                         } catch (Throwable t) {
                             success = false;
                             currentInstruction.setExecuted(false);
                             if (currentInstruction.isOptional()) {
                                 long currentInstructionEndTime = System.nanoTime();
                                 long duration = currentInstructionEndTime - botJobStartTime;
-
                                 ABRLogger.getInstance(WebPage.class)
-                                        .fine("FAILED OPTIONAL INSTRUCTION on element: " + resultAcions + " Cmd: "
+                                        .fine("FAILED OPTIONAL INSTRUCTION on element: " + resultAcions
+                                                + " Cmd: "
                                                 + lastInstructionExecuted + "- Duration: "
                                                 + LocalTime.ofNanoOfDay(duration)
                                                         .format(FORMAT_TIME));
-
+                                writer.insertInstructionResult(
+                                        currentInstruction,
+                                        dataDynamic,
+                                        LocalTime.ofNanoOfDay(currentInstructionEndTime - currentInstructionStartTime),
+                                        "optional skipped");
+                                status = (short) ExcelReportStatusEnum.WARNING.ordinal();
                             } else {
                                 long currentInstructionEndTime = System.nanoTime();
                                 long duration = currentInstructionEndTime - botJobStartTime;
-
                                 ABRLogger.getInstance(WebPage.class)
-                                        .fine("FAILED MANDATORY INSTRUCTION on element: " + resultAcions + " Cmd: "
+                                        .fine("FAILED MANDATORY INSTRUCTION on element: " + resultAcions
+                                                + " Cmd: "
                                                 + lastInstructionExecuted + "- Duration: "
                                                 + LocalTime.ofNanoOfDay(duration)
                                                         .format(FORMAT_TIME));
+                                writer.insertInstructionResult(
+                                        currentInstruction,
+                                        null,
+                                        LocalTime.ofNanoOfDay(currentInstructionEndTime - currentInstructionStartTime),
+                                        "failed");
+                                status = (short) ExcelReportStatusEnum.ERROR.ordinal();
                             }
-                            //                        throw new RuntimeException(t);
+                            //                            throw new RuntimeException(t);
                         }
                         printLog(generateTimestamp(), logFileForSingleExcel, resultAcions, success);
                     }
@@ -633,6 +665,10 @@ public class Engine {
                         + Constants.FIELDS_SEPARATOR
                         + labelsValue.getProperty(Labels.KO)
                         + lastInstructionExecuted;
+                report.setStatus(status);
+                report.setDuration(totalExecutionTime / 100);
+                writer.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
+                repository.write(report);
             }
             printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
             return true;

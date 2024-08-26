@@ -535,7 +535,7 @@ public class WebPage {
             instructionElement = locateElement(instruction, botJobId);
         }
         String result = null;
-        if (instructionElement != null || actions[0].equals(Constants.HOLD)) {
+        if (instructionElement != null || actions[0].equals(Constants.HOLD) || actions[0].equals(Constants.QUIT)) {
 
             for (String action : actions) {
                 switch (String.valueOf(action.charAt(0))) {
@@ -561,17 +561,10 @@ public class WebPage {
                         result = "refreshPage";
                         break;
                     case Constants.QUIT:
+                        result = "Close Browser";
                         quit(0);
                         break;
                     case Constants.EXTRACT:
-                        result = "insertValueFieldNameInExcel-->"
-                                + insertValueFieldNameInExcel(
-                                        instructionElement,
-                                        instruction,
-                                        action,
-                                        botLoadJobs.get(0).getName());
-                        break;
-                    case Constants.ALERT:
                         result = "insertValueFieldNameInExcel-->"
                                 + insertValueFieldNameInExcel(
                                         instructionElement,
