@@ -31,7 +31,7 @@ public class ExcelWriter {
     private String botJobName;
 
     public ExcelWriter(String botJobName) {
-        botJobName = botJobName;
+        this.botJobName = botJobName;
         boolean exist = ManagedExcel.checkIfExcelExist(botJobName, "excel");
         String now = LocalDateTime.now().format(FORMAT_DATE_AND_TIME);
         managedExcelMap.put("excel", new ManagedExcel(botJobName, "excel", !exist));

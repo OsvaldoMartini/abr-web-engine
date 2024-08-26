@@ -229,17 +229,25 @@ public class Engine {
             long botJobStartTime = System.nanoTime();
             long totalExecutionTime = 0;
             String lastInstructionExecuted = "No instruction executed yet";
-            short status;
             String resultAcions = "";
             Map<String, String> dataExcel = null;
 
             loadBlockAll(botJobId);
-
+            
+            
             List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
+
+            int blockId = -1;
 
             if (extractedData.getNumberOfDataRows() > 0) {
                 for (int i = 0; success && i < extractedData.getNumberOfDataRows(); i++) {
                     List<BlockLoadDTO> blockList = blocksLoaded;
+                    
+                    if (blockId != blockList.get(0).getId()) {
+                        blockId = blockList.get(0).getId();
+                        writer.insertBlockSeparation(blockList.get(0).getName());
+                    }
+                    
                     if (stopAll) {
                         break;
                     }
