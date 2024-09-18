@@ -8,6 +8,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -19,6 +20,9 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.util.IOUtils;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.openqa.selenium.OutputType;
+import org.openqa.selenium.TakesScreenshot;
+import org.openqa.selenium.WebDriver;
 
 public class ExcelWriter {
     private static final int INSTRUCTION_FIELDS_ROW_INDEX = 1;
@@ -29,9 +33,11 @@ public class ExcelWriter {
 
     private final Map<String, ManagedExcel> managedExcelMap = new HashMap<>();
     private String botJobName;
+    private static WebDriver abrWebDriver;
 
-    public ExcelWriter(String botJobName) {
+    public ExcelWriter(String botJobName, WebDriver abrWebDriver) {
         this.botJobName = botJobName;
+        this.abrWebDriver = abrWebDriver;
         boolean exist = ManagedExcel.checkIfExcelExist(botJobName, "excel");
         String now = LocalDateTime.now().format(FORMAT_DATE_AND_TIME);
         managedExcelMap.put("excel", new ManagedExcel(botJobName, "excel", !exist));
@@ -103,7 +109,7 @@ public class ExcelWriter {
                         .insertValueOnLastRowAfterLastColumn(status);
                 if (!status.equals("success")) {
                     IndexedColors color = status.equals("failed") ? IndexedColors.RED : IndexedColors.YELLOW;
-                    act.fillRowBackgroundColorOfLastRow(color).insertScreenshotAfterLastRowOfColumn(0);
+                    act.fillRowBackgroundColorOfLastRow(color).insertScreenshotAfterLastRowOfColumn(0, abrWebDriver);
                 }
             } else { // add screenshot
                 ManagedExcelAction act = managedExcel
@@ -114,10 +120,10 @@ public class ExcelWriter {
                         .insertValueOnLastRowAfterLastColumn("")
                         .insertValueOnLastRowAfterLastColumn(time.format(FORMAT_TIME))
                         .insertValueOnLastRowAfterLastColumn(status)
-                        .insertScreenshotAfterLastRowOfColumn(0);
+                        .insertScreenshotAfterLastRowOfColumn(0, abrWebDriver);
                 if (!status.equals("success")) {
                     IndexedColors color = status.equals("failed") ? IndexedColors.RED : IndexedColors.YELLOW;
-                    act.fillRowBackgroundColorOfLastRow(color).insertScreenshotAfterLastRowOfColumn(0);
+                    act.fillRowBackgroundColorOfLastRow(color).insertScreenshotAfterLastRowOfColumn(0, abrWebDriver);
                 }
             }
             managedExcel.save();
@@ -245,9 +251,9 @@ public class ExcelWriter {
             return this;
         }
 
-        public ManagedExcelAction insertScreenshotAfterLastRowOfColumn(int columnIndex) {
+        public ManagedExcelAction insertScreenshotAfterLastRowOfColumn(int columnIndex, WebDriver webDriver) {
             int afterLastRowIndex = sheet.getLastRowNum() + 1;
-            return insertScreenshotAtCoordinates(afterLastRowIndex, columnIndex);
+            return insertScreenshotAtCoordinates(afterLastRowIndex, columnIndex, webDriver);
         }
 
         public ManagedExcelAction insertScreenshotAtCoordinates(int rowIndex, int columnIndex) {
@@ -273,6 +279,39 @@ public class ExcelWriter {
                 getOrCreateColumnCell(row, columnIndex);
                 row.setHeightInPoints(300);
             } catch (IOException | AWTException e) {
+                e.printStackTrace();
+            }
+            return this;
+        }
+
+        public ManagedExcelAction insertScreenshotAtCoordinates(int rowIndex, int columnIndex, WebDriver driver) {
+            try {
+                // Capture screenshot using WebDriver's TakesScreenshot interface
+                File screenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
+
+                // Read the screenshot file into byte array
+                byte[] bytes = Files.readAllBytes(screenshot.toPath());
+
+                // Add picture to workbook
+                int pictureIdx = workbook.addPicture(bytes, Workbook.PICTURE_TYPE_PNG);
+                CreationHelper helper = workbook.getCreationHelper();
+
+                // Set image position in Excel
+                ClientAnchor imageAnchor = helper.createClientAnchor();
+                imageAnchor.setCol1(columnIndex);
+                imageAnchor.setRow1(rowIndex);
+                imageAnchor.setCol2(columnIndex + 8);
+                imageAnchor.setRow2(rowIndex + 1);
+
+                // Create the drawing and insert the image
+                Drawing drawing = sheet.createDrawingPatriarch();
+                Picture pict = drawing.createPicture(imageAnchor, pictureIdx);
+
+                // Set row height for better visibility
+                Row row = getOrCreateRow(rowIndex);
+                getOrCreateColumnCell(row, columnIndex);
+                row.setHeightInPoints(300);
+            } catch (IOException e) {
                 e.printStackTrace();
             }
             return this;

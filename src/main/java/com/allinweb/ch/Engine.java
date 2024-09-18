@@ -27,6 +27,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.openqa.selenium.WebDriver;
 
 public class Engine {
     private static SimpleDateFormat dateFormatter;
@@ -38,6 +39,7 @@ public class Engine {
     private static File baseLogFile = null;
 
     private static Map<String, String> mapOperators;
+    private static WebDriver abrWebDriver;
 
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     private static final int MIN_LENGTH = 3;
@@ -214,6 +216,8 @@ public class Engine {
                     homeBankingDTO.getOptionsConfig(),
                     mapOperators);
 
+            abrWebDriver = webPage.getDriver();
+
             String baseLogString =
                     selectedJob.getName() + Constants.FIELDS_SEPARATOR + labelsValue.getProperty(Labels.START);
             printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
@@ -222,7 +226,7 @@ public class Engine {
             report.setStartDate(LocalDateTime.now());
             report.setBatchJobId(0);
             report.setStatus((short) ExcelReportStatusEnum.NOT_RUN.ordinal());
-            ExcelWriter.ExcelChain writer = new ExcelWriter(selectedJob.getName()).withPurpose("report");
+            ExcelWriter.ExcelChain writer = new ExcelWriter(selectedJob.getName(), abrWebDriver).withPurpose("report");
             writer.insertReportHead();
             boolean success = true;
             boolean stopAll = false;
@@ -236,7 +240,6 @@ public class Engine {
             loadBlockAll(botJobId);
 
             List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
-
             if (extractedData.getNumberOfDataRows() > 0) {
                 for (int i = 0; success && i < extractedData.getNumberOfDataRows(); i++) {
                     List<BlockLoadDTO> blockList = blocksLoaded;
@@ -309,7 +312,11 @@ public class Engine {
                                         lastInstructionExecuted = currentInstruction.getName()
                                                 + Constants.BLANK_STRING
                                                 + currentInstruction.getPath();
-                                        resultAcions = webPage.performActions(dataExcel, currentInstruction, botJobId);
+                                        resultAcions = webPage.performActions(
+                                                dataExcel,
+                                                currentInstruction,
+                                                botJobId,
+                                                blockList.get(j).getName());
                                         long currentInstructionEndTime = System.nanoTime();
                                         totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
 
@@ -580,7 +587,11 @@ public class Engine {
                             lastInstructionExecuted = currentInstruction.getName()
                                     + Constants.BLANK_STRING
                                     + currentInstruction.getPath();
-                            resultAcions = webPage.performActions(dataDynamic, currentInstruction, botJobId);
+                            resultAcions = webPage.performActions(
+                                    dataDynamic,
+                                    currentInstruction,
+                                    botJobId,
+                                    blockList.get(j).getName());
                             long currentInstructionEndTime = System.nanoTime();
                             totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
                             if (resultAcions != null) {

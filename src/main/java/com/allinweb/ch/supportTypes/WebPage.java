@@ -526,7 +526,8 @@ public class WebPage {
         new Actions(abrWebDriver.getDriver()).sendKeys(value).perform();
     }
 
-    public String performActions(Map<String, String> data, BlockLoopInstructionLoadDTO instruction, int botJobId)
+    public String performActions(
+            Map<String, String> data, BlockLoopInstructionLoadDTO instruction, int botJobId, String blockJobName)
             throws Exception {
         WebElement instructionElement = null;
         String[] actions = instruction.getActions().split(Constants.ACTIONS_AND_PATHS_SPLITTER);
@@ -535,7 +536,10 @@ public class WebPage {
             instructionElement = locateElement(instruction, botJobId);
         }
         String result = null;
-        if (instructionElement != null || actions[0].equals(Constants.HOLD) || actions[0].equals(Constants.QUIT)) {
+        if (instructionElement != null
+                || actions[0].equals(Constants.HOLD)
+                || actions[0].equals(Constants.QUIT)
+                || actions[0].equals(Constants.SCREEN)) {
 
             for (String action : actions) {
                 switch (String.valueOf(action.charAt(0))) {
@@ -566,13 +570,10 @@ public class WebPage {
                         break;
                     case Constants.EXTRACT:
                         result = "insertValueFieldNameInExcel-->"
-                                + insertValueFieldNameInExcel(
-                                        instructionElement,
-                                        instruction,
-                                        action,
-                                        botLoadJobs.get(0).getName());
+                                + insertValueFieldNameInExcel(instructionElement, instruction, action, blockJobName);
                         break;
                     case Constants.SCREEN:
+                        result = instruction.getName() + " --> " + blockJobName;
                         break;
                 }
                 onHoldForSeconds(null);
@@ -732,7 +733,7 @@ public class WebPage {
             fieldName = arr[1].split(Constants.PATH_FIELD_SUBSTITUTION)[0];
         }
 
-        new ExcelWriter(botJobName).withPurpose("excel").insertValueFieldName(fieldName, innerHTMLValue);
+        new ExcelWriter(botJobName, null).withPurpose("excel").insertValueFieldName(fieldName, innerHTMLValue);
         return action + " fieldName " + fieldName;
     }
 
