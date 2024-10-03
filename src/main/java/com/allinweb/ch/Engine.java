@@ -854,10 +854,10 @@ public class Engine {
     public static void changeDbConnection() {
         String priorityPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_PRIORITY);
         String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);
-        
-        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")){
+
+        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
             POSTGRES_DB = true;
-        } else{
+        } else {
             POSTGRES_DB = false;
         }
 
@@ -900,12 +900,12 @@ public class Engine {
     private static Connection getConnection() {
         String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);
 
-        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")){
+        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
             POSTGRES_DB = true;
-        } else{
+        } else {
             POSTGRES_DB = false;
         }
-        
+
         if (!POSTGRES_DB) {
             if (conn == null) {
                 String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
