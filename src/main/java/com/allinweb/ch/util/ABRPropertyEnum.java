@@ -1,6 +1,7 @@
 package com.allinweb.ch.util;
 
 public enum ABRPropertyEnum {
+    DATABASE_TYPE("data_base"),
     FOLDER_PATH_EXCEL("path_excel"),
     FOLDER_PATH_LOG("path_log"),
     FOLDER_PATH_JAVA("path_java"),

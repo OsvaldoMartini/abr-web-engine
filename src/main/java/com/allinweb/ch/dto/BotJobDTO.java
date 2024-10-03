@@ -1,7 +1,10 @@
 package com.allinweb.ch.dto;
 
+import java.util.ArrayList;
 import java.util.List;
 import javax.persistence.*;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 
 @Entity
 @Table(name = "bot_job")
@@ -26,10 +29,10 @@ public class BotJobDTO extends BaseDTO {
     @JoinColumn(name = "bot_job_id")
     private List<BlockDTO> blockDTOS;
 
-    @OneToMany(cascade = CascadeType.ALL)
-    @OrderBy("order ASC")
-    @JoinColumn(name = "TR_TS_ID")
-    private List<ExcelReportDTO> excelReportDTOS;
+    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JoinColumn(name = "bot_job_id")
+    @Fetch(FetchMode.SUBSELECT)
+    private List<ExcelReportDTO> excelReportDTO = new ArrayList<>();
 
     public BotJobDTO() {
         super();
@@ -85,10 +88,10 @@ public class BotJobDTO extends BaseDTO {
     }
 
     public List<ExcelReportDTO> getExcelReports() {
-        return excelReportDTOS;
+        return excelReportDTO;
     }
 
     public void setExcelReports(List<ExcelReportDTO> excelReportDTOS) {
-        this.excelReportDTOS = excelReportDTOS;
+        this.excelReportDTO = excelReportDTOS;
     }
 }

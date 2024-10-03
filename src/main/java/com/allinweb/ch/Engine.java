@@ -27,6 +27,9 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.hibernate.cfg.Configuration;
 import org.openqa.selenium.WebDriver;
 
 public class Engine {
@@ -54,13 +57,16 @@ public class Engine {
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
     // Postgres
-    private static final boolean POSTGRES_DB = false;
+    private static boolean POSTGRES_DB = false;
     private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
     private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
     private static final String DB_PORT = "5432"; // default PostgreSQL port
     private static final String DB_NAME = "abr_web"; // your database name
     private static final String USERNAME = "postgres"; // your database username
     private static final String PASSWORD = "martini"; // your database password
+
+    private static SessionFactory sessionFactory = null;
+    private static Session session = null;
 
     private static List<BotJobLoadDTO> botLoadJobs = new ArrayList<>();
     private static List<BlockLoopInstructionLoadDTO> instructionsExecuted = new ArrayList<>();
@@ -80,13 +86,16 @@ public class Engine {
         }
 
         Labels.initializeLabelsInSpecLang(language);
-        repository = new Repository();
+
+        changeDbConnection();
+
+        repository = new Repository(sessionFactory);
 
         try {
             baseLogFile = new File(ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_LOG)
                     + ABRConstants.FILE_NAME_ENGINE_BASE_LOG);
         } catch (Exception e) {
-            e.printStackTrace();
+            ABRLogger.getInstance(WebPage.class).severe("baseLogFile Error: " + e.getMessage());
         }
 
         if (args.length == 0) {
@@ -104,7 +113,7 @@ public class Engine {
         try {
             startParametersInterpreter(args);
         } catch (Exception e) {
-            e.printStackTrace();
+            ABRLogger.getInstance(WebPage.class).severe("Main class Start Error: " + e.getMessage());
         }
 
         repository.closeSession();
@@ -158,6 +167,13 @@ public class Engine {
             botJobId = Integer.parseInt(idsAndPaths[1]);
         } catch (Exception e) {
             throw new Exception("no reference (id) for home banking or bot job");
+        }
+
+        loadBlockAll(botJobId);
+
+        if (botLoadJobs.size() < 1) {
+            ABRLogger.getInstance(Engine.class).severe("Cannot find Bot Jobs with this Id:" + botJobId);
+            return false;
         }
 
         try {
@@ -221,11 +237,6 @@ public class Engine {
             String baseLogString =
                     selectedJob.getName() + Constants.FIELDS_SEPARATOR + labelsValue.getProperty(Labels.START);
             printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
-            ExcelReportDTO report = new ExcelReportDTO(selectedJob);
-            report.setOrder((short) 0);
-            report.setStartDate(LocalDateTime.now());
-            report.setBatchJobId(0);
-            report.setStatus((short) ExcelReportStatusEnum.NOT_RUN.ordinal());
             ExcelWriter.ExcelChain writer = new ExcelWriter(selectedJob.getName(), abrWebDriver).withPurpose("report");
             writer.insertReportHead();
             boolean success = true;
@@ -237,29 +248,32 @@ public class Engine {
             short status = (short) ExcelReportStatusEnum.ERROR.ordinal();
             Map<String, String> dataExcel = null;
 
-            loadBlockAll(botJobId);
+            ExcelReportDTO report = new ExcelReportDTO();
+            report.setOrder((short) botLoadJobs.get(0).getId());
+            report.setStartDate(LocalDateTime.now());
+            report.setBatchJobId(selectedJob.getId());
+            report.setBotJobDTO(selectedJob);
+            report.setStatus((short) ExcelReportStatusEnum.NOT_RUN.ordinal());
 
             List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
             if (extractedData.getNumberOfDataRows() > 0) {
-                for (int i = 0; success && i < extractedData.getNumberOfDataRows(); i++) {
-                    List<BlockLoadDTO> blockList = blocksLoaded;
-
+                for (BlockLoadDTO instructionsLoad : blocksLoaded.stream().collect(Collectors.toList())) {
+                    instructionsExecuted.clear();
                     if (stopAll) {
                         break;
                     }
-                    for (int j = 0; success && j < blockList.size(); j++) {
+                    for (int i = 0; success && i < extractedData.getNumberOfDataRows(); i++) {
                         if (stopAll) {
                             break;
                         }
 
-                        writer.insertBlockSeparation(blockList.get(j).getName());
+                        writer.insertBlockSeparation(instructionsLoad.getName());
 
                         // Call the method to get the filtered list
                         List<BlockLoopInstructionLoadDTO> unexecutedInstructions = getUnexecutedInstructions(
-                                instructionsExecuted, blockList.get(j).getBlockLoopInstructionLoadDTOS());
+                                instructionsExecuted, instructionsLoad.getBlockLoopInstructionLoadDTOS());
 
                         for (BlockLoopInstructionLoadDTO currentInstruction : unexecutedInstructions) {
-
                             if (stopAll) {
                                 break;
                             }
@@ -281,29 +295,62 @@ public class Engine {
                                         || actions[0].equalsIgnoreCase(WebElementTagNameEnum.SET.getValue())) {
 
                                     execOperation = true;
-                                    xPathOperation = blockList.get(j).getBlockLoopInstructionLoadDTOS().stream()
-                                            .filter(f -> f.getId() == currentInstruction.getParentId())
-                                            .findFirst()
-                                            .get()
-                                            .getPath();
-                                    parentField = blockList.get(j).getBlockLoopInstructionLoadDTOS().stream()
+                                    try {
+                                        xPathOperation = instructionsLoad.getBlockLoopInstructionLoadDTOS().stream()
+                                                .filter(f -> f.getId() == currentInstruction.getParentId())
+                                                .findFirst()
+                                                .get()
+                                                .getPath();
+                                    } catch (Exception ex) {
+                                        String message = "The Parent Id: <b style='color:red;'>"
+                                                + currentInstruction.getParentId()
+                                                + "</b> For the "
+                                                + "<b>"
+                                                + currentInstruction.getOperation()
+                                                + "<br>----------------------------------------------<br>"
+                                                + "<b style='color:red;'>"
+                                                + "Does not belong to this block</b>";
+                                        webPage.alertMessage(message);
+
+                                        stopAll = true;
+
+                                        resultAcions = String.format(
+                                                "This ParentId: %d does not belong to this block: %d",
+                                                currentInstruction.getParentId(), instructionsLoad.getId());
+                                        success = false;
+
+                                        lastInstructionExecuted = "";
+
+                                        ABRLogger.getInstance(Engine.class)
+                                                .severe(String.format(
+                                                        "Parent Id Error\nCheck Parent Id: %d"
+                                                                + "\nFor the %s \nDoes not belong to this block",
+                                                        currentInstruction.getParentId(),
+                                                        currentInstruction.getOperation()));
+
+                                        break;
+                                    }
+
+                                    parentField = instructionsLoad.getBlockLoopInstructionLoadDTOS().stream()
                                             .filter(f -> f.getId() == currentInstruction.getParentId())
                                             .findFirst()
                                             .get()
                                             .getName();
+
                                 } else if (actions[0].equalsIgnoreCase(WebElementTagNameEnum.CK.getValue())) {
-                                    parentField = blockList.get(j).getBlockLoopInstructionLoadDTOS().stream()
+                                    parentField = instructionsLoad.getBlockLoopInstructionLoadDTOS().stream()
                                             .filter(f -> f.getId() == currentInstruction.getParentId())
                                             .findFirst()
                                             .get()
                                             .getName();
+
                                     checkOperation = true;
                                 }
 
                                 long currentInstructionStartTime = System.nanoTime();
                                 File logFileForSingleExcel = excelReader.createLogFile(excelPath);
 
-                                //                                fillUpCurretLocators(currentInstruction);
+                                // fillUpCurretLocators(currentInstruction);
 
                                 try {
                                     if (!execOperation && !checkOperation) {
@@ -313,10 +360,7 @@ public class Engine {
                                                 + Constants.BLANK_STRING
                                                 + currentInstruction.getPath();
                                         resultAcions = webPage.performActions(
-                                                dataExcel,
-                                                currentInstruction,
-                                                botJobId,
-                                                blockList.get(j).getName());
+                                                dataExcel, currentInstruction, botJobId, instructionsLoad.getName());
                                         long currentInstructionEndTime = System.nanoTime();
                                         totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
 
@@ -450,30 +494,34 @@ public class Engine {
                                                         instructionsExecuted.add(currentInstruction);
                                                     }
                                                     success = true;
+
                                                 } else {
 
                                                     String message = "The Value: <b style='color:red;'>" + operations[2]
                                                             + "</b> is not "
-                                                            + "<b>" + operations[1] + " "
-                                                            + mapOperators.get(parentField)
+                                                            + "<b>"
+                                                            + operations[1] + " " + mapOperators.get(parentField)
                                                             + "</b> Length: (<b>"
                                                             + mapOperators
                                                                     .get(parentField)
-                                                                    .length() + "</b>)"
+                                                                    .length()
+                                                            + "</b>)"
                                                             + "<br>----------------------------------------------<br>"
                                                             + "Check the SET/GET of <b style='color:red;'>"
                                                             + operations[0]
                                                             + "</b> for <b style='color:red;'>"
-                                                            + parentField + "</b>"
-                                                            + "<br>Current value: <b style='color:red;'>"
+                                                            + parentField
+                                                            + "</b>" + "<br>Current value: <b style='color:red;'>"
                                                             + operations[2]
                                                             + "</b> Length: (<b>"
-                                                            + operations[2].length() + "</b>)"
-                                                            + "<br>Expected value: <b style='color:green;'>"
-                                                            + mapOperators.get(parentField) + "</b> Length: (<b>"
+                                                            + operations[2].length()
+                                                            + "</b>)" + "<br>Expected value: <b style='color:green;'>"
+                                                            + mapOperators.get(parentField)
+                                                            + "</b> Length: (<b>"
                                                             + mapOperators
                                                                     .get(parentField)
-                                                                    .length() + "</b>)";
+                                                                    .length()
+                                                            + "</b>)";
 
                                                     webPage.alertMessage(message);
                                                     stopAll = true;
@@ -484,11 +532,12 @@ public class Engine {
                                             } else {
                                                 String message = "GET Value is Not Defined"
                                                         + "<br>----------------------------------------------<br>"
-                                                        + "Validation Error: <b style='color:red;'>" + parentField
-                                                        + "</b>"
+                                                        + "Validation Error: <b style='color:red;'>"
+                                                        + parentField + "</b>"
                                                         + "<br>----------------------------------------------<br>"
                                                         + "Check the GET Value for <b style='color:red;'>"
-                                                        + parentField + "</b>";
+                                                        + parentField
+                                                        + "</b>";
 
                                                 webPage.alertMessage(message);
                                                 stopAll = true;
@@ -512,7 +561,8 @@ public class Engine {
                                         ABRLogger.getInstance(WebPage.class)
                                                 .fine("FAILED OPTIONAL INSTRUCTION on element: " + resultAcions
                                                         + " Cmd: "
-                                                        + lastInstructionExecuted + "- Duration: "
+                                                        + lastInstructionExecuted
+                                                        + "- Duration: "
                                                         + LocalTime.ofNanoOfDay(duration)
                                                                 .format(FORMAT_TIME));
                                         writer.insertInstructionResult(
@@ -522,13 +572,15 @@ public class Engine {
                                                         currentInstructionEndTime - currentInstructionStartTime),
                                                 "optional skipped");
                                         status = (short) ExcelReportStatusEnum.WARNING.ordinal();
+
                                     } else {
                                         long currentInstructionEndTime = System.nanoTime();
                                         long duration = currentInstructionEndTime - botJobStartTime;
                                         ABRLogger.getInstance(WebPage.class)
                                                 .fine("FAILED MANDATORY INSTRUCTION on element: " + resultAcions
                                                         + " Cmd: "
-                                                        + lastInstructionExecuted + "- Duration: "
+                                                        + lastInstructionExecuted
+                                                        + "- Duration: "
                                                         + LocalTime.ofNanoOfDay(duration)
                                                                 .format(FORMAT_TIME));
                                         writer.insertInstructionResult(
@@ -655,7 +707,11 @@ public class Engine {
             if (totalExecutionTime == 0) {
                 report.setDuration(0);
                 writer.insertTotalExecutionTimes(botJobStartTime, botJobStartTime);
-                repository.write(report);
+                try {
+                    repository.write(report);
+                } catch (Exception ex) {
+                    ABRLogger.getInstance(Engine.class).warning("Repository.write(report) Error:\n" + ex.getMessage());
+                }
             }
 
             // PRINT END BASE LOG//
@@ -663,7 +719,11 @@ public class Engine {
                 report.setStatus((short) ExcelReportStatusEnum.SUCCESS.ordinal());
                 report.setDuration(totalExecutionTime / 100);
                 writer.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
-                repository.write(report);
+                try {
+                    repository.write(report);
+                } catch (Exception ex) {
+                    ABRLogger.getInstance(Engine.class).warning("Repository.write(report) Error:\n" + ex.getMessage());
+                }
                 baseLogString = selectedJob.getName()
                         + Constants.FIELDS_SEPARATOR
                         + labelsValue.getProperty(Labels.END)
@@ -679,12 +739,15 @@ public class Engine {
                 report.setStatus(status);
                 report.setDuration(totalExecutionTime / 100);
                 writer.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
-                repository.write(report);
+                try {
+                    repository.write(report);
+                } catch (Exception ex) {
+                    ABRLogger.getInstance(Engine.class).warning("Repository.write(report) Error:\n" + ex.getMessage());
+                }
             }
             printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
             return true;
         } catch (Throwable t) {
-            //            t.printStackTrace();
             ABRLogger.getInstance(Engine.class).severe("Error Executing JOB \n" + t.getMessage());
             return false;
         }
@@ -705,7 +768,7 @@ public class Engine {
             fileWriter.write(log + System.lineSeparator());
             fileWriter.close();
         } catch (Exception e) {
-            e.printStackTrace();
+            ABRLogger.getInstance(WebPage.class).severe("printLog Error: " + e.getMessage());
         }
     }
 
@@ -718,7 +781,7 @@ public class Engine {
             fileWriter.write(log + System.lineSeparator());
             fileWriter.close();
         } catch (Exception e) {
-            e.printStackTrace();
+            ABRLogger.getInstance(WebPage.class).severe("printBaseLog Error: " + e.getMessage());
         }
     }
 
@@ -743,7 +806,7 @@ public class Engine {
             logExcelWorkbook.close();
 
         } catch (Exception e) {
-            e.printStackTrace();
+            ABRLogger.getInstance(WebPage.class).severe("printLogExcel Error: " + e.getMessage());
         }
     }
 
@@ -788,7 +851,61 @@ public class Engine {
                 .collect(Collectors.toList());
     }
 
+    public static void changeDbConnection() {
+        String priorityPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_PRIORITY);
+        String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);
+        
+        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")){
+            POSTGRES_DB = true;
+        } else{
+            POSTGRES_DB = false;
+        }
+
+        if (priorityPath != null) {
+
+            //            if (priorityPath != null && !priorityPath.isBlank()) {
+            //                abrPriorities.loadPriorities();
+            //            }
+
+            if (POSTGRES_DB) {
+                String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
+                sessionFactory = new Configuration()
+                        .configure()
+                        .setProperty("hibernate.connection.url", dbUrl)
+                        .setProperty("hibernate.connection.username", USERNAME)
+                        .setProperty("hibernate.connection.password", PASSWORD)
+                        .setProperty("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect")
+                        .setProperty("hibernate.connection.driver_class", "org.postgresql.Driver")
+                        .buildSessionFactory();
+                session = sessionFactory.openSession();
+                //                cacheEntitiesFromDB();
+            } else {
+
+                String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
+                if (!dbPath.isBlank()) {
+                    File dbFolder = new File(dbPath);
+                    dbFolder.mkdirs();
+                    String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+                    sessionFactory = new Configuration()
+                            .configure()
+                            .setProperty("hibernate.connection.url", dbUrl)
+                            .buildSessionFactory();
+                    session = sessionFactory.openSession();
+                    //                    cacheEntitiesFromDB();
+                }
+            }
+        }
+    }
+
     private static Connection getConnection() {
+        String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);
+
+        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")){
+            POSTGRES_DB = true;
+        } else{
+            POSTGRES_DB = false;
+        }
+        
         if (!POSTGRES_DB) {
             if (conn == null) {
                 String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
@@ -796,7 +913,7 @@ public class Engine {
                 try {
                     conn = DriverManager.getConnection(dbUrl);
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    ABRLogger.getInstance(WebPage.class).severe("getConnection Error: " + e.getMessage());
                 }
             }
             return conn;
@@ -807,7 +924,7 @@ public class Engine {
                 try {
                     conn = DriverManager.getConnection(dbUrl, USERNAME, PASSWORD);
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    ABRLogger.getInstance(WebPage.class).severe("Get DB connection Error: " + e.getMessage());
                 }
             }
             return conn;
@@ -826,7 +943,7 @@ public class Engine {
                 + "  bli.operation, bli.parent_id "
                 + " FROM bot_job bj "
                 + " LEFT JOIN block b ON b.bot_job_id = bj.id "
-                + " LEFT JOIN block_loop_instruction bli ON bli.block_id = b.id "
+                + "  JOIN block_loop_instruction bli ON bli.block_id = b.id "
                 + " LEFT JOIN instruction_reference irl ON irl.block_loop_instruction_id = bli.id "
                 + " where bot_job_id = " + botJobId
                 + "  ORDER BY bj.id, b.block_order_number, bli.instruction_order_number, irl.id ASC";
@@ -905,7 +1022,7 @@ public class Engine {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            ABRLogger.getInstance(WebPage.class).severe("loadBlockAll Error: " + e.getMessage());
         }
     }
 

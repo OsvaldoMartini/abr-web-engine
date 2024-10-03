@@ -57,6 +57,7 @@ public class ABRPropertyManager {
             try {
                 configurationFile.createNewFile();
                 loadProperties();
+                setProperty(ABRPropertyEnum.DATABASE_TYPE.getValue(), "");
                 setProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL.getValue(), "");
                 setProperty(ABRPropertyEnum.FOLDER_PATH_LOG.getValue(), "");
                 setProperty(
