@@ -3,6 +3,7 @@ package com.allinweb.ch.util;
 public enum ABRPropertyEnum {
     DATABASE_TYPE("data_base"),
     FOLDER_PATH_EXCEL("path_excel"),
+    FOLDER_PATH_EXPORT("path_export"),
     FOLDER_PATH_LOG("path_log"),
     FOLDER_PATH_JAVA("path_java"),
     FOLDER_PATH_JAVA_FX("path_java_fx"),

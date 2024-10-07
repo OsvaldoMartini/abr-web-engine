@@ -314,6 +314,12 @@ public class Engine {
                                                 .findFirst()
                                                 .get()
                                                 .getPath();
+
+                                        parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
+                                                .filter(f -> f.getId() == currentInstruction.getParentId())
+                                                .findFirst()
+                                                .get()
+                                                .getName();
                                     } catch (Exception ex) {
                                         String message = "The Parent Id: <b style='color:red;'>"
                                                 + currentInstruction.getParentId()
@@ -351,20 +357,29 @@ public class Engine {
                                         break;
                                     }
 
-                                    parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
-                                            .filter(f -> f.getId() == currentInstruction.getParentId())
-                                            .findFirst()
-                                            .get()
-                                            .getName();
-
                                 } else if (actions[0].equalsIgnoreCase(WebElementTagNameEnum.CK.getValue())) {
-                                    parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
-                                            .filter(f -> f.getId() == currentInstruction.getParentId())
-                                            .findFirst()
-                                            .get()
-                                            .getName();
+                                    try {
+                                        parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
+                                                .filter(f -> f.getId() == currentInstruction.getParentId())
+                                                .findFirst()
+                                                .get()
+                                                .getName();
+                                        checkOperation = true;
+                                    } catch (Exception ex) {
+                                        String message = "Excel Writer - GET is Not Defined\""
+                                                + "<br>----------------------------------------------<br>"
+                                                + "Validation Error: <b style='color:red;'>"
+                                                + parentField + "</b>"
+                                                + "<br>----------------------------------------------<br>"
+                                                + "Check the GET Value for <b style='color:red;'>"
+                                                + parentField
+                                                + "</b>";
 
-                                    checkOperation = true;
+                                        stopAll = true;
+
+                                        resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
+                                        success = false;
+                                    }
                                 } else if (actions[0].equalsIgnoreCase(WebElementTagNameEnum.E.getValue())) {
                                     try {
                                         parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()

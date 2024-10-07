@@ -35,24 +35,13 @@ public class ExcelWriter {
     private String botJobName;
     private static WebDriver abrWebDriver;
 
-    private static int CURRENT_ROW_INDEX = 0;
-
     public ExcelWriter(String botJobName, WebDriver abrWebDriver) {
         this.botJobName = botJobName;
         this.abrWebDriver = abrWebDriver;
         boolean exist = ManagedExcel.checkIfExcelExist(botJobName, "excel");
-        boolean existExport = ManagedExcel.checkIfExcelExist(botJobName + "_export", "export");
         String now = LocalDateTime.now().format(FORMAT_DATE_AND_TIME);
-        try {
-            managedExcelMap.put(
-                    "export", new ManagedExcel(botJobName + "_export" + " (" + now + ")", "export", !existExport));
-
-            managedExcelMap.put("excel", new ManagedExcel(botJobName, "excel", !exist));
-            managedExcelMap.put("report", new ManagedExcel(botJobName + " (" + now + ")", "report", true));
-        } catch (Exception ex) {
-            ABRLogger.getInstance(ExcelWriter.class)
-                    .severe(String.format("Excel Folder maybe not configured. %s\nError", botJobName, ex.getMessage()));
-        }
+        managedExcelMap.put("excel", new ManagedExcel(botJobName, "excel", !exist));
+        managedExcelMap.put("report", new ManagedExcel(botJobName + " (" + now + ")", "report", true));
     }
 
     public ExcelChain withPurpose(String purpose) {
@@ -62,33 +51,11 @@ public class ExcelWriter {
     public record ExcelChain(ManagedExcel managedExcel, String botJobName) {
 
         public void insertValueFieldName(String fieldName, String value) {
-            try {
-
-                managedExcel
-                        .onSheet(0)
-                        .insertValueAfterLastColumnOfRow(fieldName, INSTRUCTION_FIELDS_ROW_INDEX)
-                        .insertValueAfterLastColumnOfRow(value, INSTRUCTION_FIELDS_ROW_INDEX + 1);
-                managedExcel.save();
-            } catch (Exception ex) {
-                ABRLogger.getInstance(ExcelWriter.class)
-                        .severe(String.format(
-                                "Excel Writer insertValueFieldName.Check if the file exist. File: %s\nError",
-                                botJobName, ex.getMessage()));
-            }
-        }
-
-        public void insertFieldNameAndValueLastColumn(Map<String, String> mapExport, int exportIndex) {
-            try {
-
-                managedExcel.onSheet(0).insertFieldNameAndValueLastColumn(mapExport, exportIndex);
-                //                        .insertColumValueOnLastRow(value);
-                managedExcel.save();
-            } catch (Exception ex) {
-                ABRLogger.getInstance(ExcelWriter.class)
-                        .severe(String.format(
-                                "Excel Writer insertValueFieldName.Check if the file exist. File: %s\nError",
-                                botJobName, ex.getMessage()));
-            }
+            managedExcel
+                    .onSheet(0)
+                    .insertValueAfterLastColumnOfRow(fieldName, INSTRUCTION_FIELDS_ROW_INDEX)
+                    .insertValueAfterLastColumnOfRow(value, INSTRUCTION_FIELDS_ROW_INDEX + 1);
+            managedExcel.save();
         }
 
         public void insertReportHead() {
@@ -104,15 +71,6 @@ public class ExcelWriter {
             managedExcel
                     .onSheet(0)
                     .insertValueAfterLastRowOfColumn(blockName, 0)
-                    .fillRowBackgroundColorOfLastRow(IndexedColors.ROYAL_BLUE)
-                    .setRowTextColorOfLastRow(IndexedColors.WHITE);
-            managedExcel.save();
-        }
-
-        public void insertBlockSeparationExport(String blockName, int exportIndex) {
-            managedExcel
-                    .onSheet(0)
-                    .insertValueAfterLastRowOfColumn(blockName, exportIndex, 0)
                     .fillRowBackgroundColorOfLastRow(IndexedColors.ROYAL_BLUE)
                     .setRowTextColorOfLastRow(IndexedColors.WHITE);
             managedExcel.save();
@@ -187,6 +145,20 @@ public class ExcelWriter {
                             LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME), 3, EXECUTION_TIMES_COLUMN_INDEX + 1)
                     .setSheetAutoResizable();
             managedExcel.save();
+        }
+
+        public void insertFieldNameAndValueLastColumn(Map<String, String> mapExport, int exportIndex) {
+            try {
+
+                managedExcel.onSheet(0).insertFieldNameAndValueLastColumn(mapExport, exportIndex);
+                //                        .insertColumValueOnLastRow(value);
+                managedExcel.save();
+            } catch (Exception ex) {
+                ABRLogger.getInstance(ExcelWriter.class)
+                        .severe(String.format(
+                                "Excel Writer insertValueFieldName.Check if the file exist. File: %s\nError",
+                                botJobName, ex.getMessage()));
+            }
         }
     }
 
@@ -278,19 +250,9 @@ public class ExcelWriter {
             return insertValueAtCoordinates(value, rowIndex, afterLastColumnIndex);
         }
 
-        public ManagedExcelAction insertValueAfterLastColumnOfRow(String value) {
-            int lastRowIndex = sheet.getLastRowNum();
-            int afterLastColumnIndex = sheet.getRow(lastRowIndex).getLastCellNum();
-            return insertValueAtCoordinates(value, lastRowIndex, afterLastColumnIndex);
-        }
-
         public ManagedExcelAction insertValueAfterLastRowOfColumn(String value, int columnIndex) {
             int afterLastRowIndex = sheet.getLastRowNum() + 1;
             return insertValueAtCoordinates(value, afterLastRowIndex, columnIndex);
-        }
-
-        public ManagedExcelAction insertValueAfterLastRowOfColumn(String value, int exportIndex, int columnIndex) {
-            return insertValueAtCoordinates(value, exportIndex, columnIndex);
         }
 
         public ManagedExcelAction insertValueOnLastRowAfterLastColumn(String value) {
