@@ -912,7 +912,7 @@ public class WebPage {
         }
     }
 
-    private synchronized String onHoldForSeconds(BlockLoopInstructionLoadDTO instruction) throws Exception {
+    public synchronized String onHoldForSeconds(BlockLoopInstructionLoadDTO instruction) throws Exception {
         if (instruction != null) {
             Integer instructionSeconds = instruction.getOnHoldSeconds();
             if (instructionSeconds != null && instructionSeconds > 0) {

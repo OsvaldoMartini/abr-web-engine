@@ -42,6 +42,7 @@ public class Engine {
     private static File baseLogFile = null;
 
     private static Map<String, String> mapOperators;
+    private static Map<String, String> mapExport;
     private static WebDriver abrWebDriver;
 
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -223,6 +224,7 @@ public class Engine {
                     .collect(Collectors.toSet());
 
             mapOperators = new HashMap<>();
+            mapExport = new HashMap<>();
 
             String browser = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.BROWSER);
             WebPage webPage = new WebPage(
@@ -237,8 +239,14 @@ public class Engine {
             String baseLogString =
                     selectedJob.getName() + Constants.FIELDS_SEPARATOR + labelsValue.getProperty(Labels.START);
             printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
-            ExcelWriter.ExcelChain writer = new ExcelWriter(selectedJob.getName(), abrWebDriver).withPurpose("report");
-            writer.insertReportHead();
+            ExcelWriter.ExcelChain writerReport =
+                    new ExcelWriter(selectedJob.getName(), abrWebDriver).withPurpose("report");
+            writerReport.insertReportHead();
+
+            ExcelWriter.ExcelChain writerExport =
+                    new ExcelWriter(selectedJob.getName(), abrWebDriver).withPurpose("export");
+            writerExport.insertReportHead();
+
             boolean success = true;
             boolean stopAll = false;
             long botJobStartTime = System.nanoTime();
@@ -256,8 +264,10 @@ public class Engine {
             report.setStatus((short) ExcelReportStatusEnum.NOT_RUN.ordinal());
 
             List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
+
+            int exportIndex = 1;
             if (extractedData.getNumberOfDataRows() > 0) {
-                for (BlockLoadDTO instructionsLoad : blocksLoaded.stream().collect(Collectors.toList())) {
+                for (BlockLoadDTO blockLoad : blocksLoaded.stream().collect(Collectors.toList())) {
                     instructionsExecuted.clear();
                     if (stopAll) {
                         break;
@@ -267,11 +277,12 @@ public class Engine {
                             break;
                         }
 
-                        writer.insertBlockSeparation(instructionsLoad.getName());
+                        mapExport.clear();
+                        writerReport.insertBlockSeparation(blockLoad.getName());
 
                         // Call the method to get the filtered list
                         List<BlockLoopInstructionLoadDTO> unexecutedInstructions = getUnexecutedInstructions(
-                                instructionsExecuted, instructionsLoad.getBlockLoopInstructionLoadDTOS());
+                                instructionsExecuted, blockLoad.getBlockLoopInstructionLoadDTOS());
 
                         for (BlockLoopInstructionLoadDTO currentInstruction : unexecutedInstructions) {
                             if (stopAll) {
@@ -280,6 +291,8 @@ public class Engine {
                             if (currentInstruction.getExecuted() == null || !currentInstruction.getExecuted()) {
                                 boolean execOperation = false;
                                 boolean checkOperation = false;
+                                boolean excelWriteOperation = false;
+
                                 String xPathOperation = null;
                                 String parentField = null;
 
@@ -296,7 +309,7 @@ public class Engine {
 
                                     execOperation = true;
                                     try {
-                                        xPathOperation = instructionsLoad.getBlockLoopInstructionLoadDTOS().stream()
+                                        xPathOperation = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
                                                 .filter(f -> f.getId() == currentInstruction.getParentId())
                                                 .findFirst()
                                                 .get()
@@ -309,14 +322,20 @@ public class Engine {
                                                 + currentInstruction.getOperation()
                                                 + "<br>----------------------------------------------<br>"
                                                 + "<b style='color:red;'>"
-                                                + "Does not belong to this block</b>";
+                                                + "Does not belong to this block " + blockLoad.getId() + "-"
+                                                + blockLoad.getName() + "</b>"
+                                                + "<b style='color:red;'>"
+                                                + "<br>----------------------------------------------<br>"
+                                                + "Check the Field Names and Fields Ids</b>";
                                         webPage.alertMessage(message);
 
                                         stopAll = true;
 
                                         resultAcions = String.format(
-                                                "This ParentId: %d does not belong to this block: %d",
-                                                currentInstruction.getParentId(), instructionsLoad.getId());
+                                                "This ParentId: %d does not belong to this block: %d - %s. Check the Field Names and Fields Ids",
+                                                currentInstruction.getParentId(),
+                                                blockLoad.getId(),
+                                                blockLoad.getName());
                                         success = false;
 
                                         lastInstructionExecuted = "";
@@ -324,27 +343,54 @@ public class Engine {
                                         ABRLogger.getInstance(Engine.class)
                                                 .severe(String.format(
                                                         "Parent Id Error\nCheck Parent Id: %d"
-                                                                + "\nFor the %s \nDoes not belong to this block",
+                                                                + "\nFor the %s \nDoes not belong to this block: "
+                                                                + blockLoad.getId() + "-" + blockLoad.getName(),
                                                         currentInstruction.getParentId(),
                                                         currentInstruction.getOperation()));
 
                                         break;
                                     }
 
-                                    parentField = instructionsLoad.getBlockLoopInstructionLoadDTOS().stream()
+                                    parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
                                             .filter(f -> f.getId() == currentInstruction.getParentId())
                                             .findFirst()
                                             .get()
                                             .getName();
 
                                 } else if (actions[0].equalsIgnoreCase(WebElementTagNameEnum.CK.getValue())) {
-                                    parentField = instructionsLoad.getBlockLoopInstructionLoadDTOS().stream()
+                                    parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
                                             .filter(f -> f.getId() == currentInstruction.getParentId())
                                             .findFirst()
                                             .get()
                                             .getName();
 
                                     checkOperation = true;
+                                } else if (actions[0].equalsIgnoreCase(WebElementTagNameEnum.E.getValue())) {
+                                    try {
+                                        parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
+                                                .filter(f -> f.getId() == currentInstruction.getParentId())
+                                                .findFirst()
+                                                .get()
+                                                .getName();
+
+                                        excelWriteOperation = true;
+                                    } catch (Exception ex) {
+                                        String message = "Excel Writer - GET is Not Defined\""
+                                                + "<br>----------------------------------------------<br>"
+                                                + "Validation Error: <b style='color:red;'>"
+                                                + parentField + "</b>"
+                                                + "<br>----------------------------------------------<br>"
+                                                + "Check the GET Value for <b style='color:red;'>"
+                                                + parentField
+                                                + "</b>";
+
+                                        webPage.alertMessage(message);
+
+                                        stopAll = true;
+
+                                        resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
+                                        success = false;
+                                    }
                                 }
 
                                 long currentInstructionStartTime = System.nanoTime();
@@ -353,14 +399,14 @@ public class Engine {
                                 // fillUpCurretLocators(currentInstruction);
 
                                 try {
-                                    if (!execOperation && !checkOperation) {
+                                    if (!execOperation && !checkOperation && !excelWriteOperation) {
                                         dataExcel = extractedData.getRowFieldValues(i);
 
                                         lastInstructionExecuted = currentInstruction.getName()
                                                 + Constants.BLANK_STRING
                                                 + currentInstruction.getPath();
                                         resultAcions = webPage.performActions(
-                                                dataExcel, currentInstruction, botJobId, instructionsLoad.getName());
+                                                dataExcel, currentInstruction, botJobId, blockLoad.getName());
                                         long currentInstructionEndTime = System.nanoTime();
                                         totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
 
@@ -387,7 +433,7 @@ public class Engine {
                                             success = false;
                                         }
 
-                                        writer.insertInstructionResult(
+                                        writerReport.insertInstructionResult(
                                                 currentInstruction,
                                                 dataExcel,
                                                 LocalTime.ofNanoOfDay(
@@ -442,7 +488,7 @@ public class Engine {
                                             success = false;
                                         }
                                     } else if (checkOperation) {
-                                        // Special Operators
+                                        // Check Validation Operator
                                         lastInstructionExecuted = currentInstruction.getName()
                                                 + Constants.BLANK_STRING
                                                 + currentInstruction.getActions()
@@ -530,7 +576,7 @@ public class Engine {
                                                     success = false;
                                                 }
                                             } else {
-                                                String message = "GET Value is Not Defined"
+                                                String message = "Check Operation - GET is Not Defined"
                                                         + "<br>----------------------------------------------<br>"
                                                         + "Validation Error: <b style='color:red;'>"
                                                         + parentField + "</b>"
@@ -540,6 +586,82 @@ public class Engine {
                                                         + "</b>";
 
                                                 webPage.alertMessage(message);
+                                                stopAll = true;
+
+                                                resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
+                                                success = false;
+                                            }
+
+                                        } else {
+                                            resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
+                                            success = false;
+                                        }
+                                    } else if (excelWriteOperation) {
+                                        // Excel Write Operator
+                                        lastInstructionExecuted = currentInstruction.getName()
+                                                + Constants.BLANK_STRING
+                                                + currentInstruction.getActions()
+                                                + Constants.BLANK_STRING
+                                                + currentInstruction.getOperation();
+
+                                        if (operations.length == 2) {
+                                            if (mapOperators.containsKey(parentField)) {
+
+                                                resultAcions = "insertValueFieldNameInExcel-->" + parentField + "-"
+                                                        + mapOperators.get(parentField);
+                                                if (mapExport.size() == 0) {
+                                                    writerExport.insertBlockSeparation(blockLoad.getName());
+                                                    exportIndex *= 2;
+                                                }
+
+                                                mapExport.put(parentField, mapOperators.get(parentField));
+                                                // Insert the updated mapExport into the Excel after each instruction
+                                                writerExport.insertFieldNameAndValueLastColumn(mapExport, exportIndex);
+
+                                                webPage.onHoldForSeconds(null);
+
+                                                long currentInstructionEndTime = System.nanoTime();
+                                                totalExecutionTime +=
+                                                        currentInstructionEndTime - currentInstructionStartTime;
+
+                                                if (resultAcions != null) {
+
+                                                    ABRLogger.getInstance(Engine.class)
+                                                            .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions
+                                                                    + " Cmd: " + lastInstructionExecuted);
+
+                                                    currentInstruction.setExecuted(true);
+
+                                                    // Assuming currentInstruction and instructionsExecuted are already
+                                                    // defined
+                                                    if (currentInstruction != null
+                                                            && instructionsExecuted.stream()
+                                                                    .noneMatch(
+                                                                            instruction ->
+                                                                                    instruction
+                                                                                                    .getInstructionOrderNumber()
+                                                                                            == currentInstruction
+                                                                                                    .getInstructionOrderNumber())) {
+                                                        instructionsExecuted.add(currentInstruction);
+                                                    }
+                                                    success = true;
+                                                } else {
+                                                    resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
+                                                    success = false;
+                                                }
+
+                                            } else {
+                                                String message = "Excel Writer - GET is Not Defined"
+                                                        + "<br>----------------------------------------------<br>"
+                                                        + "Validation Error: <b style='color:red;'>"
+                                                        + parentField + "</b>"
+                                                        + "<br>----------------------------------------------<br>"
+                                                        + "Check the GET Value for <b style='color:red;'>"
+                                                        + parentField
+                                                        + "</b>";
+
+                                                webPage.alertMessage(message);
+
                                                 stopAll = true;
 
                                                 resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
@@ -565,7 +687,7 @@ public class Engine {
                                                         + "- Duration: "
                                                         + LocalTime.ofNanoOfDay(duration)
                                                                 .format(FORMAT_TIME));
-                                        writer.insertInstructionResult(
+                                        writerReport.insertInstructionResult(
                                                 currentInstruction,
                                                 dataExcel,
                                                 LocalTime.ofNanoOfDay(
@@ -583,7 +705,7 @@ public class Engine {
                                                         + "- Duration: "
                                                         + LocalTime.ofNanoOfDay(duration)
                                                                 .format(FORMAT_TIME));
-                                        writer.insertInstructionResult(
+                                        writerReport.insertInstructionResult(
                                                 currentInstruction,
                                                 null,
                                                 LocalTime.ofNanoOfDay(
@@ -658,7 +780,7 @@ public class Engine {
                                 resultAcions = "Failed to Execute -> " + currentInstruction.getName();
                                 success = false;
                             }
-                            writer.insertInstructionResult(
+                            writerReport.insertInstructionResult(
                                     currentInstruction,
                                     dataDynamic,
                                     LocalTime.ofNanoOfDay(currentInstructionEndTime - currentInstructionStartTime),
@@ -675,7 +797,7 @@ public class Engine {
                                                 + lastInstructionExecuted + "- Duration: "
                                                 + LocalTime.ofNanoOfDay(duration)
                                                         .format(FORMAT_TIME));
-                                writer.insertInstructionResult(
+                                writerReport.insertInstructionResult(
                                         currentInstruction,
                                         dataDynamic,
                                         LocalTime.ofNanoOfDay(currentInstructionEndTime - currentInstructionStartTime),
@@ -690,7 +812,7 @@ public class Engine {
                                                 + lastInstructionExecuted + "- Duration: "
                                                 + LocalTime.ofNanoOfDay(duration)
                                                         .format(FORMAT_TIME));
-                                writer.insertInstructionResult(
+                                writerReport.insertInstructionResult(
                                         currentInstruction,
                                         null,
                                         LocalTime.ofNanoOfDay(currentInstructionEndTime - currentInstructionStartTime),
@@ -706,7 +828,7 @@ public class Engine {
 
             if (totalExecutionTime == 0) {
                 report.setDuration(0);
-                writer.insertTotalExecutionTimes(botJobStartTime, botJobStartTime);
+                writerReport.insertTotalExecutionTimes(botJobStartTime, botJobStartTime);
                 try {
                     repository.write(report);
                 } catch (Exception ex) {
@@ -718,7 +840,7 @@ public class Engine {
             if (success) {
                 report.setStatus((short) ExcelReportStatusEnum.SUCCESS.ordinal());
                 report.setDuration(totalExecutionTime / 100);
-                writer.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
+                writerReport.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
                 try {
                     repository.write(report);
                 } catch (Exception ex) {
@@ -738,7 +860,7 @@ public class Engine {
                         + lastInstructionExecuted;
                 report.setStatus(status);
                 report.setDuration(totalExecutionTime / 100);
-                writer.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
+                writerReport.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
                 try {
                     repository.write(report);
                 } catch (Exception ex) {

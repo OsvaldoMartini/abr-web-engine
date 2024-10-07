@@ -146,6 +146,20 @@ public class ExcelWriter {
                     .setSheetAutoResizable();
             managedExcel.save();
         }
+
+        public void insertFieldNameAndValueLastColumn(Map<String, String> mapExport, int exportIndex) {
+            try {
+
+                managedExcel.onSheet(0).insertFieldNameAndValueLastColumn(mapExport, exportIndex);
+                //                        .insertColumValueOnLastRow(value);
+                managedExcel.save();
+            } catch (Exception ex) {
+                ABRLogger.getInstance(ExcelWriter.class)
+                        .severe(String.format(
+                                "Excel Writer insertValueFieldName.Check if the file exist. File: %s\nError",
+                                botJobName, ex.getMessage()));
+            }
+        }
     }
 
     static class ManagedExcel {
@@ -244,6 +258,59 @@ public class ExcelWriter {
             int lastRowIndex = sheet.getLastRowNum();
             int lastColumnIndex = sheet.getRow(lastRowIndex).getLastCellNum();
             return insertValueAtCoordinates(value, lastRowIndex, lastColumnIndex);
+        }
+
+        public void insertFieldNameAndValueLastColumn(Map<String, String> mapExport, int exportIndex) {
+            try {
+                // Get the current last row index
+                int lastRowIndex = sheet.getLastRowNum();
+                // Get the row where field names (column names) are stored
+                Row headerRow = getOrCreateRow(exportIndex);
+                Row valueRow = getOrCreateRow(exportIndex + 1);
+
+                // Iterate over the map and insert/replace values
+                for (Map.Entry<String, String> entry : mapExport.entrySet()) {
+                    String columnName = entry.getKey();
+                    String value = entry.getValue();
+
+                    // Check if column already exists
+                    boolean columnExists = false;
+                    int columnIndex = 0; // Start at the first column (index 0)
+
+                    for (int i = 0; i < headerRow.getLastCellNum(); i++) {
+                        Cell cell = headerRow.getCell(i);
+                        if (cell != null && columnName.equals(cell.getStringCellValue())) {
+                            columnExists = true;
+                            columnIndex = i;
+                            break;
+                        }
+                    }
+
+                    // If column exists, replace the value
+                    if (columnExists) {
+                        insertValueAtCoordinates(value, exportIndex + 1, columnIndex);
+                    }
+                    // If column does not exist, add a new column
+                    else {
+                        // Check if the first column (index 0) is empty and start there
+                        if (headerRow.getCell(0) == null
+                                || headerRow.getCell(0).getStringCellValue().isEmpty()) {
+                            columnIndex = 0; // Start writing in the first column
+                        } else {
+                            columnIndex = headerRow.getLastCellNum(); // Otherwise, find the next available column
+                        }
+                        insertValueAtCoordinates(columnName, exportIndex, columnIndex);
+                        insertValueAtCoordinates(value, exportIndex + 1, columnIndex);
+                    }
+                }
+
+                // Save the Excel after modification
+
+            } catch (Exception ex) {
+                ABRLogger.getInstance(ExcelWriter.class)
+                        .severe(String.format(
+                                "Excel Writer insertFieldNameAndValueLastColumn: \nError", ex.getMessage()));
+            }
         }
 
         public ManagedExcelAction insertImageAtCoordinates(String value, int rowIndex, int columnIndex) {

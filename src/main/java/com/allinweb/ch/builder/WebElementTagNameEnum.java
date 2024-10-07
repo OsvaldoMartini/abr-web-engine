@@ -19,7 +19,8 @@ public enum WebElementTagNameEnum {
     MAT_EXPANSION_PANEL("mat-expansion-panel"),
     SET("set"),
     GET("get"),
-    CK("ck");
+    CK("ck"),
+    E("e");
 
     private String value;
 
