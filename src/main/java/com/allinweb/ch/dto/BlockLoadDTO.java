@@ -9,19 +9,9 @@ public class BlockLoadDTO {
     private int blockOrderNumber;
     private String name;
     private String description;
-    private Integer typeId;
-    private BotJobLoadDTO botJobLoadDTO;
-    private List<BlockLoopInstructionLoadDTO> blockLoopInstructionLoadDTOS;
+    private int typeId;
+    private int botJobId;
+    private String botJobName;
 
-    @Override
-    public String toString() {
-        return "BlockLoadDTO{" + "id="
-                + id + ", blockOrderNumber="
-                + blockOrderNumber + ", name='"
-                + name + '\'' + ", description='"
-                + description + '\'' + ", typeId="
-                + typeId + ", botJobLoadDTO="
-                + botJobLoadDTO + ", blockLoopInstructionLoadDTOS="
-                + blockLoopInstructionLoadDTOS + '}';
-    }
+    private List<BlockLoopInstructionLoadDTO> blockLoopInstructionLoadDTOS;
 }

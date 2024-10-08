@@ -1117,7 +1117,8 @@ public class Engine {
                     blockDTO.setName(rs.getString("block_name"));
                     blockDTO.setDescription(rs.getString("block_description"));
                     blockDTO.setTypeId(rs.getInt("type_id"));
-                    blockDTO.setBotJobLoadDTO(botJobDTO);
+                    blockDTO.setBotJobId(botJobDTO.getId());
+                    blockDTO.setBotJobName(botJobDTO.getName());
 
                     blockDTO.setBlockLoopInstructionLoadDTOS(new ArrayList<>());
                     botJobDTO.getBlockLoadDTOList().add(blockDTO);
