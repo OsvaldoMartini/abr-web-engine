@@ -245,7 +245,8 @@ public class Engine {
 
             ExcelWriter.ExcelChain writerExport =
                     new ExcelWriter(selectedJob.getName(), abrWebDriver).withPurpose("export");
-            writerExport.insertReportHead();
+            boolean excelExportOnceCreation = true;
+            //            writerExport.insertReportHead();
 
             boolean success = true;
             boolean stopAll = false;
@@ -279,6 +280,9 @@ public class Engine {
 
                         mapExport.clear();
                         writerReport.insertBlockSeparation(blockLoad.getName());
+
+                        // Insert the field name and value rows below the block name
+                        //                    writerExport.insertFieldNameAndValueLastColumn(mapExport);
 
                         // Call the method to get the filtered list
                         List<BlockLoopInstructionLoadDTO> unexecutedInstructions = getUnexecutedInstructions(
@@ -322,14 +326,11 @@ public class Engine {
                                                 .getName();
                                     } catch (Exception ex) {
                                         String message = "The Parent Id: <b style='color:red;'>"
-                                                + currentInstruction.getParentId()
-                                                + "</b> For the "
-                                                + "<b>"
+                                                + currentInstruction.getParentId() + "</b> For the " + "<b>"
                                                 + currentInstruction.getOperation()
                                                 + "<br>----------------------------------------------<br>"
-                                                + "<b style='color:red;'>"
-                                                + "Does not belong to this block " + blockLoad.getId() + "-"
-                                                + blockLoad.getName() + "</b>"
+                                                + "<b style='color:red;'>" + "Does not belong to this block "
+                                                + blockLoad.getId() + "-" + blockLoad.getName() + "</b>"
                                                 + "<b style='color:red;'>"
                                                 + "<br>----------------------------------------------<br>"
                                                 + "Check the Field Names and Fields Ids</b>";
@@ -368,11 +369,9 @@ public class Engine {
                                     } catch (Exception ex) {
                                         String message = "Excel Writer - GET is Not Defined\""
                                                 + "<br>----------------------------------------------<br>"
-                                                + "Validation Error: <b style='color:red;'>"
-                                                + parentField + "</b>"
+                                                + "Validation Error: <b style='color:red;'>" + parentField + "</b>"
                                                 + "<br>----------------------------------------------<br>"
-                                                + "Check the GET Value for <b style='color:red;'>"
-                                                + parentField
+                                                + "Check the GET Value for <b style='color:red;'>" + parentField
                                                 + "</b>";
 
                                         stopAll = true;
@@ -392,11 +391,9 @@ public class Engine {
                                     } catch (Exception ex) {
                                         String message = "Excel Writer - GET is Not Defined\""
                                                 + "<br>----------------------------------------------<br>"
-                                                + "Validation Error: <b style='color:red;'>"
-                                                + parentField + "</b>"
+                                                + "Validation Error: <b style='color:red;'>" + parentField + "</b>"
                                                 + "<br>----------------------------------------------<br>"
-                                                + "Check the GET Value for <b style='color:red;'>"
-                                                + parentField
+                                                + "Check the GET Value for <b style='color:red;'>" + parentField
                                                 + "</b>";
 
                                         webPage.alertMessage(message);
@@ -559,30 +556,23 @@ public class Engine {
                                                 } else {
 
                                                     String message = "The Value: <b style='color:red;'>" + operations[2]
-                                                            + "</b> is not "
-                                                            + "<b>"
-                                                            + operations[1] + " " + mapOperators.get(parentField)
-                                                            + "</b> Length: (<b>"
+                                                            + "</b> is not " + "<b>" + operations[1] + " "
+                                                            + mapOperators.get(parentField) + "</b> Length: (<b>"
                                                             + mapOperators
                                                                     .get(parentField)
-                                                                    .length()
-                                                            + "</b>)"
+                                                                    .length() + "</b>)"
                                                             + "<br>----------------------------------------------<br>"
                                                             + "Check the SET/GET of <b style='color:red;'>"
-                                                            + operations[0]
-                                                            + "</b> for <b style='color:red;'>"
-                                                            + parentField
-                                                            + "</b>" + "<br>Current value: <b style='color:red;'>"
-                                                            + operations[2]
-                                                            + "</b> Length: (<b>"
-                                                            + operations[2].length()
-                                                            + "</b>)" + "<br>Expected value: <b style='color:green;'>"
-                                                            + mapOperators.get(parentField)
-                                                            + "</b> Length: (<b>"
+                                                            + operations[0] + "</b> for <b style='color:red;'>"
+                                                            + parentField + "</b>"
+                                                            + "<br>Current value: <b style='color:red;'>"
+                                                            + operations[2] + "</b> Length: (<b>"
+                                                            + operations[2].length() + "</b>)"
+                                                            + "<br>Expected value: <b style='color:green;'>"
+                                                            + mapOperators.get(parentField) + "</b> Length: (<b>"
                                                             + mapOperators
                                                                     .get(parentField)
-                                                                    .length()
-                                                            + "</b>)";
+                                                                    .length() + "</b>)";
 
                                                     webPage.alertMessage(message);
                                                     stopAll = true;
@@ -593,11 +583,10 @@ public class Engine {
                                             } else {
                                                 String message = "Check Operation - GET is Not Defined"
                                                         + "<br>----------------------------------------------<br>"
-                                                        + "Validation Error: <b style='color:red;'>"
-                                                        + parentField + "</b>"
+                                                        + "Validation Error: <b style='color:red;'>" + parentField
+                                                        + "</b>"
                                                         + "<br>----------------------------------------------<br>"
-                                                        + "Check the GET Value for <b style='color:red;'>"
-                                                        + parentField
+                                                        + "Check the GET Value for <b style='color:red;'>" + parentField
                                                         + "</b>";
 
                                                 webPage.alertMessage(message);
@@ -621,6 +610,11 @@ public class Engine {
 
                                         if (operations.length == 2) {
                                             if (mapOperators.containsKey(parentField)) {
+
+                                                if (excelExportOnceCreation) {
+                                                    writerExport.insertReportHead();
+                                                    excelExportOnceCreation = false;
+                                                }
 
                                                 resultAcions = "insertValueFieldNameInExcel-->" + parentField + "-"
                                                         + mapOperators.get(parentField);
@@ -668,11 +662,10 @@ public class Engine {
                                             } else {
                                                 String message = "Excel Writer - GET is Not Defined"
                                                         + "<br>----------------------------------------------<br>"
-                                                        + "Validation Error: <b style='color:red;'>"
-                                                        + parentField + "</b>"
+                                                        + "Validation Error: <b style='color:red;'>" + parentField
+                                                        + "</b>"
                                                         + "<br>----------------------------------------------<br>"
-                                                        + "Check the GET Value for <b style='color:red;'>"
-                                                        + parentField
+                                                        + "Check the GET Value for <b style='color:red;'>" + parentField
                                                         + "</b>";
 
                                                 webPage.alertMessage(message);
@@ -697,9 +690,7 @@ public class Engine {
                                         long duration = currentInstructionEndTime - botJobStartTime;
                                         ABRLogger.getInstance(WebPage.class)
                                                 .fine("FAILED OPTIONAL INSTRUCTION on element: " + resultAcions
-                                                        + " Cmd: "
-                                                        + lastInstructionExecuted
-                                                        + "- Duration: "
+                                                        + " Cmd: " + lastInstructionExecuted + "- Duration: "
                                                         + LocalTime.ofNanoOfDay(duration)
                                                                 .format(FORMAT_TIME));
                                         writerReport.insertInstructionResult(
@@ -715,9 +706,7 @@ public class Engine {
                                         long duration = currentInstructionEndTime - botJobStartTime;
                                         ABRLogger.getInstance(WebPage.class)
                                                 .fine("FAILED MANDATORY INSTRUCTION on element: " + resultAcions
-                                                        + " Cmd: "
-                                                        + lastInstructionExecuted
-                                                        + "- Duration: "
+                                                        + " Cmd: " + lastInstructionExecuted + "- Duration: "
                                                         + LocalTime.ofNanoOfDay(duration)
                                                                 .format(FORMAT_TIME));
                                         writerReport.insertInstructionResult(
