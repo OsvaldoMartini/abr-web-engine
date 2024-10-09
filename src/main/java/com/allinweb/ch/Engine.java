@@ -367,12 +367,18 @@ public class Engine {
                                                 .getName();
                                         checkOperation = true;
                                     } catch (Exception ex) {
-                                        String message = "Excel Writer - GET is Not Defined\""
+                                        String message = "Check Operation - GET is Not Defined"
                                                 + "<br>----------------------------------------------<br>"
-                                                + "Validation Error: <b style='color:red;'>" + parentField + "</b>"
+                                                + "Validation Error: <b style='color:red;'>"
+                                                + currentInstruction.getName()
+                                                + "</b>"
                                                 + "<br>----------------------------------------------<br>"
-                                                + "Check the GET Value for <b style='color:red;'>" + parentField
+                                                + "Check the GET Value for <b style='color:red;'>"
+                                                + currentInstruction.getParentId() + "-"
+                                                + currentInstruction.getOperation()
                                                 + "</b>";
+
+                                        webPage.alertMessage(message);
 
                                         stopAll = true;
 
@@ -389,11 +395,15 @@ public class Engine {
 
                                         excelWriteOperation = true;
                                     } catch (Exception ex) {
-                                        String message = "Excel Writer - GET is Not Defined\""
+                                        String message = "Check Operation - GET is Not Defined"
                                                 + "<br>----------------------------------------------<br>"
-                                                + "Validation Error: <b style='color:red;'>" + parentField + "</b>"
+                                                + "Validation Error: <b style='color:red;'>"
+                                                + currentInstruction.getName()
+                                                + "</b>"
                                                 + "<br>----------------------------------------------<br>"
-                                                + "Check the GET Value for <b style='color:red;'>" + parentField
+                                                + "Check the GET Value for <b style='color:red;'>"
+                                                + currentInstruction.getParentId() + "-"
+                                                + currentInstruction.getOperation()
                                                 + "</b>";
 
                                         webPage.alertMessage(message);
@@ -583,10 +593,13 @@ public class Engine {
                                             } else {
                                                 String message = "Check Operation - GET is Not Defined"
                                                         + "<br>----------------------------------------------<br>"
-                                                        + "Validation Error: <b style='color:red;'>" + parentField
+                                                        + "Validation Error: <b style='color:red;'>"
+                                                        + currentInstruction.getName()
                                                         + "</b>"
                                                         + "<br>----------------------------------------------<br>"
-                                                        + "Check the GET Value for <b style='color:red;'>" + parentField
+                                                        + "Check the GET Value for <b style='color:red;'>"
+                                                        + +currentInstruction.getParentId() + "-"
+                                                        + currentInstruction.getOperation()
                                                         + "</b>";
 
                                                 webPage.alertMessage(message);
@@ -662,10 +675,13 @@ public class Engine {
                                             } else {
                                                 String message = "Excel Writer - GET is Not Defined"
                                                         + "<br>----------------------------------------------<br>"
-                                                        + "Validation Error: <b style='color:red;'>" + parentField
+                                                        + "Validation Error: <b style='color:red;'>"
+                                                        + currentInstruction.getName()
                                                         + "</b>"
                                                         + "<br>----------------------------------------------<br>"
-                                                        + "Check the GET Value for <b style='color:red;'>" + parentField
+                                                        + "Check the GET Value for <b style='color:red;'>"
+                                                        + +currentInstruction.getParentId() + "-"
+                                                        + currentInstruction.getOperation()
                                                         + "</b>";
 
                                                 webPage.alertMessage(message);
@@ -953,8 +969,16 @@ public class Engine {
         map.put(key, randomName);
     }
 
-    private static void showAlert(String title, String header, String content) {
+    private static void showAlertInfo(String title, String header, String content) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText(content);
+        alert.showAndWait();
+    }
+
+    private void showAlertError(String title, String header, String content) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
         alert.setTitle(title);
         alert.setHeaderText(header);
         alert.setContentText(content);
