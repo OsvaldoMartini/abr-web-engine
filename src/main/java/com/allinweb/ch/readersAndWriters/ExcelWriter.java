@@ -124,15 +124,23 @@ public class ExcelWriter {
                     UtilsMethods.splitIfContains(instruction.getActions(), ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
             String action =
                     switch (splittedAction[0]) {
+                        case ABRConstants.OTHER -> "OTHER";
+                        case ABRConstants.OUTPUT -> "OUTPUT";
                         case ABRConstants.CLICK -> "CLICK";
                         case ABRConstants.INSERT -> "INSERT";
-                        case ABRConstants.EXTRACT -> "EXTRACT";
+                        case ABRConstants.EXTRACT_FIELD -> "EXTRACT";
                         case ABRConstants.QUIT -> "QUIT";
                         case ABRConstants.HOLD -> "WAIT";
                         case ABRConstants.REFRESH -> "REFRESH";
                         case ABRConstants.VISUALIZE -> "VISUALIZE";
                         case ABRConstants.SEARCH -> "SEARCH";
-                        case ABRConstants.SCREEN -> "SCREEN";
+                        case ABRConstants.SET_VALUE -> "SET VALUE";
+                        case ABRConstants.GET_VALUE -> "GET VALUE";
+                        case ABRConstants.CHECK_VALUE -> "CHECK VALUE";
+                        case ABRConstants.GOTO -> "GO TO";
+                        case ABRConstants.IF -> "IF";
+                        case ABRConstants.ELSE -> "ELSE";
+                        case ABRConstants.ENDIF -> "ENDIF";
                         default -> "Unsupported action";
                     };
             String value = "";
