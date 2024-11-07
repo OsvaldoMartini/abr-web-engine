@@ -71,8 +71,16 @@ public class ABRConstants {
     public static final String LIST_OPERATION = "L";
     public static final String QUIT = "Q";
     public static final String SCREEN = "P";
-    public static final String EXTRACT = "E";
+    public static final String EXTRACT_FIELD = "E";
+    public static final String SET_VALUE = "SET";
+    public static final String GET_VALUE = "GET";
+    public static final String CHECK_VALUE = "CK";
+    public static final String IF = "IF";
+    public static final String ELSE = "ELSE";
+    public static final String ENDIF = "ENDIF";
+    public static final String GOTO = "GOTO";
     public static final String FIND_ALL_CHILD_ELEMENTS = ".//*";
+    public static final String NO_VALUE = "NULL";
 
     // ACTION SYNTAX
     public static final String SUBSTITUTE_FIELD_VALUE = "<#value>";

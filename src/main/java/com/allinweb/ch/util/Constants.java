@@ -17,6 +17,8 @@ public class Constants {
     // actions codes
     public static final String VISUALIZE = "V";
     public static final String CLICK = "C";
+    public static final String OUTPUT = "O"; // For Label and Texts
+    public static final String OTHER = "W"; // For Other Kind OF
     public static final String SEARCH = "S";
     public static final String INSERT = "I";
     public static final String HOLD = "H";
@@ -25,7 +27,6 @@ public class Constants {
     public static final String QUIT = "Q";
     public static final String SCREEN = "P";
     public static final String EXTRACT = "E";
-    public static final String ALERT = "A";
     public static final String FIND_ALL_CHILD_ELEMENTS = ".//*";
 
     // actions specifications and various
@@ -42,6 +43,8 @@ public class Constants {
     public static final String FAIL = "KO";
     public static final String PATH_SEPARATOR = "\\";
     public static final String COMPLEX_INSTRUCTION_SEPARATOR = "\\|\\|";
+    public static final String ABSOLUT_XPATH = "ABSOLUT_XPATH"; // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
+    public static final String REGULAR_XPATH = "REGULAR_XPATH"; // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
 
     public static final String FILE_FORMAT = ".xlsx";
 
