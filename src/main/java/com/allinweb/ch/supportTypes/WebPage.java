@@ -75,6 +75,10 @@ public class WebPage {
         return driver;
     }
 
+    public ABRWebDriver getAbrWebDriver() {
+        return abrWebDriver;
+    }
+
     public WebDriver initDriver(String driverType) {
         if (driverType.equalsIgnoreCase(Constants.FIREFOX)) {
             FirefoxOptions options = new FirefoxOptions();

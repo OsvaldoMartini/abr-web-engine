@@ -2,6 +2,7 @@ package com.allinweb.ch.readersAndWriters;
 
 import com.allinweb.ch.dto.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.util.*;
+import com.google.common.base.Strings;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -43,9 +44,14 @@ public class ExcelWriter {
         boolean exist = ManagedExcel.checkIfExcelExist(botJobName, "excel");
         boolean existExport = ManagedExcel.checkIfExcelExist(botJobName + "_export", "export");
         String now = LocalDateTime.now().format(FORMAT_DATE_AND_TIME);
+        String fileNameExport = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FILE_NAME_EXPORT);
         try {
-            managedExcelMap.put(
-                    "export", new ManagedExcel(botJobName + "_export" + " (" + now + ")", "export", !existExport));
+            if (!Strings.isNullOrEmpty(fileNameExport)) {
+                managedExcelMap.put("export", new ManagedExcel(fileNameExport, "export", !existExport));
+            } else {
+                managedExcelMap.put(
+                        "export", new ManagedExcel(botJobName + "_export" + " (" + now + ")", "export", !existExport));
+            }
 
             managedExcelMap.put("excel", new ManagedExcel(botJobName, "excel", !exist));
             managedExcelMap.put("report", new ManagedExcel(botJobName + " (" + now + ")", "report", true));
@@ -120,63 +126,73 @@ public class ExcelWriter {
 
         public void insertInstructionResult(
                 BlockLoopInstructionLoadDTO instruction, Map<String, String> data, LocalTime time, String status) {
-            String[] splittedAction =
-                    UtilsMethods.splitIfContains(instruction.getActions(), ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
-            String action =
-                    switch (splittedAction[0]) {
-                        case ABRConstants.OTHER -> "OTHER";
-                        case ABRConstants.OUTPUT -> "OUTPUT";
-                        case ABRConstants.CLICK -> "CLICK";
-                        case ABRConstants.INSERT -> "INSERT";
-                        case ABRConstants.EXTRACT_FIELD -> "EXTRACT";
-                        case ABRConstants.QUIT -> "QUIT";
-                        case ABRConstants.HOLD -> "WAIT";
-                        case ABRConstants.REFRESH -> "REFRESH";
-                        case ABRConstants.VISUALIZE -> "VISUALIZE";
-                        case ABRConstants.SEARCH -> "SEARCH";
-                        case ABRConstants.SET_VALUE -> "SET VALUE";
-                        case ABRConstants.GET_VALUE -> "GET VALUE";
-                        case ABRConstants.CHECK_VALUE -> "CHECK VALUE";
-                        case ABRConstants.GOTO -> "GO TO";
-                        case ABRConstants.IF -> "IF";
-                        case ABRConstants.ELSE -> "ELSE";
-                        case ABRConstants.ENDIF -> "ENDIF";
-                        default -> "Unsupported action";
-                    };
-            String value = "";
-            if (splittedAction.length > 1) {
-                String reference = splittedAction[1];
-                value = data.get(reference);
-            }
-            if (!action.equals("SCREEN")) {
-                ManagedExcelAction act = managedExcel
-                        .onSheet(0)
-                        .insertValueAfterLastRowOfColumn(action, 0)
-                        .setCellFontStyleOfColumnOfLastRow(0, true, false, false)
-                        .insertValueOnLastRowAfterLastColumn(instruction.getName())
-                        .insertValueOnLastRowAfterLastColumn(value)
-                        .insertValueOnLastRowAfterLastColumn(time.format(FORMAT_TIME))
-                        .insertValueOnLastRowAfterLastColumn(status);
-                if (!status.equals("success")) {
-                    IndexedColors color = status.equals("failed") ? IndexedColors.RED : IndexedColors.YELLOW;
-                    act.fillRowBackgroundColorOfLastRow(color).insertScreenshotAfterLastRowOfColumn(0, abrWebDriver);
+            try {
+
+                String[] splittedAction = UtilsMethods.splitIfContains(
+                        instruction.getActions(), ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
+                String action =
+                        switch (splittedAction[0]) {
+                            case ABRConstants.OTHER -> "OTHER";
+                            case ABRConstants.OUTPUT -> "OUTPUT";
+                            case ABRConstants.CLICK -> "CLICK";
+                            case ABRConstants.INSERT -> "INSERT";
+                            case ABRConstants.EXTRACT_FIELD -> "EXTRACT";
+                            case ABRConstants.QUIT -> "QUIT";
+                            case ABRConstants.HOLD -> "WAIT";
+                            case ABRConstants.REFRESH -> "REFRESH";
+                            case ABRConstants.VISUALIZE -> "VISUALIZE";
+                            case ABRConstants.SEARCH -> "SEARCH";
+                            case ABRConstants.SET_VALUE -> "SET VALUE";
+                            case ABRConstants.GET_VALUE -> "GET VALUE";
+                            case ABRConstants.CHECK_VALUE -> "CHECK VALUE";
+                            case ABRConstants.GOTO -> "GO TO";
+                            case ABRConstants.IF -> "IF";
+                            case ABRConstants.ELSE -> "ELSE";
+                            case ABRConstants.ENDIF -> "ENDIF";
+                            case ABRConstants.SCREEN -> "SCREEN SHOT";
+                            default -> "Unsupported action";
+                        };
+                String value = "";
+                if (splittedAction.length > 1) {
+                    String reference = splittedAction[1];
+                    value = data.get(reference);
                 }
-            } else { // add screenshot
-                ManagedExcelAction act = managedExcel
-                        .onSheet(0)
-                        .insertValueAfterLastRowOfColumn(action, 0)
-                        .setCellFontStyleOfColumnOfLastRow(0, true, false, false)
-                        .insertValueOnLastRowAfterLastColumn(instruction.getName())
-                        .insertValueOnLastRowAfterLastColumn("")
-                        .insertValueOnLastRowAfterLastColumn(time.format(FORMAT_TIME))
-                        .insertValueOnLastRowAfterLastColumn(status)
-                        .insertScreenshotAfterLastRowOfColumn(0, abrWebDriver);
-                if (!status.equals("success")) {
-                    IndexedColors color = status.equals("failed") ? IndexedColors.RED : IndexedColors.YELLOW;
-                    act.fillRowBackgroundColorOfLastRow(color).insertScreenshotAfterLastRowOfColumn(0, abrWebDriver);
+                if (!action.equals("SCREEN")) {
+                    ManagedExcelAction act = managedExcel
+                            .onSheet(0)
+                            .insertValueAfterLastRowOfColumn(action, 0)
+                            .setCellFontStyleOfColumnOfLastRow(0, true, false, false)
+                            .insertValueOnLastRowAfterLastColumn(instruction.getName())
+                            .insertValueOnLastRowAfterLastColumn(value)
+                            .insertValueOnLastRowAfterLastColumn(time.format(FORMAT_TIME))
+                            .insertValueOnLastRowAfterLastColumn(status);
+                    if (!status.equals("success")) {
+                        IndexedColors color = status.equals("failed") ? IndexedColors.RED : IndexedColors.YELLOW;
+                        act.fillRowBackgroundColorOfLastRow(color)
+                                .insertScreenshotAfterLastRowOfColumn(0, abrWebDriver);
+                    }
+                } else { // add screenshot
+                    ManagedExcelAction act = managedExcel
+                            .onSheet(0)
+                            .insertValueAfterLastRowOfColumn(action, 0)
+                            .setCellFontStyleOfColumnOfLastRow(0, true, false, false)
+                            .insertValueOnLastRowAfterLastColumn(instruction.getName())
+                            .insertValueOnLastRowAfterLastColumn("")
+                            .insertValueOnLastRowAfterLastColumn(time.format(FORMAT_TIME))
+                            .insertValueOnLastRowAfterLastColumn(status)
+                            .insertScreenshotAfterLastRowOfColumn(0, abrWebDriver);
+                    if (!status.equals("success")) {
+                        IndexedColors color = status.equals("failed") ? IndexedColors.RED : IndexedColors.YELLOW;
+                        act.fillRowBackgroundColorOfLastRow(color)
+                                .insertScreenshotAfterLastRowOfColumn(0, abrWebDriver);
+                    }
                 }
+                managedExcel.save();
+            } catch (Exception ex) {
+                ABRLogger.getInstance(ExcelWriter.class)
+                        .severe(String.format(
+                                "InsertInstructionResult ( %s ) Error: %s ", instruction.getName(), ex.getMessage()));
             }
-            managedExcel.save();
         }
 
         public void insertTotalExecutionTimes(long startTime, long endTime) {

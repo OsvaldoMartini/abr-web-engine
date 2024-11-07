@@ -1,12 +1,14 @@
 package com.allinweb.ch;
 
-import com.allinweb.ch.builder.WebElementTagNameEnum;
+import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.dto.*;
+import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.supportTypes.ExtractedData;
 import com.allinweb.ch.supportTypes.WebPage;
 import com.allinweb.ch.util.*;
+import io.opentelemetry.api.internal.StringUtils;
 import java.io.*;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -14,8 +16,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.text.SimpleDateFormat;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
+import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.List;
@@ -31,6 +32,7 @@ import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.support.ui.WebDriverWait;
 
 public class Engine {
     private static SimpleDateFormat dateFormatter;
@@ -43,7 +45,6 @@ public class Engine {
 
     private static Map<String, String> mapOperators;
     private static Map<String, String> mapExport;
-    private static WebDriver abrWebDriver;
 
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     private static final int MIN_LENGTH = 3;
@@ -71,6 +72,16 @@ public class Engine {
 
     private static List<BotJobLoadDTO> botLoadJobs = new ArrayList<>();
     private static List<BlockLoopInstructionLoadDTO> instructionsExecuted = new ArrayList<>();
+
+    private static final PerformActions performAction;
+    private static WebDriver webDriver;
+    private static ABRPriorities abrPriorities;
+
+    // Static block to initialize
+    static {
+        performAction = PerformActions.getInstance();
+        abrPriorities = ABRPriorities.getInstance();
+    }
 
     public static void main(String[] args) {
 
@@ -170,6 +181,13 @@ public class Engine {
             throw new Exception("no reference (id) for home banking or bot job");
         }
 
+        HomeBankingDTO homeBankingDTO = loadHomeBanking(homeBankingId);
+
+        if (homeBankingDTO == null || StringUtils.isNullOrEmpty(homeBankingDTO.getUrl())) {
+            ABRLogger.getInstance(Engine.class).severe("Cannot find Home Banking Environment Id:" + homeBankingId);
+            return false;
+        }
+
         loadBlockAll(botJobId);
 
         if (botLoadJobs.size() < 1) {
@@ -178,29 +196,6 @@ public class Engine {
         }
 
         try {
-            HomeBankingDTO homeBankingDTO = repository.retrieveHomeBankingDTOById(homeBankingId);
-
-            BotJobDTO selectedJob = null;
-
-            if (homeBankingDTO == null) {
-                throw new Exception("Home banking not found");
-            }
-            if (homeBankingDTO.getBotJobs() == null) {
-                throw new Exception("No bot jobs found");
-            }
-
-            for (BotJobDTO job : homeBankingDTO.getBotJobs()) {
-                if (job.getId() == botJobId) {
-                    selectedJob = job;
-                    break;
-                }
-            }
-            if (selectedJob == null) {
-                throw new Exception("bot job not found");
-            }
-
-            // path must be: "path1;path2;-;path4;..." path or '-' for each block
-            //            String excelPath = idsAndPaths[2] + selectedJob.getName() + ".xlsx";
             String excelPath = idsAndPaths[2];
 
             ExcelReader excelReader = new ExcelReader();
@@ -211,40 +206,68 @@ public class Engine {
                 System.out.println("Fields in the excel not matching the botjob requirements");
             }
 
-            Set<String> blockClickables = selectedJob.getBlocks().stream()
-                    .map(BlockDTO::getBlockLoopInstructions)
-                    .reduce((identity, accumulated) -> {
-                        accumulated.addAll(identity);
-                        return accumulated;
-                    })
-                    .get()
-                    .stream()
-                    .map(BlockLoopInstructionDTO::getActions)
-                    .filter(action -> action.contains(Constants.CLICK))
-                    .collect(Collectors.toSet());
+            //            String browser = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.BROWSER);
+            //            WebPage webPage = new WebPage(
+            //                    browser,
+            //                    homeBankingDTO.getUrl(),
+            //                    homeBankingDTO.getPriority(),
+            //                    homeBankingDTO.getOptionsConfig(),
+            //                    mapOperators);
 
-            mapOperators = new HashMap<>();
-            mapExport = new HashMap<>();
+            ABRWebDriver abrWebDriver = new ABRWebDriver();
+            abrWebDriver.openDriver(homeBankingDTO.getUrl(), homeBankingDTO.getOptionsConfig());
 
-            String browser = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.BROWSER);
-            WebPage webPage = new WebPage(
-                    browser,
-                    homeBankingDTO.getUrl(),
-                    homeBankingDTO.getPriority(),
-                    homeBankingDTO.getOptionsConfig(),
-                    mapOperators);
+            // Ensure botJob and abrPriorities are not null before accessing their methods
+            if (botLoadJobs.get(0) != null && abrPriorities != null) {
+                // Check if we need to update abrPriorities
+                if (abrPriorities.getJobId() == null
+                        || !abrPriorities.getJobId().equals(botLoadJobs.get(0).getId())) {
+                    // Set Job ID in abrPriorities
+                    abrPriorities.setJobId(botLoadJobs.get(0).getId());
 
-            abrWebDriver = webPage.getDriver();
+                    // Check for non-null HomeBanking and Priority
+                    if (homeBankingDTO != null) {
+                        String priorityValue = homeBankingDTO.getPriority();
+                        String searchConfig = homeBankingDTO.getSearchConfig();
 
-            String baseLogString =
-                    selectedJob.getName() + Constants.FIELDS_SEPARATOR + labelsValue.getProperty(Labels.START);
+                        if (priorityValue != null) {
+                            abrPriorities.loadPrioritiesFromString(priorityValue);
+                        } else {
+                            abrPriorities.loadPriorities();
+                        }
+
+                        abrPriorities.loadSearchElementsConfig(searchConfig);
+                    }
+
+                    // Initialize performAction with abrPriorities and abrWebDriver
+                    performAction.initializePerformActions(abrPriorities, abrWebDriver);
+                }
+            }
+            if (performAction.waitForPage == null) {
+                String updateTimeout =
+                        ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
+                String interactionTimeout =
+                        ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
+                performAction.waitForPage = new WebDriverWait(
+                        abrWebDriver.getDriver(), Duration.ofSeconds(Integer.parseInt(updateTimeout)));
+                performAction.waitForAction = new WebDriverWait(
+                        abrWebDriver.getDriver(), Duration.ofSeconds(Integer.parseInt(interactionTimeout)));
+            }
+
+            List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
+
+            String baseLogString = blocksLoaded.get(0).getBotJobName()
+                    + Constants.FIELDS_SEPARATOR
+                    + labelsValue.getProperty(Labels.START);
+
             printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
+
             ExcelWriter.ExcelChain writerReport =
-                    new ExcelWriter(selectedJob.getName(), abrWebDriver).withPurpose("report");
+                    new ExcelWriter(botLoadJobs.get(0).getName(), webDriver).withPurpose("report");
             writerReport.insertReportHead();
 
             ExcelWriter.ExcelChain writerExport =
-                    new ExcelWriter(selectedJob.getName(), abrWebDriver).withPurpose("export");
+                    new ExcelWriter(botLoadJobs.get(0).getName(), webDriver).withPurpose("export");
             boolean excelExportOnceCreation = true;
             //            writerExport.insertReportHead();
 
@@ -253,194 +276,434 @@ public class Engine {
             long botJobStartTime = System.nanoTime();
             long totalExecutionTime = 0;
             String lastInstructionExecuted = "No instruction executed yet";
-            String resultAcions = "";
+            String resultActions = "";
             short status = (short) ExcelReportStatusEnum.ERROR.ordinal();
             Map<String, String> dataExcel = null;
 
-            ExcelReportDTO report = new ExcelReportDTO();
-            report.setOrder((short) botLoadJobs.get(0).getId());
-            report.setStartDate(LocalDateTime.now());
-            report.setBatchJobId(selectedJob.getId());
-            report.setBotJobDTO(selectedJob);
-            report.setStatus((short) ExcelReportStatusEnum.NOT_RUN.ordinal());
+            //            ExcelReportDTO report = new ExcelReportDTO();
+            //            report.setOrder((short) botLoadJobs.get(0).getId());
+            //            report.setStartDate(LocalDateTime.now());
+            //            report.setBatchJobId(selectedJob.getId());
+            //            report.setBotJobDTO(selectedJob);
+            //            report.setStatus((short) ExcelReportStatusEnum.NOT_RUN.ordinal());
 
-            List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
+            mapOperators = new HashMap<>();
+            mapExport = new LinkedHashMap<>();
+            int executionTimes = 0;
+            int execLimitReach = 0;
+            String limitReach = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.BLOCK_EXEC_LIMIT);
+            if (limitReach != null) {
+                execLimitReach = Integer.parseInt(limitReach);
+            }
 
             int exportIndex = 1;
             if (extractedData.getNumberOfDataRows() > 0) {
-                for (BlockLoadDTO blockLoad : blocksLoaded.stream().collect(Collectors.toList())) {
+                int currentBlock = 0;
+                outerLoop:
+                while (currentBlock <= blocksLoaded.size() - 1
+                        && blocksLoaded.size() > 0
+                        && !stopAll
+                        && executionTimes < execLimitReach) {
                     instructionsExecuted.clear();
-                    if (stopAll) {
-                        break;
-                    }
-                    for (int i = 0; success && i < extractedData.getNumberOfDataRows(); i++) {
-                        if (stopAll) {
-                            break;
-                        }
+                    BlockLoadDTO blockLoad = blocksLoaded.get(currentBlock);
+                    executionTimes++;
+                    boolean jumpGoto = false;
 
+                    for (int i = 0; success && i < extractedData.getNumberOfDataRows() && !stopAll; i++) {
+                        boolean ifClause = false;
+                        boolean ifFailed = false;
+                        boolean ifDone = false;
+                        boolean elseClause = false;
+                        boolean elseFailed = false;
                         mapExport.clear();
-                        writerReport.insertBlockSeparation(blockLoad.getName());
+                        //                    writerReport.insertBlockSeparation(blockLoad.getName());
 
                         // Insert the field name and value rows below the block name
-                        //                    writerExport.insertFieldNameAndValueLastColumn(mapExport);
+                        for (int j = 0;
+                                j < blockLoad.getBlockLoopInstructionLoadDTOS().size() && !stopAll;
+                                j++) {
+                            BlockLoopInstructionLoadDTO currentInstruction =
+                                    blockLoad.getBlockLoopInstructionLoadDTOS().get(j);
 
-                        // Call the method to get the filtered list
-                        List<BlockLoopInstructionLoadDTO> unexecutedInstructions = getUnexecutedInstructions(
-                                instructionsExecuted, blockLoad.getBlockLoopInstructionLoadDTOS());
+                            // Allow Re-Execute Instructions in Previous Blocks
+                            //                        if (currentInstruction.getExecuted() == null ||
+                            // !currentInstruction.getExecuted()) {
+                            boolean execOperation = false;
+                            boolean checkOperation = false;
+                            boolean excelWriteOperation = false;
 
-                        for (BlockLoopInstructionLoadDTO currentInstruction : unexecutedInstructions) {
-                            if (stopAll) {
-                                break;
+                            String xPathOperation = null;
+                            String parentField = null;
+                            String fieldName = null;
+                            int parentId = currentInstruction.getParentId();
+
+                            String[] actions =
+                                    currentInstruction.getActions().split(Constants.ACTIONS_AND_PATHS_SPLITTER);
+                            String[] operations = currentInstruction.getOperation() != null
+                                    ? currentInstruction.getOperation().split(Constants.ACTION_SPECIFICATIONS_SPLITTER)
+                                    : null;
+
+                            // If IF clause failed, look for ELSE to start executing the ELSE block
+
+                            if (actions[0].equalsIgnoreCase(ABRConstants.IF)) {
+
+                                ABRLogger.getInstance(Engine.class)
+                                        .info("Initial Execution { IF -> ELSE} ->  inside Block :\""
+                                                + blockLoad.getName() + "\"");
+
+                                ifClause = true;
+                                ifFailed = false; // Reset failure status for this IF clause
+                                ifDone = false;
+                                continue;
                             }
-                            if (currentInstruction.getExecuted() == null || !currentInstruction.getExecuted()) {
-                                boolean execOperation = false;
-                                boolean checkOperation = false;
-                                boolean excelWriteOperation = false;
 
-                                String xPathOperation = null;
-                                String parentField = null;
+                            if (ifClause && ifFailed && !ifDone) {
 
-                                String[] actions =
-                                        currentInstruction.getActions().split(Constants.ACTIONS_AND_PATHS_SPLITTER);
-                                String[] operations = currentInstruction.getOperation() != null
-                                        ? currentInstruction
-                                                .getOperation()
-                                                .split(Constants.ACTION_SPECIFICATIONS_SPLITTER)
-                                        : null;
+                                if (actions[0].equalsIgnoreCase(ABRConstants.ELSE)) {
+                                    ABRLogger.getInstance(Engine.class)
+                                            .warning("Closing Block { IF -> ELSE} -> Failed Execution inside Block :\""
+                                                    + blockLoad.getName() + "\"");
 
-                                if (actions[0].equalsIgnoreCase(WebElementTagNameEnum.GET.getValue())
-                                        || actions[0].equalsIgnoreCase(WebElementTagNameEnum.SET.getValue())) {
+                                    ifClause = false;
+                                    ifFailed = false;
+                                    elseClause = true;
+                                    elseFailed = false; // Reset failure status for this ELSE clause
+                                    continue;
+                                } else {
+                                    // Skip until ELSE is found
+                                    continue;
+                                }
+                            } else if (elseClause && elseFailed) {
+                                if (actions[0].equalsIgnoreCase(ABRConstants.ENDIF)) {
+                                    ABRLogger.getInstance(Engine.class)
+                                            .warning(
+                                                    "Closing Block { ELSE -> ENDIF } -> Failed Execution inside Block :\""
+                                                            + blockLoad.getName() + "\"");
 
-                                    execOperation = true;
-                                    try {
-                                        xPathOperation = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
-                                                .filter(f -> f.getId() == currentInstruction.getParentId())
-                                                .findFirst()
-                                                .get()
-                                                .getPath();
+                                    elseClause = false;
+                                    elseFailed = false; // Reset failure status for this ELSE clause
+                                    continue;
+                                } else {
+                                    // Skip until ELSE is found
+                                    continue;
+                                }
+                            }
 
-                                        parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
-                                                .filter(f -> f.getId() == currentInstruction.getParentId())
-                                                .findFirst()
-                                                .get()
-                                                .getName();
-                                    } catch (Exception ex) {
-                                        String message = "The Parent Id: <b style='color:red;'>"
-                                                + currentInstruction.getParentId() + "</b> For the " + "<b>"
-                                                + currentInstruction.getOperation()
-                                                + "<br>----------------------------------------------<br>"
-                                                + "<b style='color:red;'>" + "Does not belong to this block "
-                                                + blockLoad.getId() + "-" + blockLoad.getName() + "</b>"
-                                                + "<b style='color:red;'>"
-                                                + "<br>----------------------------------------------<br>"
-                                                + "Check the Field Names and Fields Ids</b>";
-                                        webPage.alertMessage(message);
+                            // Process ENDIF to reset flags and resume normal flow after IF-ELSE blocks
+                            if (ifClause && !ifFailed && actions[0].equalsIgnoreCase(ABRConstants.ELSE)) {
 
+                                ABRLogger.getInstance(Engine.class)
+                                        .info("Closing Block { IF -> ELSE } -> Success Execution inside Block :\""
+                                                + blockLoad.getName() + "\"");
+
+                                ifClause = false;
+                                ifFailed = false;
+                                ifDone = true;
+                                continue;
+                            }
+
+                            // Process ENDIF to reset flags and resume normal flow after IF-ELSE blocks
+                            if (elseClause && !elseFailed && actions[0].equalsIgnoreCase(ABRConstants.ENDIF)) {
+
+                                ABRLogger.getInstance(Engine.class)
+                                        .info("Closing Block { ELSE -> ENDIF } -> Success Execution inside Block :\""
+                                                + blockLoad.getName() + "\"");
+
+                                elseClause = false;
+                                elseFailed = false;
+                                continue;
+                            } else if (ifDone && !actions[0].equalsIgnoreCase(ABRConstants.ENDIF)) {
+                                continue;
+                            }
+
+                            // Process ENDIF to reset flags and resume normal flow after IF-ELSE blocks
+                            if (!ifClause
+                                    && !ifFailed
+                                    && !elseClause
+                                    && !elseFailed
+                                    && ifDone
+                                    && actions[0].equalsIgnoreCase(ABRConstants.ENDIF)) {
+                                ifDone = false;
+                                ABRLogger.getInstance(Engine.class)
+                                        .info("Skiping { ENDIF } -> Success Skipping inside Block :\""
+                                                + blockLoad.getName() + "\"");
+
+                                continue;
+                            }
+
+                            if (actions[0].equalsIgnoreCase(ABRConstants.GOTO)) {
+                                jumpGoto = true;
+
+                            } else if (actions[0].equalsIgnoreCase(ABRConstants.GET_VALUE)
+                                    || actions[0].equalsIgnoreCase(ABRConstants.SET_VALUE)) {
+
+                                execOperation = true;
+                                try {
+                                    xPathOperation = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
+                                            .filter(f -> f.getId() == currentInstruction.getParentId())
+                                            .findFirst()
+                                            .get()
+                                            .getPath();
+
+                                    parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
+                                            .filter(f -> f.getId() == currentInstruction.getParentId())
+                                            .findFirst()
+                                            .get()
+                                            .getName();
+
+                                    fieldName = parentField;
+                                    parentField = parentId + "-" + parentField;
+                                } catch (Exception ex) {
+                                    resultActions = performAction.parentIdWrongBlockEngine(
+                                            currentInstruction, blockLoad, ifClause, elseClause);
+
+                                    if (!ifClause && !elseClause) {
                                         stopAll = true;
-
-                                        resultAcions = String.format(
-                                                "This ParentId: %d does not belong to this block: %d - %s. Check the Field Names and Fields Ids",
-                                                currentInstruction.getParentId(),
-                                                blockLoad.getId(),
-                                                blockLoad.getName());
                                         success = false;
-
-                                        lastInstructionExecuted = "";
-
-                                        ABRLogger.getInstance(Engine.class)
-                                                .severe(String.format(
-                                                        "Parent Id Error\nCheck Parent Id: %d"
-                                                                + "\nFor the %s \nDoes not belong to this block: "
-                                                                + blockLoad.getId() + "-" + blockLoad.getName(),
-                                                        currentInstruction.getParentId(),
-                                                        currentInstruction.getOperation()));
-
                                         break;
+                                    } else if (ifClause) {
+                                        ifFailed = true;
+                                    } else if (elseClause) {
+                                        elseFailed = true;
                                     }
 
-                                } else if (actions[0].equalsIgnoreCase(WebElementTagNameEnum.CK.getValue())) {
-                                    try {
-                                        parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
-                                                .filter(f -> f.getId() == currentInstruction.getParentId())
-                                                .findFirst()
-                                                .get()
-                                                .getName();
-                                        checkOperation = true;
-                                    } catch (Exception ex) {
-                                        String message = "Check Operation - GET is Not Defined"
-                                                + "<br>----------------------------------------------<br>"
-                                                + "Validation Error: <b style='color:red;'>"
-                                                + currentInstruction.getName()
-                                                + "</b>"
-                                                + "<br>----------------------------------------------<br>"
-                                                + "Check the GET Value for <b style='color:red;'>"
-                                                + currentInstruction.getParentId() + "-"
-                                                + currentInstruction.getOperation()
-                                                + "</b>";
+                                    //                                    String message = "The Parent Id: <b
+                                    // style='color:red;'>"
+                                    //                                            + currentInstruction.getParentId() +
+                                    // "</b> For the " + "<b>"
+                                    //                                            + currentInstruction.getOperation()
+                                    //                                            +
+                                    // "<br>----------------------------------------------<br>"
+                                    //                                            + "<b style='color:red;'>" + "Does not
+                                    // belong to this block "
+                                    //                                            + blockLoad.getId() + "-" +
+                                    // blockLoad.getName() + "</b>"
+                                    //                                            + "<b style='color:red;'>"
+                                    //                                            +
+                                    // "<br>----------------------------------------------<br>"
+                                    //                                            + "Check the Field Names and Fields
+                                    // Ids</b>";
+                                    //                                    webPage.alertMessage(message);
 
-                                        webPage.alertMessage(message);
+                                    //                                    stopAll = true;
+                                    //
+                                    //                                    resultActions = String.format(
+                                    //                                            "This ParentId: %d does not belong to
+                                    // this block: %d - %s. Check the Field Names and Fields Ids",
+                                    //                                            currentInstruction.getParentId(),
+                                    // blockLoad.getId(), blockLoad.getName());
+                                    //                                    success = false;
 
-                                        stopAll = true;
+                                    //                                    lastInstructionExecuted = "";
 
-                                        resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
-                                        success = false;
-                                    }
-                                } else if (actions[0].equalsIgnoreCase(WebElementTagNameEnum.E.getValue())) {
-                                    try {
-                                        parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
-                                                .filter(f -> f.getId() == currentInstruction.getParentId())
-                                                .findFirst()
-                                                .get()
-                                                .getName();
+                                    //                                    ABRLogger.getInstance(Engine.class)
+                                    //                                            .severe(String.format(
+                                    //                                                    "Parent Id Error\nCheck Parent
+                                    // Id: %d"
+                                    //                                                            + "\nFor the %s \nDoes
+                                    // not belong to this block: "
+                                    //                                                            + blockLoad.getId() +
+                                    // "-" + blockLoad.getName(),
+                                    //
+                                    // currentInstruction.getParentId(),
+                                    //
+                                    // currentInstruction.getOperation()));
 
-                                        excelWriteOperation = true;
-                                    } catch (Exception ex) {
-                                        String message = "Check Operation - GET is Not Defined"
-                                                + "<br>----------------------------------------------<br>"
-                                                + "Validation Error: <b style='color:red;'>"
-                                                + currentInstruction.getName()
-                                                + "</b>"
-                                                + "<br>----------------------------------------------<br>"
-                                                + "Check the GET Value for <b style='color:red;'>"
-                                                + currentInstruction.getParentId() + "-"
-                                                + currentInstruction.getOperation()
-                                                + "</b>";
-
-                                        webPage.alertMessage(message);
-
-                                        stopAll = true;
-
-                                        resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
-                                        success = false;
-                                    }
+                                    break;
                                 }
 
-                                long currentInstructionStartTime = System.nanoTime();
-                                File logFileForSingleExcel = excelReader.createLogFile(excelPath);
-
-                                // fillUpCurretLocators(currentInstruction);
-
+                            } else if (actions[0].equalsIgnoreCase(ABRConstants.CHECK_VALUE)) {
                                 try {
-                                    if (!execOperation && !checkOperation && !excelWriteOperation) {
-                                        dataExcel = extractedData.getRowFieldValues(i);
+                                    parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
+                                            .filter(f -> f.getId() == currentInstruction.getParentId())
+                                            .findFirst()
+                                            .get()
+                                            .getName();
 
-                                        lastInstructionExecuted = currentInstruction.getName()
-                                                + Constants.BLANK_STRING
-                                                + currentInstruction.getPath();
-                                        resultAcions = webPage.performActions(
-                                                dataExcel, currentInstruction, botJobId, blockLoad.getName());
-                                        long currentInstructionEndTime = System.nanoTime();
-                                        totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
+                                    fieldName = parentField;
+                                    parentField = parentId + "-" + parentField;
 
-                                        if (resultAcions != null) {
+                                    checkOperation = true;
+                                } catch (Exception ex) {
+                                    resultActions = performAction.getValueIsNotDefinedEngine(
+                                            currentInstruction, lastInstructionExecuted, ifClause, elseClause);
 
-                                            ABRLogger.getInstance(WebPage.class)
-                                                    .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions
-                                                            + " Cmd: " + lastInstructionExecuted);
+                                    if (!ifClause && !elseClause) {
+                                        stopAll = true;
+                                        success = false;
+                                        break;
+                                    } else if (ifClause) {
+                                        ifFailed = true;
+                                    } else if (elseClause) {
+                                        elseFailed = true;
+                                    }
+                                }
+                            } else if (actions[0].equalsIgnoreCase(ABRConstants.EXTRACT_FIELD)) {
+                                try {
+                                    parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
+                                            .filter(f -> f.getId() == currentInstruction.getParentId())
+                                            .findFirst()
+                                            .get()
+                                            .getName();
 
+                                    fieldName = parentField;
+                                    parentField = parentId + "-" + parentField;
+
+                                    excelWriteOperation = true;
+                                } catch (Exception ex) {
+                                    resultActions = performAction.getValueIsNotDefinedEngine(
+                                            currentInstruction, lastInstructionExecuted, ifClause, elseClause);
+
+                                    if (!ifClause && !elseClause) {
+                                        stopAll = true;
+                                        success = false;
+                                        break;
+                                    } else if (ifClause) {
+                                        ifFailed = true;
+                                    } else if (elseClause) {
+                                        elseFailed = true;
+                                    }
+
+                                    break;
+                                }
+                            }
+
+                            long currentInstructionStartTime = System.nanoTime();
+                            File logFileForSingleExcel = excelReader.createLogFile(excelPath);
+
+                            // fillUpCurretLocators(currentInstruction);
+
+                            try {
+                                if (jumpGoto) {
+
+                                    lastInstructionExecuted = currentInstruction.getName()
+                                            + Constants.BLANK_STRING
+                                            + currentInstruction.getOperation();
+
+                                    try {
+                                        int blockOrderNumber = blocksLoaded.stream()
+                                                .filter(block -> block.getId()
+                                                        == currentInstruction.getParentId()) // Filter by blockId
+                                                .findFirst() // Get the first matching block
+                                                .map(BlockLoadDTO::getBlockOrderNumber) // Map to blockOrderNumber
+                                                .orElseThrow(() -> new NoSuchElementException(
+                                                        "No block found with the given blockId")); // Handle if no
+                                        // block is found
+                                        currentBlock = blockOrderNumber - 1;
+                                        currentInstruction.setExecuted(true);
+
+                                        resultActions = "GO TO -->" + currentInstruction.getName() + " --> "
+                                                + currentInstruction.getOperation();
+
+                                        // Assuming currentInstruction and instructionsExecuted are already defined
+                                        if (currentInstruction != null
+                                                && instructionsExecuted.stream()
+                                                        .noneMatch(
+                                                                instruction -> instruction.getInstructionOrderNumber()
+                                                                        == currentInstruction
+                                                                                .getInstructionOrderNumber())) {
+                                            instructionsExecuted.add(currentInstruction);
+                                        }
+
+                                        success = true;
+                                    } catch (Exception ex) {
+                                        resultActions = "Failed to Execute -> " + currentInstruction.getName() + " --> "
+                                                + currentInstruction.getOperation();
+                                        success = false;
+
+                                        resultActions = performAction.blockGotoFailed(resultActions);
+                                    }
+
+                                    long duration = performAction.duration(currentInstructionStartTime);
+                                    performAction.excelReportWrite(
+                                            success, currentInstruction, duration, dataExcel, writerReport);
+                                    totalExecutionTime += duration;
+
+                                    status = performAction.operationLog(
+                                            success,
+                                            currentInstruction.isOptional()
+                                                    ? "OPTIONAL INSTRUCTION"
+                                                    : "MANDATORY INSTRUCTION",
+                                            resultActions,
+                                            lastInstructionExecuted,
+                                            duration);
+                                    if (success) {
+                                        continue outerLoop;
+                                    } else {
+
+                                        if (!ifClause && !elseClause) {
+                                            stopAll = true;
+                                            break;
+                                        } else if (ifClause) {
+                                            ifFailed = true;
+                                        } else if (elseClause) {
+                                            elseFailed = true;
+                                        }
+                                    }
+
+                                } else if (!execOperation && !checkOperation && !excelWriteOperation) {
+                                    dataExcel = extractedData.getRowFieldValues(i);
+
+                                    lastInstructionExecuted = currentInstruction.getName()
+                                            + Constants.BLANK_STRING
+                                            + currentInstruction.getPath();
+
+                                    resultActions = performAction.performWebActions(
+                                            dataExcel, currentInstruction, botJobId, blockLoad.getName(), mapOperators);
+
+                                    if (resultActions != null) {
+                                        currentInstruction.setExecuted(true);
+                                        // Assuming currentInstruction and instructionsExecuted are already defined
+                                        if (currentInstruction != null
+                                                && instructionsExecuted.stream()
+                                                        .noneMatch(
+                                                                instruction -> instruction.getInstructionOrderNumber()
+                                                                        == currentInstruction
+                                                                                .getInstructionOrderNumber())) {
+                                            instructionsExecuted.add(currentInstruction);
+                                        }
+                                        success = true;
+                                    } else {
+                                        resultActions = "Failed to Execute -> " + currentInstruction.getName();
+                                        success = false;
+                                    }
+
+                                    long duration = performAction.duration(currentInstructionStartTime);
+                                    performAction.excelReportWrite(
+                                            success, currentInstruction, duration, dataExcel, writerReport);
+                                    totalExecutionTime += duration;
+
+                                    status = performAction.operationLog(
+                                            success,
+                                            currentInstruction.isOptional()
+                                                    ? "OPTIONAL INSTRUCTION"
+                                                    : "MANDATORY INSTRUCTION",
+                                            resultActions,
+                                            lastInstructionExecuted,
+                                            duration);
+
+                                } else if (execOperation) {
+                                    // Special Operators
+                                    lastInstructionExecuted = currentInstruction.getName()
+                                            + Constants.BLANK_STRING
+                                            + currentInstruction.getActions()
+                                            + Constants.BLANK_STRING
+                                            + currentInstruction.getOperation();
+
+                                    if (operations.length == 2) {
+                                        resultActions = performAction.performActionOperator(
+                                                currentInstruction,
+                                                xPathOperation,
+                                                actions[0],
+                                                operations,
+                                                parentField,
+                                                mapOperators);
+
+                                        if (resultActions != null) {
                                             currentInstruction.setExecuted(true);
 
-                                            // Assuming currentInstruction and instructionsExecuted are already defined
+                                            // Assuming currentInstruction and instructionsExecuted are already
+                                            // defined
                                             if (currentInstruction != null
                                                     && instructionsExecuted.stream()
                                                             .noneMatch(instruction ->
@@ -451,43 +714,154 @@ public class Engine {
                                             }
                                             success = true;
                                         } else {
-                                            resultAcions = "Failed to Execute -> " + currentInstruction.getName();
+                                            resultActions = "Failed to Execute Cmd: " + lastInstructionExecuted;
                                             success = false;
                                         }
 
-                                        writerReport.insertInstructionResult(
-                                                currentInstruction,
-                                                dataExcel,
-                                                LocalTime.ofNanoOfDay(
-                                                        currentInstructionEndTime - currentInstructionStartTime),
-                                                success ? "success" : "failed");
+                                    } else {
+                                        resultActions = "Failed to Execute Cmd: " + lastInstructionExecuted;
+                                        success = false;
+                                    }
 
-                                    } else if (execOperation) {
-                                        // Special Operators
-                                        lastInstructionExecuted = currentInstruction.getName()
-                                                + Constants.BLANK_STRING
-                                                + currentInstruction.getActions()
-                                                + Constants.BLANK_STRING
-                                                + currentInstruction.getOperation();
+                                    long duration = performAction.duration(currentInstructionStartTime);
+                                    performAction.excelReportWrite(
+                                            success, currentInstruction, duration, dataExcel, writerReport);
+                                    totalExecutionTime += duration;
 
-                                        if (operations.length == 2) {
-                                            resultAcions = webPage.performActionOperator(
-                                                    currentInstruction,
-                                                    xPathOperation,
-                                                    actions[0],
-                                                    operations,
-                                                    parentField);
+                                    status = performAction.operationLog(
+                                            success,
+                                            currentInstruction.isOptional()
+                                                    ? "OPTIONAL INSTRUCTION"
+                                                    : "MANDATORY INSTRUCTION",
+                                            resultActions,
+                                            lastInstructionExecuted,
+                                            duration);
+                                } else if (checkOperation) {
+                                    // Check Validation Operator
+                                    lastInstructionExecuted = currentInstruction.getName()
+                                            + Constants.BLANK_STRING
+                                            + currentInstruction.getActions()
+                                            + Constants.BLANK_STRING
+                                            + currentInstruction.getOperation();
 
-                                            long currentInstructionEndTime = System.nanoTime();
-                                            totalExecutionTime +=
-                                                    currentInstructionEndTime - currentInstructionStartTime;
+                                    if (operations.length == 3) {
+                                        if (mapOperators.containsKey(parentField)) {
+                                            resultActions = "CHECK_VALUE for (Parent: " + parentField + ")"
+                                                    + String.join(" ", operations);
+                                            boolean isOperationValid = false;
+                                            if (operations[1].equalsIgnoreCase("=")) {
+                                                isOperationValid = mapOperators
+                                                        .get(parentField)
+                                                        .equalsIgnoreCase(operations[2]);
 
-                                            if (resultAcions != null) {
+                                            } else if (operations[1].equalsIgnoreCase(">")) {
+                                                isOperationValid = mapOperators
+                                                        .get(parentField)
+                                                        .equalsIgnoreCase(operations[2]);
+                                            }
 
-                                                ABRLogger.getInstance(WebPage.class)
-                                                        .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions
-                                                                + " Cmd: " + lastInstructionExecuted);
+                                            if (isOperationValid) {
+                                                currentInstruction.setExecuted(true);
 
+                                                // Assuming currentInstruction and instructionsExecuted are already
+                                                // defined
+                                                if (currentInstruction != null
+                                                        && instructionsExecuted.stream()
+                                                                .noneMatch(instruction ->
+                                                                        instruction.getInstructionOrderNumber()
+                                                                                == currentInstruction
+                                                                                        .getInstructionOrderNumber())) {
+                                                    instructionsExecuted.add(currentInstruction);
+                                                }
+                                                success = true;
+
+                                            } else {
+                                                resultActions = performAction.checkValidationFailedEngine(
+                                                        parentField,
+                                                        mapOperators.get(parentField),
+                                                        lastInstructionExecuted,
+                                                        operations,
+                                                        ifClause,
+                                                        elseClause);
+
+                                                if (!ifClause && !elseClause) {
+                                                    stopAll = true;
+                                                    success = false;
+                                                    break;
+                                                } else if (ifClause) {
+                                                    ifFailed = true;
+                                                } else if (elseClause) {
+                                                    elseFailed = true;
+                                                }
+                                            }
+
+                                        } else {
+                                            resultActions = performAction.getValueIsNotDefinedEngine(
+                                                    currentInstruction, lastInstructionExecuted, ifClause, elseClause);
+                                            if (!ifClause && !elseClause) {
+                                                stopAll = true;
+                                                success = false;
+                                                break;
+                                            } else if (ifClause) {
+                                                ifFailed = true;
+                                            } else if (elseClause) {
+                                                elseFailed = true;
+                                            }
+                                        }
+
+                                    } else {
+                                        resultActions = "Failed to Execute Cmd: " + lastInstructionExecuted;
+                                        success = false;
+                                    }
+
+                                    long duration = performAction.duration(currentInstructionStartTime);
+                                    performAction.excelReportWrite(
+                                            success, currentInstruction, duration, dataExcel, writerReport);
+                                    totalExecutionTime += duration;
+
+                                    status = performAction.operationLog(
+                                            success,
+                                            currentInstruction.isOptional()
+                                                    ? "OPTIONAL INSTRUCTION"
+                                                    : "MANDATORY INSTRUCTION",
+                                            resultActions,
+                                            lastInstructionExecuted,
+                                            duration);
+
+                                } else if (excelWriteOperation) {
+                                    // Excel Write Operator
+                                    // Excel Write Operator
+                                    lastInstructionExecuted = currentInstruction.getName()
+                                            + Constants.BLANK_STRING
+                                            + currentInstruction.getActions()
+                                            + Constants.BLANK_STRING
+                                            + currentInstruction.getOperation();
+
+                                    if (operations.length == 2) {
+                                        if (mapOperators.containsKey(parentField)) {
+
+                                            if (excelExportOnceCreation) {
+                                                //
+                                                // writerExport.insertReportHead();
+                                                excelExportOnceCreation = false;
+                                            }
+
+                                            resultActions = "insertValueFieldNameInExcel-->" + parentField + "-"
+                                                    + mapOperators.get(parentField);
+                                            if (mapExport.size() == 0) {
+                                                //
+                                                // writerExport.insertBlockSeparation(blockLoad.getName());
+                                                //                                            exportIndex *= 2;
+                                            }
+
+                                            mapExport.put("KEY", "EXTERNAL");
+                                            mapExport.put(fieldName, mapOperators.get(parentField));
+                                            // Insert the updated mapExport into the Excel after each instruction
+                                            writerExport.insertFieldNameAndValueLastColumn(mapExport, exportIndex - 1);
+
+                                            performAction.onHoldForSeconds(null);
+
+                                            if (resultActions != null) {
                                                 currentInstruction.setExecuted(true);
 
                                                 // Assuming currentInstruction and instructionsExecuted are already
@@ -502,260 +876,106 @@ public class Engine {
                                                 }
                                                 success = true;
                                             } else {
-                                                resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
+                                                resultActions = "Failed to Execute Cmd: " + lastInstructionExecuted;
                                                 success = false;
                                             }
+
                                         } else {
-                                            resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
-                                            success = false;
-                                        }
-                                    } else if (checkOperation) {
-                                        // Check Validation Operator
-                                        lastInstructionExecuted = currentInstruction.getName()
-                                                + Constants.BLANK_STRING
-                                                + currentInstruction.getActions()
-                                                + Constants.BLANK_STRING
-                                                + currentInstruction.getOperation();
-
-                                        if (operations.length == 3) {
-                                            if (mapOperators.containsKey(parentField)) {
-
-                                                //                                        mapOperators =
-                                                // performActionOperator(currentInstruction, xPathOperation,
-                                                // mapOperators,
-                                                // actions[0],operations[1]);
-                                                resultAcions = "(" + parentField + ")" + String.join(":", operations);
-                                                boolean isOperationValid = false;
-                                                if (operations[1].equalsIgnoreCase("=")) {
-                                                    isOperationValid = mapOperators
-                                                            .get(parentField)
-                                                            .equalsIgnoreCase(operations[2]);
-
-                                                } else if (operations[1].equalsIgnoreCase(">")) {
-                                                    isOperationValid = mapOperators
-                                                            .get(parentField)
-                                                            .equalsIgnoreCase(operations[2]);
-                                                }
-
-                                                long currentInstructionEndTime = System.nanoTime();
-                                                totalExecutionTime +=
-                                                        currentInstructionEndTime - currentInstructionStartTime;
-
-                                                if (isOperationValid) {
-
-                                                    ABRLogger.getInstance(WebPage.class)
-                                                            .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions
-                                                                    + " Cmd: " + lastInstructionExecuted);
-
-                                                    currentInstruction.setExecuted(true);
-
-                                                    // Assuming currentInstruction and instructionsExecuted are already
-                                                    // defined
-                                                    if (currentInstruction != null
-                                                            && instructionsExecuted.stream()
-                                                                    .noneMatch(
-                                                                            instruction ->
-                                                                                    instruction
-                                                                                                    .getInstructionOrderNumber()
-                                                                                            == currentInstruction
-                                                                                                    .getInstructionOrderNumber())) {
-                                                        instructionsExecuted.add(currentInstruction);
-                                                    }
-                                                    success = true;
-
-                                                } else {
-
-                                                    String message = "The Value: <b style='color:red;'>" + operations[2]
-                                                            + "</b> is not " + "<b>" + operations[1] + " "
-                                                            + mapOperators.get(parentField) + "</b> Length: (<b>"
-                                                            + mapOperators
-                                                                    .get(parentField)
-                                                                    .length() + "</b>)"
-                                                            + "<br>----------------------------------------------<br>"
-                                                            + "Check the SET/GET of <b style='color:red;'>"
-                                                            + operations[0] + "</b> for <b style='color:red;'>"
-                                                            + parentField + "</b>"
-                                                            + "<br>Current value: <b style='color:red;'>"
-                                                            + operations[2] + "</b> Length: (<b>"
-                                                            + operations[2].length() + "</b>)"
-                                                            + "<br>Expected value: <b style='color:green;'>"
-                                                            + mapOperators.get(parentField) + "</b> Length: (<b>"
-                                                            + mapOperators
-                                                                    .get(parentField)
-                                                                    .length() + "</b>)";
-
-                                                    webPage.alertMessage(message);
-                                                    stopAll = true;
-
-                                                    resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
-                                                    success = false;
-                                                }
-                                            } else {
-                                                String message = "Check Operation - GET is Not Defined"
-                                                        + "<br>----------------------------------------------<br>"
-                                                        + "Validation Error: <b style='color:red;'>"
-                                                        + currentInstruction.getName()
-                                                        + "</b>"
-                                                        + "<br>----------------------------------------------<br>"
-                                                        + "Check the GET Value for <b style='color:red;'>"
-                                                        + +currentInstruction.getParentId() + "-"
-                                                        + currentInstruction.getOperation()
-                                                        + "</b>";
-
-                                                webPage.alertMessage(message);
+                                            resultActions = performAction.getValueIsNotDefinedEngine(
+                                                    currentInstruction, lastInstructionExecuted, ifClause, elseClause);
+                                            if (!ifClause && !elseClause) {
                                                 stopAll = true;
-
-                                                resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
                                                 success = false;
+                                                break;
+                                            } else if (ifClause) {
+                                                ifFailed = true;
+                                            } else if (elseClause) {
+                                                elseFailed = true;
                                             }
-
-                                        } else {
-                                            resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
-                                            success = false;
+                                            break;
                                         }
-                                    } else if (excelWriteOperation) {
-                                        // Excel Write Operator
-                                        lastInstructionExecuted = currentInstruction.getName()
-                                                + Constants.BLANK_STRING
-                                                + currentInstruction.getActions()
-                                                + Constants.BLANK_STRING
-                                                + currentInstruction.getOperation();
-
-                                        if (operations.length == 2) {
-                                            if (mapOperators.containsKey(parentField)) {
-
-                                                if (excelExportOnceCreation) {
-                                                    writerExport.insertReportHead();
-                                                    excelExportOnceCreation = false;
-                                                }
-
-                                                resultAcions = "insertValueFieldNameInExcel-->" + parentField + "-"
-                                                        + mapOperators.get(parentField);
-                                                if (mapExport.size() == 0) {
-                                                    writerExport.insertBlockSeparation(blockLoad.getName());
-                                                    exportIndex *= 2;
-                                                }
-
-                                                mapExport.put(parentField, mapOperators.get(parentField));
-                                                // Insert the updated mapExport into the Excel after each instruction
-                                                writerExport.insertFieldNameAndValueLastColumn(mapExport, exportIndex);
-
-                                                webPage.onHoldForSeconds(null);
-
-                                                long currentInstructionEndTime = System.nanoTime();
-                                                totalExecutionTime +=
-                                                        currentInstructionEndTime - currentInstructionStartTime;
-
-                                                if (resultAcions != null) {
-
-                                                    ABRLogger.getInstance(Engine.class)
-                                                            .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions
-                                                                    + " Cmd: " + lastInstructionExecuted);
-
-                                                    currentInstruction.setExecuted(true);
-
-                                                    // Assuming currentInstruction and instructionsExecuted are already
-                                                    // defined
-                                                    if (currentInstruction != null
-                                                            && instructionsExecuted.stream()
-                                                                    .noneMatch(
-                                                                            instruction ->
-                                                                                    instruction
-                                                                                                    .getInstructionOrderNumber()
-                                                                                            == currentInstruction
-                                                                                                    .getInstructionOrderNumber())) {
-                                                        instructionsExecuted.add(currentInstruction);
-                                                    }
-                                                    success = true;
-                                                } else {
-                                                    resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
-                                                    success = false;
-                                                }
-
-                                            } else {
-                                                String message = "Excel Writer - GET is Not Defined"
-                                                        + "<br>----------------------------------------------<br>"
-                                                        + "Validation Error: <b style='color:red;'>"
-                                                        + currentInstruction.getName()
-                                                        + "</b>"
-                                                        + "<br>----------------------------------------------<br>"
-                                                        + "Check the GET Value for <b style='color:red;'>"
-                                                        + +currentInstruction.getParentId() + "-"
-                                                        + currentInstruction.getOperation()
-                                                        + "</b>";
-
-                                                webPage.alertMessage(message);
-
-                                                stopAll = true;
-
-                                                resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
-                                                success = false;
-                                            }
-
-                                        } else {
-                                            resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
-                                            success = false;
-                                        }
-                                    }
-
-                                } catch (Throwable t) {
-                                    success = false;
-                                    currentInstruction.setExecuted(false);
-                                    if (currentInstruction.isOptional()) {
-                                        long currentInstructionEndTime = System.nanoTime();
-                                        long duration = currentInstructionEndTime - botJobStartTime;
-                                        ABRLogger.getInstance(WebPage.class)
-                                                .fine("FAILED OPTIONAL INSTRUCTION on element: " + resultAcions
-                                                        + " Cmd: " + lastInstructionExecuted + "- Duration: "
-                                                        + LocalTime.ofNanoOfDay(duration)
-                                                                .format(FORMAT_TIME));
-                                        writerReport.insertInstructionResult(
-                                                currentInstruction,
-                                                dataExcel,
-                                                LocalTime.ofNanoOfDay(
-                                                        currentInstructionEndTime - currentInstructionStartTime),
-                                                "optional skipped");
-                                        status = (short) ExcelReportStatusEnum.WARNING.ordinal();
 
                                     } else {
-                                        long currentInstructionEndTime = System.nanoTime();
-                                        long duration = currentInstructionEndTime - botJobStartTime;
-                                        ABRLogger.getInstance(WebPage.class)
-                                                .fine("FAILED MANDATORY INSTRUCTION on element: " + resultAcions
-                                                        + " Cmd: " + lastInstructionExecuted + "- Duration: "
-                                                        + LocalTime.ofNanoOfDay(duration)
-                                                                .format(FORMAT_TIME));
-                                        writerReport.insertInstructionResult(
-                                                currentInstruction,
-                                                null,
-                                                LocalTime.ofNanoOfDay(
-                                                        currentInstructionEndTime - currentInstructionStartTime),
-                                                "failed");
-                                        status = (short) ExcelReportStatusEnum.ERROR.ordinal();
+                                        resultActions = "Failed to Execute Cmd: " + lastInstructionExecuted;
+                                        success = false;
                                     }
-                                    //                            throw new RuntimeException(t);
+
+                                    long duration = performAction.duration(currentInstructionStartTime);
+                                    performAction.excelReportWrite(
+                                            success, currentInstruction, duration, dataExcel, writerReport);
+                                    totalExecutionTime += duration;
+
+                                    status = performAction.operationLog(
+                                            success,
+                                            currentInstruction.isOptional()
+                                                    ? "OPTIONAL INSTRUCTION"
+                                                    : "MANDATORY INSTRUCTION",
+                                            resultActions,
+                                            lastInstructionExecuted,
+                                            duration);
                                 }
-                                printLog(generateTimestamp(), logFileForSingleExcel, resultAcions, success);
-                                if (!success) {
-                                    //                                    countdownTextField.setStyle("-fx-font-size:
-                                    // 16px; -fx-text-fill: red;");
-                                    //                                    countdownTextField.setText(resultAcions);
-                                    return false;
+
+                            } catch (Throwable t) {
+                                if (!ifClause && !elseClause) {
+                                    stopAll = true;
+                                    success = false;
+                                    break;
+                                } else if (ifClause) {
+                                    ifFailed = true;
+                                } else if (elseClause) {
+                                    elseFailed = true;
                                 }
+                                currentInstruction.setExecuted(false);
+
+                                long duration = performAction.duration(currentInstructionStartTime);
+                                performAction.excelReportWrite(
+                                        false, currentInstruction, duration, dataExcel, writerReport);
+                                totalExecutionTime += duration;
+
+                                status = performAction.operationLog(
+                                        false,
+                                        currentInstruction.isOptional()
+                                                ? "OPTIONAL INSTRUCTION"
+                                                : "MANDATORY INSTRUCTION",
+                                        resultActions,
+                                        lastInstructionExecuted,
+                                        duration);
+
+                                //                            throw new RuntimeException(t);
+                            }
+                            printLog(generateTimestamp(), logFileForSingleExcel, resultActions, success);
+                            if (!success) {
+                                //                                countdownTextField.setStyle("-fx-font-size: 16px;
+                                // -fx-text-fill: red;");
+                                //                                countdownTextField.setText(resultActions);
+                                if (!ifClause && !elseClause) {
+                                    stopAll = true;
+                                    success = false;
+                                    break;
+                                }
+                                //                                return false;
+                            }
+
+                            if (resultActions.equalsIgnoreCase("Close Browser")) {
+                                stopAll = true;
+                                break;
                             }
                         }
                     }
+                    currentBlock++;
+                }
+
+                if (executionTimes >= execLimitReach) {
+                    performAction.alertExecutionTimes(executionTimes, lastInstructionExecuted);
                 }
             } else { //  if dataExel is NULL
-                List<BlockLoadDTO> blockList = blocksLoaded;
-
                 // Creating Dynamic Data if Default is Null
                 Map<String, String> dataDynamic = new HashMap<>();
-                for (int j = 0; success && j < blockList.size(); j++) {
+                for (int j = 0; success && j < blocksLoaded.size(); j++) {
 
                     // Call the method to get the filtered list
                     List<BlockLoopInstructionLoadDTO> unexecutedInstructions = getUnexecutedInstructions(
-                            instructionsExecuted, blockList.get(j).getBlockLoopInstructionLoadDTOS());
+                            instructionsExecuted, blocksLoaded.get(j).getBlockLoopInstructionLoadDTOS());
 
                     for (BlockLoopInstructionLoadDTO currentInstruction : unexecutedInstructions) {
                         if (currentInstruction.getDefaultValue() == null) {
@@ -768,11 +988,11 @@ public class Engine {
                         }
                     }
                 }
-                for (int j = 0; success && j < blockList.size(); j++) {
+                for (int j = 0; success && j < blocksLoaded.size(); j++) {
 
                     // Call the method to get the filtered list
                     List<BlockLoopInstructionLoadDTO> unexecutedInstructions = getUnexecutedInstructions(
-                            instructionsExecuted, blockList.get(j).getBlockLoopInstructionLoadDTOS());
+                            instructionsExecuted, blocksLoaded.get(j).getBlockLoopInstructionLoadDTOS());
 
                     for (BlockLoopInstructionLoadDTO currentInstruction : unexecutedInstructions) {
                         long currentInstructionStartTime = System.nanoTime();
@@ -781,111 +1001,96 @@ public class Engine {
                             lastInstructionExecuted = currentInstruction.getName()
                                     + Constants.BLANK_STRING
                                     + currentInstruction.getPath();
-                            resultAcions = webPage.performActions(
+                            resultActions = performAction.performWebActions(
                                     dataDynamic,
                                     currentInstruction,
                                     botJobId,
-                                    blockList.get(j).getName());
-                            long currentInstructionEndTime = System.nanoTime();
-                            totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
-                            if (resultAcions != null) {
+                                    blocksLoaded.get(j).getName(),
+                                    mapOperators);
 
-                                ABRLogger.getInstance(WebPage.class)
-                                        .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions + " Cmd: "
-                                                + lastInstructionExecuted);
-
+                            if (resultActions != null) {
                                 currentInstruction.setExecuted(true);
                                 success = true;
                             } else {
-                                resultAcions = "Failed to Execute -> " + currentInstruction.getName();
+                                resultActions = "Failed to Execute -> " + currentInstruction.getName();
                                 success = false;
                             }
-                            writerReport.insertInstructionResult(
-                                    currentInstruction,
-                                    dataDynamic,
-                                    LocalTime.ofNanoOfDay(currentInstructionEndTime - currentInstructionStartTime),
-                                    success ? "success" : "failed");
+
+                            long duration = performAction.duration(currentInstructionStartTime);
+                            performAction.excelReportWrite(success, currentInstruction, duration, null, writerReport);
+                            totalExecutionTime += duration;
+
+                            status = performAction.operationLog(
+                                    success,
+                                    currentInstruction.isOptional() ? "OPTIONAL INSTRUCTION" : "MANDATORY INSTRUCTION",
+                                    resultActions,
+                                    lastInstructionExecuted,
+                                    duration);
+
                         } catch (Throwable t) {
                             success = false;
                             currentInstruction.setExecuted(false);
-                            if (currentInstruction.isOptional()) {
-                                long currentInstructionEndTime = System.nanoTime();
-                                long duration = currentInstructionEndTime - botJobStartTime;
-                                ABRLogger.getInstance(WebPage.class)
-                                        .fine("FAILED OPTIONAL INSTRUCTION on element: " + resultAcions
-                                                + " Cmd: "
-                                                + lastInstructionExecuted + "- Duration: "
-                                                + LocalTime.ofNanoOfDay(duration)
-                                                        .format(FORMAT_TIME));
-                                writerReport.insertInstructionResult(
-                                        currentInstruction,
-                                        dataDynamic,
-                                        LocalTime.ofNanoOfDay(currentInstructionEndTime - currentInstructionStartTime),
-                                        "optional skipped");
-                                status = (short) ExcelReportStatusEnum.WARNING.ordinal();
-                            } else {
-                                long currentInstructionEndTime = System.nanoTime();
-                                long duration = currentInstructionEndTime - botJobStartTime;
-                                ABRLogger.getInstance(WebPage.class)
-                                        .fine("FAILED MANDATORY INSTRUCTION on element: " + resultAcions
-                                                + " Cmd: "
-                                                + lastInstructionExecuted + "- Duration: "
-                                                + LocalTime.ofNanoOfDay(duration)
-                                                        .format(FORMAT_TIME));
-                                writerReport.insertInstructionResult(
-                                        currentInstruction,
-                                        null,
-                                        LocalTime.ofNanoOfDay(currentInstructionEndTime - currentInstructionStartTime),
-                                        "failed");
-                                status = (short) ExcelReportStatusEnum.ERROR.ordinal();
-                            }
-                            //                            throw new RuntimeException(t);
+
+                            long duration = performAction.duration(currentInstructionStartTime);
+                            performAction.excelReportWrite(false, currentInstruction, duration, null, writerReport);
+                            totalExecutionTime += duration;
+
+                            status = performAction.operationLog(
+                                    false,
+                                    currentInstruction.isOptional() ? "OPTIONAL INSTRUCTION" : "MANDATORY INSTRUCTION",
+                                    resultActions,
+                                    lastInstructionExecuted,
+                                    duration);
+                            //                        throw new RuntimeException(t);
                         }
-                        printLog(generateTimestamp(), logFileForSingleExcel, resultAcions, success);
+                        printLog(generateTimestamp(), logFileForSingleExcel, resultActions, success);
                     }
                 }
             }
 
             if (totalExecutionTime == 0) {
-                report.setDuration(0);
+                //                report.setDuration(0);
                 writerReport.insertTotalExecutionTimes(botJobStartTime, botJobStartTime);
-                try {
-                    repository.write(report);
-                } catch (Exception ex) {
-                    ABRLogger.getInstance(Engine.class).warning("Repository.write(report) Error:\n" + ex.getMessage());
-                }
+                //                try {
+                //                    repository.write(report);
+                //                } catch (Exception ex) {
+                //                    ABRLogger.getInstance(Engine.class).warning("Repository.write(report) Error:\n" +
+                // ex.getMessage());
+                //                }
             }
 
             // PRINT END BASE LOG//
             if (success) {
-                report.setStatus((short) ExcelReportStatusEnum.SUCCESS.ordinal());
-                report.setDuration(totalExecutionTime / 100);
+                //                report.setStatus((short) ExcelReportStatusEnum.SUCCESS.ordinal());
+                //                report.setDuration(totalExecutionTime / 100);
                 writerReport.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
-                try {
-                    repository.write(report);
-                } catch (Exception ex) {
-                    ABRLogger.getInstance(Engine.class).warning("Repository.write(report) Error:\n" + ex.getMessage());
-                }
-                baseLogString = selectedJob.getName()
+                //                try {
+                //                    repository.write(report);
+                //                } catch (Exception ex) {
+                //                    ABRLogger.getInstance(Engine.class).warning("Repository.write(report) Error:\n" +
+                // ex.getMessage());
+                //                }
+                baseLogString = botLoadJobs.get(0).getName()
                         + Constants.FIELDS_SEPARATOR
                         + labelsValue.getProperty(Labels.END)
                         + Constants.FIELDS_SEPARATOR
                         + labelsValue.getProperty(Labels.OK);
             } else {
-                baseLogString = selectedJob.getName()
+                baseLogString = botLoadJobs.get(0).getName()
                         + Constants.FIELDS_SEPARATOR
                         + labelsValue.getProperty(Labels.END)
                         + Constants.FIELDS_SEPARATOR
                         + labelsValue.getProperty(Labels.KO)
                         + lastInstructionExecuted;
-                report.setStatus(status);
-                report.setDuration(totalExecutionTime / 100);
+                //                report.setStatus(status);
+                //                report.setDuration(totalExecutionTime / 100);
                 writerReport.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
-                try {
-                    repository.write(report);
-                } catch (Exception ex) {
-                    ABRLogger.getInstance(Engine.class).warning("Repository.write(report) Error:\n" + ex.getMessage());
-                }
+                //                try {
+                //                    repository.write(report);
+                //                } catch (Exception ex) {
+                //                    ABRLogger.getInstance(Engine.class).warning("Repository.write(report) Error:\n" +
+                // ex.getMessage());
+                //                }
             }
             printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
             return true;
@@ -901,9 +1106,9 @@ public class Engine {
         return dateFormatter.format(date);
     }
 
-    private static void printLog(String timeStamp, File logFile, String resultAcions, boolean result) {
+    private static void printLog(String timeStamp, File logFile, String resultActions, boolean result) {
         String resultMsg = result ? Constants.SUCCESS : Constants.FAIL;
-        String log = String.join(Constants.FIELDS_SEPARATOR, timeStamp, resultMsg, resultAcions);
+        String log = String.join(Constants.FIELDS_SEPARATOR, timeStamp, resultMsg, resultActions);
 
         try {
             FileWriter fileWriter = new FileWriter(logFile, true);
@@ -1175,6 +1380,37 @@ public class Engine {
         } catch (SQLException e) {
             ABRLogger.getInstance(WebPage.class).severe("loadBlockAll Error: " + e.getMessage());
         }
+    }
+
+    private static HomeBankingDTO loadHomeBanking(int homeBankingId) {
+        String query =
+                "SELECT id, cookies, driver_session, name, options_config, password, priority, search_config, url, username "
+                        + "FROM home_banking "
+                        + "WHERE id = " + homeBankingId;
+        HomeBankingDTO homeBanking = null;
+
+        try (Statement stmt = getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(query)) {
+
+            if (rs.next()) {
+                homeBanking = new HomeBankingDTO();
+                homeBanking.setId(rs.getInt("id"));
+                homeBanking.setCookies(rs.getString("cookies"));
+                homeBanking.setDriverSession(rs.getString("driver_session"));
+                homeBanking.setName(rs.getString("name"));
+                homeBanking.setOptionsConfig(rs.getString("options_config"));
+                homeBanking.setPassword(rs.getString("password"));
+                homeBanking.setPriority(rs.getString("priority"));
+                homeBanking.setSearchConfig(rs.getString("search_config"));
+                homeBanking.setUrl(rs.getString("url"));
+                homeBanking.setUsername(rs.getString("username"));
+            }
+
+        } catch (SQLException e) {
+            ABRLogger.getInstance(WebPage.class).severe("loadHomeBanking Error: " + e.getMessage());
+        }
+
+        return homeBanking;
     }
 
     //    private void fillUpCurretLocators(BlockLoopInstructionLoadDTO currentInstruction) {

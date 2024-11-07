@@ -1,5 +1,6 @@
 package com.allinweb.ch.util;
 
+import com.google.common.base.Strings;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -12,10 +13,15 @@ import javax.swing.*;
 
 public class ABRPriorities {
 
+    private static String searchConfigTemplate =
+            "#numero priorità, categoria, identificativo\n" + "1,ByXPath,//a[@href],a[href]\n"
+                    + "2,ByLabels,label,spam,div,p\n"
+                    + "3,attribute,martini-id";
     // Static final variable to hold the singleton instance
     protected static SingletonSupplier<ABRPriorities> instance = () -> new ABRPriorities();
     public static Properties properties;
     public static List<Priority> priorityList;
+    public static List<SearchConfig> searchList;
     private Integer jobId;
 
     // Public method to access the singleton instance
@@ -126,5 +132,40 @@ public class ABRPriorities {
 
     public static boolean isFirstCharacterHash(String str) {
         return str != null && str.startsWith("#");
+    }
+
+    public static void loadSearchElementsConfig(String text) {
+        List<SearchConfig> searchConfigs = new ArrayList<>();
+
+        if (Strings.isNullOrEmpty(text)) {
+            text = searchConfigTemplate;
+        }
+
+        // Split the text into lines
+        String[] lines = text.split("\\r?\\n");
+
+        // Process each line
+        for (String line : lines) {
+            String[] parts = line.split(",");
+            if (isFirstCharacterHash(parts[0])) {
+                continue;
+            }
+            if (parts.length >= 3) {
+                // Extract values from parts
+                int searchNumber = Integer.parseInt(parts[0]);
+                String searchType = parts[1];
+                List<String> name = Arrays.stream(Arrays.copyOfRange(parts, 2, parts.length))
+                        .toList();
+
+                // Create and add Priority object
+                searchConfigs.add(new SearchConfig(searchNumber, searchType, name));
+            } else {
+                // Handle invalid lines
+                System.err.println("Invalid line: " + line);
+            }
+        }
+        searchList = searchConfigs;
+
+        searchList.sort(Comparator.comparingInt(SearchConfig::getSearchNumber));
     }
 }

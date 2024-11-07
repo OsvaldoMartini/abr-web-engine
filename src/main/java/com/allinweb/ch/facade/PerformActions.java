@@ -134,30 +134,9 @@ public class PerformActions {
                         result = "refreshPage";
                         break;
                     case Constants.QUIT:
-                        Alert alert = new Alert(
-                                Alert.AlertType.CONFIRMATION,
-                                "Do you want to continue?",
-                                ButtonType.YES,
-                                ButtonType.NO);
-                        alert.setTitle("Confirmation");
-                        alert.setHeaderText("This Action Closes the Browser and Scanner!");
-                        //                        alert.setContentText(content);
-
-                        Optional<ButtonType> quitResult = alert.showAndWait();
-                        if (quitResult.isPresent() && quitResult.get() == ButtonType.YES) {
-                            //                            ABRSharedResources.getInstance().cacheEntitiesFromDB();
-                            result = "Close Browser";
-                            quit(1);
-                        } else {
-                            //                            ABRSharedResources.getInstance().cacheEntitiesFromDB();
-                            result = "Close Browser Cancelled";
-                        }
+                        result = "Close Browser";
+                        quit(0);
                         break;
-                        //                    case Constants.EXTRACT:
-                        //                        result = "insertValueFieldNameInExcel-->"
-                        //                                + insertValueFieldNameInExcel(instructionElement, instruction,
-                        // action, blockJobName);
-                        //                        break;
                     case Constants.SCREEN:
                         result = instruction.getName() + " --> " + blockJobName;
                         break;
@@ -894,6 +873,38 @@ public class PerformActions {
         return (short) (success ? ExcelReportStatusEnum.SUCCESS.ordinal() : ExcelReportStatusEnum.ERROR.ordinal());
     }
 
+    public String getValueIsNotDefinedEngine(
+            BlockLoopInstructionLoadDTO currentInstruction,
+            String lastInstructionExecuted,
+            boolean ifClause,
+            boolean elseClause) {
+
+        if (!ifClause && !elseClause) {
+            String message = "There is NOT GET VALUE defined for: "
+                    + "<br>----------------------------------------------<br>"
+                    + "Validation Error: <b style='color:red;'>"
+                    + currentInstruction.getName()
+                    + "</b>"
+                    + "<br>----------------------------------------------<br>"
+                    + "Check the GET for <b style='color:red;'>"
+                    + currentInstruction.getParentId() + "-"
+                    + currentInstruction.getOperation()
+                    + "</b>";
+            alertMessage(message);
+        }
+
+        String conditionalBlock = ifClause
+                ? "Closing Block { IF -> ELSE }  -> "
+                : elseClause ? "Closing Block { ELSE -> ENDIF }  -> " : "";
+
+        if (ifClause || elseClause) {
+            return conditionalBlock + "Failed to Execute Cmd: " + lastInstructionExecuted;
+
+        } else {
+            return "Failed to Execute Cmd: " + lastInstructionExecuted;
+        }
+    }
+
     public String getValueIsNotDefined(
             BlockLoopInstructionLoadDTO currentInstruction,
             String lastInstructionExecuted,
@@ -923,6 +934,60 @@ public class PerformActions {
         } else {
             return "Failed to Execute Cmd: " + lastInstructionExecuted;
         }
+    }
+
+    public String parentIdWrongBlockEngine(
+            BlockLoopInstructionLoadDTO currentInstruction,
+            BlockLoadDTO blockLoad,
+            boolean ifClause,
+            boolean elseClause) {
+        if (!ifClause && !elseClause) {
+            String message = "The Parent Id: <b style='color:red;'>"
+                    + "The Parent Id: \"(" + currentInstruction.getParentId() + ")"
+                    + currentInstruction
+                            .getOperation()
+                            .substring(0, currentInstruction.getOperation().indexOf(":")) + "\""
+                    + "<br>----------------------------------------------<br>"
+                    + "<b style='color:red;'>" + "Does not belong to this block: \"" + blockLoad.getBlockOrderNumber()
+                    + "-\"" + blockLoad.getName() + "\"" + "</b>"
+                    + "</br>"
+                    + "<b style='color:red;'>"
+                    + "Attempted Operation : \"" + currentInstruction.getActions() + "\" -> \""
+                    + currentInstruction.getOperation() + "\"" + "</b>"
+                    + "<br>----------------------------------------------<br>"
+                    + "<b style='color:blue;'>"
+                    + "Check the Web Field \" ( ID ) <NAME>\" per Block</b>";
+
+            alertMessage(message);
+        }
+
+        String conditionalBlock = ifClause
+                ? "Closing Block { IF -> ELSE }  -> "
+                : elseClause ? "Closing Block { ELSE -> ENDIF }  -> " : "";
+
+        if (ifClause || elseClause) {
+            ABRLogger.getInstance(PerformActions.class)
+                    .warning(String.format(
+                            "%sParent Id Error Check Parent Id: %d "
+                                    + "For the \"%s\" Does not belong to this block: "
+                                    + blockLoad.getId() + "-" + blockLoad.getName(),
+                            conditionalBlock,
+                            currentInstruction.getParentId(),
+                            currentInstruction.getOperation()));
+
+        } else {
+            ABRLogger.getInstance(PerformActions.class)
+                    .severe(String.format(
+                            "Parent Id Error Check Parent Id: %d "
+                                    + "For the \"%s\" Does not belong to this block: "
+                                    + blockLoad.getId() + "-" + blockLoad.getName(),
+                            currentInstruction.getParentId(),
+                            currentInstruction.getOperation()));
+        }
+
+        return String.format(
+                "This ParentId: %d does not belong to this block: %d - %s. Check the Field Names and Fields Ids",
+                currentInstruction.getParentId(), blockLoad.getId(), blockLoad.getName());
     }
 
     public String parentIdWrongBlock(
@@ -975,6 +1040,39 @@ public class PerformActions {
         return String.format(
                 "This ParentId: %d does not belong to this block: %d - %s. Check the Field Names and Fields Ids",
                 currentInstruction.getParentId(), blockLoad.getId(), blockLoad.getName());
+    }
+
+    public String checkValidationFailedEngine(
+            String parent,
+            String expected,
+            String lastInstructionExecuted,
+            String[] operations,
+            boolean ifClause,
+            boolean elseClause) {
+        if (!ifClause && !elseClause) {
+            String message = "The Value of: <b style='color:red;'>\"" + operations[2] + "\""
+                    + "</b> is not " + "<b>" + operations[1] + " "
+                    + " \"" + expected + "\"" + "</b> Length: (<b>" + expected.length() + "</b>)"
+                    + "<br>----------------------------------------------<br>"
+                    + "The Variable \"" + operations[0] + "\" holds value \"" + operations[2] + "\"</br>"
+                    + "<br>Current Web Field: <b style='color:red;'> \"" + parent + "\" value: \"" + expected
+                    + "\"</b> Length: (<b>\"" + expected.length() + ")</b>"
+                    + "<br>Expected value: <b style='color:green;'>" + operations[2] + "</b> Length: (<b>"
+                    + operations[2].length() + "</b>)";
+
+            alertMessage(message);
+        }
+
+        String conditionalBlock = ifClause
+                ? "Closing Block { IF -> ELSE }  -> "
+                : elseClause ? "Closing Block { ELSE -> ENDIF }  -> " : "";
+
+        if (ifClause || elseClause) {
+            return conditionalBlock + "Failed to Execute Cmd: " + lastInstructionExecuted;
+
+        } else {
+            return "Failed to Execute Cmd: " + lastInstructionExecuted;
+        }
     }
 
     public String checkValidationFailed(
@@ -1318,5 +1416,30 @@ public class PerformActions {
         } else {
             return result.isPresent() && result.get() == ButtonType.OK;
         }
+    }
+
+    public void alertMessage(String message) {
+        JavascriptExecutor js = (JavascriptExecutor) abrWebDriver.getDriver();
+
+        // Escape the quotes in the JavaScript string
+        String script = "let alertBox = document.createElement('div');" + "alertBox.style.position = 'fixed';"
+                + "alertBox.style.top = '50%';"
+                + "alertBox.style.left = '50%';"
+                + "alertBox.style.transform = 'translate(-50%, -50%)';"
+                + "alertBox.style.padding = '20px';"
+                + "alertBox.style.backgroundColor = '#FFDA33';"
+                + // Light orange background
+                "alertBox.style.border = '2px solid #ff0000';"
+                + // Red border
+                "alertBox.style.borderRadius = '10px';"
+                + "alertBox.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';"
+                + "alertBox.style.zIndex = '10000';"
+                + "alertBox.innerHTML = \""
+                + message.replace("\"", "\\\"") + "\";" + "document.body.appendChild(alertBox);";
+        //                + "setTimeout(function() { document.body.removeChild(alertBox); }, 5000);"; // Auto-close
+        // after 5
+        // seconds
+
+        js.executeScript(script);
     }
 }

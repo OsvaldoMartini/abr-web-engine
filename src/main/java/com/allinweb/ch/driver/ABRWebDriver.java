@@ -149,21 +149,20 @@ public class ABRWebDriver {
             //                    JOptionPane.ERROR_MESSAGE);
         }
 
-        return driver;
+        try {
+            driver.get(url);
 
-        //        try {
-        //            driver.get(url);
-        //
-        //        } catch (Exception e) {
-        //            ABRLogger.getInstance(ABRWebDriver.class)
-        //                    .fine("An error has occurred during driver.get(url) Load " + e.getMessage());
-        //            JOptionPane.showMessageDialog(
-        //                    null,
-        //                    "An error has occurred during WebDriver Load: \nError:" + e.getMessage() + " Cause: "
-        //                            + e.getCause(),
-        //                    "Error in WebDriver Load",
-        //                    JOptionPane.ERROR_MESSAGE);
-        //        }
+        } catch (Exception e) {
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .fine("An error has occurred during driver.get(url) Load " + e.getMessage());
+            JOptionPane.showMessageDialog(
+                    null,
+                    "An error has occurred during WebDriver Load: \nError:" + e.getMessage() + " Cause: "
+                            + e.getCause(),
+                    "Error in WebDriver Load",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+        return driver;
     }
 
     private EdgeOptions buildOptionsEdge(String[] optionsConfigLines, String logFolder) {
