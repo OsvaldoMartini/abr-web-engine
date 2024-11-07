@@ -135,7 +135,7 @@ public class PerformActions {
                         break;
                     case Constants.QUIT:
                         result = "Close Browser";
-                        quit(0);
+                        // quit(0);
                         break;
                     case Constants.SCREEN:
                         result = instruction.getName() + " --> " + blockJobName;

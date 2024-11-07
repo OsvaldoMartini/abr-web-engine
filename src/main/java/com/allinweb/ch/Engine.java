@@ -1093,6 +1093,11 @@ public class Engine {
                 //                }
             }
             printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
+
+            if (resultActions.equalsIgnoreCase("Close Browser")) {
+                abrWebDriver.getDriver().quit();
+            }
+
             return true;
         } catch (Throwable t) {
             ABRLogger.getInstance(Engine.class).severe("Error Executing JOB \n" + t.getMessage());
