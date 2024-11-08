@@ -130,6 +130,9 @@ public class ExcelWriter {
 
                 String[] splittedAction = UtilsMethods.splitIfContains(
                         instruction.getActions(), ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
+                String[] operations = UtilsMethods.splitIfContains(
+                        instruction.getOperation(), ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
+
                 String action =
                         switch (splittedAction[0]) {
                             case ABRConstants.OTHER -> "OTHER";
@@ -149,7 +152,7 @@ public class ExcelWriter {
                             case ABRConstants.IF -> "IF";
                             case ABRConstants.ELSE -> "ELSE";
                             case ABRConstants.ENDIF -> "ENDIF";
-                            case ABRConstants.SCREEN -> "SCREEN SHOT";
+                            case ABRConstants.SCREEN -> "SCREENSHOT";
                             default -> "Unsupported action";
                         };
                 String value = "";
@@ -157,7 +160,14 @@ public class ExcelWriter {
                     String reference = splittedAction[1];
                     value = data.get(reference);
                 }
-                if (!action.equals("SCREEN")) {
+
+                if (operations.length == 2) {
+                    value = operations[1];
+                } else if (operations.length == 3) {
+                    value = operations[1] + " " + operations[2];
+                }
+
+                if (!action.equals("SCREENSHOT")) {
                     ManagedExcelAction act = managedExcel
                             .onSheet(0)
                             .insertValueAfterLastRowOfColumn(action, 0)
