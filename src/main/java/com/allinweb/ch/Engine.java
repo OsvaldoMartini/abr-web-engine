@@ -31,7 +31,6 @@ import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
-import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 public class Engine {
@@ -74,7 +73,6 @@ public class Engine {
     private static List<BlockLoopInstructionLoadDTO> instructionsExecuted = new ArrayList<>();
 
     private static final PerformActions performAction;
-    private static WebDriver webDriver;
     private static ABRPriorities abrPriorities;
 
     // Static block to initialize
@@ -263,11 +261,11 @@ public class Engine {
             printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
 
             ExcelWriter.ExcelChain writerReport =
-                    new ExcelWriter(botLoadJobs.get(0).getName(), webDriver).withPurpose("report");
+                    new ExcelWriter(botLoadJobs.get(0).getName(), abrWebDriver.getDriver()).withPurpose("report");
             writerReport.insertReportHead();
 
             ExcelWriter.ExcelChain writerExport =
-                    new ExcelWriter(botLoadJobs.get(0).getName(), webDriver).withPurpose("export");
+                    new ExcelWriter(botLoadJobs.get(0).getName(), abrWebDriver.getDriver()).withPurpose("export");
             boolean excelExportOnceCreation = true;
             //            writerExport.insertReportHead();
 

@@ -34,13 +34,13 @@ public class ExcelWriter {
 
     private final Map<String, ManagedExcel> managedExcelMap = new HashMap<>();
     private String botJobName;
-    private static WebDriver abrWebDriver;
+    private static WebDriver webDriver;
 
     private static int CURRENT_ROW_INDEX = 0;
 
-    public ExcelWriter(String botJobName, WebDriver abrWebDriver) {
+    public ExcelWriter(String botJobName, WebDriver webDriver) {
         this.botJobName = botJobName;
-        this.abrWebDriver = abrWebDriver;
+        this.webDriver = webDriver;
         boolean exist = ManagedExcel.checkIfExcelExist(botJobName, "excel");
         boolean existExport = ManagedExcel.checkIfExcelExist(botJobName + "_export", "export");
         String now = LocalDateTime.now().format(FORMAT_DATE_AND_TIME);
@@ -178,8 +178,7 @@ public class ExcelWriter {
                             .insertValueOnLastRowAfterLastColumn(status);
                     if (!status.equals("success")) {
                         IndexedColors color = status.equals("failed") ? IndexedColors.RED : IndexedColors.YELLOW;
-                        act.fillRowBackgroundColorOfLastRow(color)
-                                .insertScreenshotAfterLastRowOfColumn(0, abrWebDriver);
+                        act.fillRowBackgroundColorOfLastRow(color).insertScreenshotAfterLastRowOfColumn(0, webDriver);
                     }
                 } else { // add screenshot
                     ManagedExcelAction act = managedExcel
@@ -190,11 +189,10 @@ public class ExcelWriter {
                             .insertValueOnLastRowAfterLastColumn("")
                             .insertValueOnLastRowAfterLastColumn(time.format(FORMAT_TIME))
                             .insertValueOnLastRowAfterLastColumn(status)
-                            .insertScreenshotAfterLastRowOfColumn(0, abrWebDriver);
+                            .insertScreenshotAfterLastRowOfColumn(0, webDriver);
                     if (!status.equals("success")) {
                         IndexedColors color = status.equals("failed") ? IndexedColors.RED : IndexedColors.YELLOW;
-                        act.fillRowBackgroundColorOfLastRow(color)
-                                .insertScreenshotAfterLastRowOfColumn(0, abrWebDriver);
+                        act.fillRowBackgroundColorOfLastRow(color).insertScreenshotAfterLastRowOfColumn(0, webDriver);
                     }
                 }
                 managedExcel.save();
