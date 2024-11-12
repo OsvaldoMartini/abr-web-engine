@@ -130,8 +130,11 @@ public class ExcelWriter {
 
                 String[] splittedAction = UtilsMethods.splitIfContains(
                         instruction.getActions(), ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
-                String[] operations = UtilsMethods.splitIfContains(
-                        instruction.getOperation(), ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
+                String[] operations = new String[0];
+                if (instruction.getOperation() != null) {
+                    operations = UtilsMethods.splitIfContains(
+                            instruction.getOperation(), ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
+                }
 
                 String action =
                         switch (splittedAction[0]) {
@@ -153,6 +156,7 @@ public class ExcelWriter {
                             case ABRConstants.ELSE -> "ELSE";
                             case ABRConstants.ENDIF -> "ENDIF";
                             case ABRConstants.SCREEN -> "SCREENSHOT";
+                            case ABRConstants.PAUSE -> "PAUSE";
                             default -> "Unsupported action";
                         };
                 String value = "";

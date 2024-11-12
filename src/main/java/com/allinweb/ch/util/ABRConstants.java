@@ -73,6 +73,7 @@ public class ABRConstants {
     public static final String LIST_OPERATION = "L";
     public static final String QUIT = "Q";
     public static final String SCREEN = "P";
+    public static final String PAUSE = "PAUSE";
     public static final String EXTRACT_FIELD = "E";
     public static final String SET_VALUE = "SET";
     public static final String GET_VALUE = "GET";

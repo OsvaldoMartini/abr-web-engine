@@ -19,6 +19,7 @@ import com.allinweb.ch.util.ExcelReportStatusEnum;
 import com.allinweb.ch.util.PriorityTypeEnum;
 import com.allinweb.ch.util.UtilsMethods;
 import com.google.common.base.Strings;
+import java.awt.*;
 import java.time.Duration;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -35,6 +36,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javax.swing.*;
 import org.apache.commons.lang3.StringUtils;
 import org.openqa.selenium.By;
 import org.openqa.selenium.ElementClickInterceptedException;
@@ -44,6 +46,7 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.Wait;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
@@ -58,6 +61,8 @@ public class PerformActions {
 
     private ABRPriorities abrPriorities;
     private ABRWebDriver abrWebDriver;
+    private boolean periodicActivated;
+    private static JavascriptExecutor jsExecutor;
     public static Wait<WebDriver> waitForPage;
     public static Wait<WebDriver> waitForAction;
     private boolean justCalledRefreshPage = false;
@@ -120,7 +125,12 @@ public class PerformActions {
                                 + clickElement(instructionElement);
                         break;
                     case Constants.INSERT:
-                        result = insertInElement(instructionElement, data, action, instruction);
+                        if ("select".equalsIgnoreCase(instructionElement.getTagName())) {
+                            result = "Select: -> "
+                                    + insertDataInSelectElement(instructionElement, data, action, instruction);
+                        } else {
+                            result = insertInElement(instructionElement, data, action, instruction);
+                        }
                         break;
                     case Constants.LIST_OPERATION:
                         listOperation(instruction, data);
@@ -668,6 +678,48 @@ public class PerformActions {
         return dataFieldName + "->" + dataFieldValue;
     }
 
+    private String insertDataInSelectElement(
+            WebElement element,
+            Map<String, String> data,
+            String singleInstruction,
+            BlockLoopInstructionLoadDTO instructionDTO)
+            throws Exception {
+        UtilsMethods.exceptionIfNullWebElement(element);
+        waitForAction.until(ExpectedConditions.visibilityOf(element));
+        String dataFieldName = "";
+        String dataFieldValue = "";
+        if (data != null) {
+            String[] arr = UtilsMethods.splitIfContains(singleInstruction, Constants.ACTION_SPECIFICATIONS_SPLITTER);
+            if (arr.length > 1) {
+                dataFieldName = arr[1].split(Constants.PATH_FIELD_SUBSTITUTION)[0];
+
+                dataFieldValue = data.get(dataFieldName);
+                if (instructionDTO.isEncrypted()) {
+                    dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
+                }
+
+                try {
+                    // Create a Select instance to interact with the dropdown
+                    Select selectCountry = new Select(element);
+                    // Select "Switzerland" by visible text
+                    selectCountry.selectByVisibleText(dataFieldValue);
+
+                } catch (Exception ex) {
+                    return "Error: -> Cannot find: " + dataFieldName + "-> \"" + dataFieldValue
+                            + "\" - Attention to Case-Sentitives!";
+                }
+            }
+        } else if (instructionDTO.getDefaultValue() != null) {
+            dataFieldValue = instructionDTO.getDefaultValue();
+            if (instructionDTO.isEncrypted()) {
+                dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
+            }
+            element.sendKeys(dataFieldValue);
+        }
+
+        return "Select: -> " + dataFieldName + "->" + dataFieldValue;
+    }
+
     private String getOutPutElement(
             WebElement element, String fieldName, String action, Map<String, String> mapOperators) throws Exception {
 
@@ -871,6 +923,22 @@ public class PerformActions {
         }
 
         return (short) (success ? ExcelReportStatusEnum.SUCCESS.ordinal() : ExcelReportStatusEnum.ERROR.ordinal());
+    }
+
+    public String pauseEngine(String blockName) {
+
+        //        JavascriptExecutor js = (JavascriptExecutor) abrWebDriver.getDriver();
+        //        js.executeScript("alert('This is a custom alert modal!');");
+        String message = "PAUSE REQUESTED "
+                + "<br>----------------------------------------------<br>"
+                + "BOT JOB in PAUSE MODE:: <b style='color:red;'><br>"
+                + blockName
+                + "</b>"
+                + "<br>----------------------------------------------<br>";
+
+        alertMessage(message);
+
+        return "BOT JOG in PAUSE MODE: " + blockName;
     }
 
     public String getValueIsNotDefinedEngine(
@@ -1436,10 +1504,84 @@ public class PerformActions {
                 + "alertBox.style.zIndex = '10000';"
                 + "alertBox.innerHTML = \""
                 + message.replace("\"", "\\\"") + "\";" + "document.body.appendChild(alertBox);";
-        //                + "setTimeout(function() { document.body.removeChild(alertBox); }, 5000);"; // Auto-close
-        // after 5
-        // seconds
 
         js.executeScript(script);
+
+        // Optional: Handle the alert
+        org.openqa.selenium.Alert alert = abrWebDriver.getDriver().switchTo().alert();
+
+        // Optional: pause for a few seconds to view the alert
+        try {
+            Thread.sleep(5000); // 10 minutes in milliseconds
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        // Accept (close) the alert
+        alert.accept();
+    }
+
+    public static void showCustomDialog(String title, String message) {
+        // Create a JDialog as a custom message dialog
+        JDialog dialog = new JDialog();
+        dialog.setTitle(title);
+        dialog.setSize(300, 150);
+        dialog.setLocationRelativeTo(null); // Center on screen
+        dialog.setUndecorated(true); // Remove the default border
+
+        // Style the dialog's main panel
+        JPanel panel = new JPanel();
+        panel.setBackground(new Color(255, 218, 51)); // Light orange background
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        panel.setLayout(new BorderLayout());
+
+        // Style the message
+        JLabel messageLabel =
+                new JLabel("<html><span style='color: blue;'>" + message + "</span></html>", SwingConstants.CENTER);
+        messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+        panel.add(messageLabel, BorderLayout.CENTER);
+
+        // OK button to close the dialog
+        JButton okButton = new JButton("OK");
+        okButton.addActionListener(e -> dialog.dispose());
+        panel.add(okButton, BorderLayout.SOUTH);
+
+        // Add panel to dialog and set properties
+        dialog.getContentPane().add(panel);
+        dialog.setAlwaysOnTop(true);
+        dialog.setVisible(true);
+    }
+
+    public static void showCustomModalDialog(String title, String message, String message2) {
+        // Create a JDialog as a custom modal message dialog
+        JDialog dialog = new JDialog((Frame) null, title, true); // true makes it modal
+        dialog.setSize(300, 200);
+        dialog.setLocationRelativeTo(null); // Center on screen
+        dialog.setUndecorated(true); // Remove the default border
+
+        // Style the dialog's main panel
+        JPanel panel = new JPanel();
+        panel.setBackground(new Color(255, 218, 51)); // Light orange background
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        panel.setLayout(new BorderLayout());
+
+        // Style the message
+        JLabel messageLabel = new JLabel(
+                "<html><br><span style='color: blue;'>" + message
+                        + "</span><<br>---------------------------<br><span style='color: blue;'>" + message2
+                        + "</span></html>",
+                SwingConstants.CENTER);
+        messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+        panel.add(messageLabel, BorderLayout.CENTER);
+
+        // OK button to close the dialog
+        JButton okButton = new JButton("OK");
+        okButton.addActionListener(e -> dialog.dispose());
+        panel.add(okButton, BorderLayout.SOUTH);
+
+        // Add panel to dialog and set properties
+        dialog.getContentPane().add(panel);
+        dialog.setAlwaysOnTop(true);
+        dialog.setVisible(true); // This will block other input until the dialog is closed
     }
 }

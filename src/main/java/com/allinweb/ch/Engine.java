@@ -343,7 +343,27 @@ public class Engine {
 
                             // If IF clause failed, look for ELSE to start executing the ELSE block
 
-                            if (actions[0].equalsIgnoreCase(ABRConstants.IF)) {
+                            if (actions[0].equalsIgnoreCase(ABRConstants.PAUSE)) {
+
+                                ABRLogger.getInstance(Engine.class)
+                                        .info(String.format("PAUSE BOT JOB at Block Name:\"%s\"", blockLoad.getName()));
+
+                                long currentInstructionStartTime = System.nanoTime();
+
+                                //                                SwingUtilities.invokeLater(() ->
+                                performAction.showCustomModalDialog(
+                                        "PAUSE BOT JOB",
+                                        String.format("PAUSE BOT JOB at Block Name:\"%s\"", blockLoad.getName()),
+                                        " Please click OK to continue!");
+                                //
+                                long duration = performAction.duration(currentInstructionStartTime);
+                                performAction.excelReportWrite(
+                                        success, currentInstruction, duration, dataExcel, writerReport);
+                                totalExecutionTime += duration;
+
+                                continue;
+
+                            } else if (actions[0].equalsIgnoreCase(ABRConstants.IF)) {
 
                                 ABRLogger.getInstance(Engine.class)
                                         .info("Initial Execution { IF -> ELSE} ->  inside Block :\""
@@ -649,7 +669,11 @@ public class Engine {
                                     resultActions = performAction.performWebActions(
                                             dataExcel, currentInstruction, botJobId, blockLoad.getName(), mapOperators);
 
-                                    if (resultActions != null) {
+                                    // Special Cases for Select Responses
+                                    // It could be Improved the case
+                                    if (resultActions.contains("Error:")) {
+                                        success = false;
+                                    } else if (resultActions != null) {
                                         currentInstruction.setExecuted(true);
                                         // Assuming currentInstruction and instructionsExecuted are already defined
                                         if (currentInstruction != null
@@ -1006,7 +1030,11 @@ public class Engine {
                                     blocksLoaded.get(j).getName(),
                                     mapOperators);
 
-                            if (resultActions != null) {
+                            // Special Cases for Select Responses
+                            // It could be Improved the case
+                            if (resultActions.contains("Error:")) {
+                                success = false;
+                            } else if (resultActions != null) {
                                 currentInstruction.setExecuted(true);
                                 success = true;
                             } else {
