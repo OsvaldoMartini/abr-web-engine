@@ -114,6 +114,12 @@ public class WebPage {
         try {
             driver.get(url);
 
+            // Wait for the page to finish loading
+            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(30));
+            wait.until(webDriver -> ((JavascriptExecutor) webDriver)
+                    .executeScript("return document.readyState")
+                    .equals("complete"));
+
         } catch (Exception e) {
             ABRLogger.getInstance(ABRWebDriver.class)
                     .fine("An error has occurred during driver.get(url) Load " + e.getMessage());
@@ -737,7 +743,7 @@ public class WebPage {
             fieldName = arr[1].split(Constants.PATH_FIELD_SUBSTITUTION)[0];
         }
 
-        new ExcelWriter(botJobName, null).withPurpose("excel").insertValueFieldName(fieldName, innerHTMLValue);
+        new ExcelWriter(botJobName, null, false).withPurpose("excel").insertValueFieldName(fieldName, innerHTMLValue);
         return action + " fieldName " + fieldName;
     }
 

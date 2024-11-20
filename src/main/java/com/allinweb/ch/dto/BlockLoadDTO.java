@@ -12,6 +12,7 @@ public class BlockLoadDTO {
     private int typeId;
     private int botJobId;
     private String botJobName;
+    private String exportFile;
 
     private List<BlockLoopInstructionLoadDTO> blockLoopInstructionLoadDTOS;
 }

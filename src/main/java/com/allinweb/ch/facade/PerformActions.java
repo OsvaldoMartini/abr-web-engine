@@ -1552,10 +1552,11 @@ public class PerformActions {
         dialog.setVisible(true);
     }
 
-    public static void showCustomModalDialog(String title, String message, String message2) {
+    public static void showCustomModalDialog(
+            String title, String message, String message2, String message3, boolean redMsg) {
         // Create a JDialog as a custom modal message dialog
         JDialog dialog = new JDialog((Frame) null, title, true); // true makes it modal
-        dialog.setSize(300, 200);
+        dialog.setSize(300, 250);
         dialog.setLocationRelativeTo(null); // Center on screen
         dialog.setUndecorated(true); // Remove the default border
 
@@ -1565,12 +1566,21 @@ public class PerformActions {
         panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         panel.setLayout(new BorderLayout());
 
+        String concatenaMsg = "<html><br><span style='color: blue;'>" + message
+                + "</span><br>---------------------------<br><span style='color: blue;'>" + message2 + "</span>";
+        if (Strings.isNullOrEmpty(message3)) {
+            concatenaMsg = concatenaMsg + "</html>";
+        } else {
+            concatenaMsg = concatenaMsg + "<br>---------------------------<br><span style='color: blue;'>" + message3
+                    + "</span></html>";
+        }
+
+        if (redMsg) {
+            concatenaMsg = concatenaMsg.replaceAll("blue", "red");
+        }
+
         // Style the message
-        JLabel messageLabel = new JLabel(
-                "<html><br><span style='color: blue;'>" + message
-                        + "</span><<br>---------------------------<br><span style='color: blue;'>" + message2
-                        + "</span></html>",
-                SwingConstants.CENTER);
+        JLabel messageLabel = new JLabel(concatenaMsg, SwingConstants.CENTER);
         messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
         panel.add(messageLabel, BorderLayout.CENTER);
 

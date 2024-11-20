@@ -8,6 +8,7 @@ import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.supportTypes.ExtractedData;
 import com.allinweb.ch.supportTypes.WebPage;
 import com.allinweb.ch.util.*;
+import com.google.common.base.Strings;
 import io.opentelemetry.api.internal.StringUtils;
 import java.io.*;
 import java.sql.Connection;
@@ -201,7 +202,14 @@ public class Engine {
             if (extractedData.getErrorMessage() != null) {
                 //				showAlert("Excel Data File", "Warning: Excel File exist" , "Fields in the excel not matching the
                 // botjob requirements");
-                System.out.println("Fields in the excel not matching the botjob requirements");
+                ABRLogger.getInstance(Engine.class).info("Fields in the excel not matching the botjob requirements");
+
+                performAction.showCustomModalDialog(
+                        "Verify the Possible Errors:",
+                        "1. Excel File is OPEN",
+                        "2. Column Names Different from INPUT names",
+                        "3. INPUTS names Not In Excel File",
+                        true);
             }
 
             //            String browser = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.BROWSER);
@@ -260,12 +268,12 @@ public class Engine {
 
             printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
 
-            ExcelWriter.ExcelChain writerReport =
-                    new ExcelWriter(botLoadJobs.get(0).getName(), abrWebDriver.getDriver()).withPurpose("report");
+            ExcelWriter.ExcelChain writerReport = new ExcelWriter(
+                            botLoadJobs.get(0).getName(), abrWebDriver.getDriver(), false)
+                    .withPurpose("report");
             writerReport.insertReportHead();
 
-            ExcelWriter.ExcelChain writerExport =
-                    new ExcelWriter(botLoadJobs.get(0).getName(), abrWebDriver.getDriver()).withPurpose("export");
+            ExcelWriter.ExcelChain writerExport = null;
             boolean excelExportOnceCreation = true;
             //            writerExport.insertReportHead();
 
@@ -304,6 +312,8 @@ public class Engine {
                         && executionTimes < execLimitReach) {
                     instructionsExecuted.clear();
                     BlockLoadDTO blockLoad = blocksLoaded.get(currentBlock);
+                    String excelFieldName = blockLoad.getExportFile();
+
                     executionTimes++;
                     boolean jumpGoto = false;
 
@@ -354,7 +364,9 @@ public class Engine {
                                 performAction.showCustomModalDialog(
                                         "PAUSE BOT JOB",
                                         String.format("PAUSE BOT JOB at Block Name:\"%s\"", blockLoad.getName()),
-                                        " Please click OK to continue!");
+                                        " Please click OK to continue!",
+                                        null,
+                                        false);
                                 //
                                 long duration = performAction.duration(currentInstructionStartTime);
                                 performAction.excelReportWrite(
@@ -868,19 +880,35 @@ public class Engine {
                                                 excelExportOnceCreation = false;
                                             }
 
-                                            resultActions = "insertValueFieldNameInExcel-->" + parentField + "-"
-                                                    + mapOperators.get(parentField);
+                                            if (!Strings.isNullOrEmpty(excelFieldName)) {
+                                                writerExport = new ExcelWriter(
+                                                                excelFieldName, abrWebDriver.getDriver(), true)
+                                                        .withPurpose("export");
+                                            }
+
+                                            if (writerExport != null) {
+
+                                                resultActions = "insertValueFieldNameInExcel-->" + parentField + "-"
+                                                        + mapOperators.get(parentField);
+                                            } else {
+                                                resultActions = "NO Export Excel File defined -->" + parentField + "-"
+                                                        + mapOperators.get(parentField);
+                                            }
+
                                             if (mapExport.size() == 0) {
                                                 //
                                                 // writerExport.insertBlockSeparation(blockLoad.getName());
                                                 //                                            exportIndex *= 2;
                                             }
 
-                                            mapExport.put("KEY", "EXTERNAL");
-                                            mapExport.put(fieldName, mapOperators.get(parentField));
                                             // Insert the updated mapExport into the Excel after each instruction
-                                            writerExport.insertFieldNameAndValueLastColumn(mapExport, exportIndex - 1);
+                                            if (writerExport != null) {
+                                                mapExport.put("KEY", "EXTERNAL");
+                                                mapExport.put(fieldName, mapOperators.get(parentField));
 
+                                                writerExport.insertFieldNameAndValueLastColumn(
+                                                        mapExport, exportIndex - 1);
+                                            }
                                             performAction.onHoldForSeconds(null);
 
                                             if (resultActions != null) {
@@ -1326,7 +1354,8 @@ public class Engine {
                 + " bli.optional, bli.block_marked, bli.default_val, bli.action_custom_max_wait_sec, "
                 + " bli.on_hold_seconds, bli.encrypted, bli.export_to_abr, "
                 + " irl.reference_type, irl.value, "
-                + "  bli.operation, bli.parent_id "
+                + "  bli.operation, bli.parent_id, "
+                + "  b.export_file "
                 + " FROM bot_job bj "
                 + " LEFT JOIN block b ON b.bot_job_id = bj.id "
                 + "  JOIN block_loop_instruction bli ON bli.block_id = b.id "
@@ -1366,6 +1395,7 @@ public class Engine {
                     blockDTO.setName(rs.getString("block_name"));
                     blockDTO.setDescription(rs.getString("block_description"));
                     blockDTO.setTypeId(rs.getInt("type_id"));
+                    blockDTO.setExportFile(rs.getString("export_file"));
                     blockDTO.setBotJobId(botJobDTO.getId());
                     blockDTO.setBotJobName(botJobDTO.getName());
 

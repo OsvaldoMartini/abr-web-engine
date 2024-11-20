@@ -2,7 +2,6 @@ package com.allinweb.ch.readersAndWriters;
 
 import com.allinweb.ch.dto.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.util.*;
-import com.google.common.base.Strings;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -38,23 +37,15 @@ public class ExcelWriter {
 
     private static int CURRENT_ROW_INDEX = 0;
 
-    public ExcelWriter(String botJobName, WebDriver webDriver) {
+    public ExcelWriter(String botJobName, WebDriver webDriver, boolean isFullPath) {
         this.botJobName = botJobName;
         this.webDriver = webDriver;
-        boolean exist = ManagedExcel.checkIfExcelExist(botJobName, "excel");
-        boolean existExport = ManagedExcel.checkIfExcelExist(botJobName + "_export", "export");
+        boolean exist = ManagedExcel.checkIfExcelExist(botJobName, "excel", isFullPath);
         String now = LocalDateTime.now().format(FORMAT_DATE_AND_TIME);
-        String fileNameExport = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FILE_NAME_EXPORT);
         try {
-            if (!Strings.isNullOrEmpty(fileNameExport)) {
-                managedExcelMap.put("export", new ManagedExcel(fileNameExport, "export", !existExport));
-            } else {
-                managedExcelMap.put(
-                        "export", new ManagedExcel(botJobName + "_export" + " (" + now + ")", "export", !existExport));
-            }
-
-            managedExcelMap.put("excel", new ManagedExcel(botJobName, "excel", !exist));
-            managedExcelMap.put("report", new ManagedExcel(botJobName + " (" + now + ")", "report", true));
+            managedExcelMap.put("export", new ManagedExcel(botJobName, "export", true, isFullPath));
+            managedExcelMap.put("excel", new ManagedExcel(botJobName, "excel", !exist, isFullPath));
+            managedExcelMap.put("report", new ManagedExcel(botJobName + " (" + now + ")", "report", true, isFullPath));
         } catch (Exception ex) {
             ABRLogger.getInstance(ExcelWriter.class)
                     .severe(String.format("Excel Folder maybe not configured. %s\nError", botJobName, ex.getMessage()));
@@ -230,12 +221,17 @@ public class ExcelWriter {
         private final XSSFWorkbook excelWorkbook;
         private final FileManager fileManager;
 
-        public static boolean checkIfExcelExist(String fileName, String purpose) {
-            String fullPath = System.getProperty("user.dir") + "\\" + purpose + "\\" + fileName + Constants.FILE_FORMAT;
-            return new FileManager(fullPath).getFile().exists();
+        public static boolean checkIfExcelExist(String fileName, String purpose, boolean isFullPath) {
+            if (!isFullPath) {
+                String fullPath =
+                        System.getProperty("user.dir") + "\\" + purpose + "\\" + fileName + Constants.FILE_FORMAT;
+                return new FileManager(fullPath).getFile().exists();
+            } else {
+                return new FileManager(fileName).getFile().exists();
+            }
         }
 
-        public ManagedExcel(String fileName, String purpose, boolean create) {
+        public ManagedExcel(String fileName, String purpose, boolean create, boolean isFullPath) {
             ABRPropertyEnum property =
                     switch (purpose) {
                         case "report" -> ABRPropertyEnum.FOLDER_PATH_REPORT;
@@ -243,8 +239,15 @@ public class ExcelWriter {
                         case "export" -> ABRPropertyEnum.FOLDER_PATH_EXPORT;
                         default -> throw new UnsupportedOperationException("Purpose: " + purpose + " not supported");
                     };
-            String fileNamePath = "\\" + fileName + Constants.FILE_FORMAT;
-            String fullPath = ABRPropertyManager.getInstance().getProperty(property) + fileNamePath;
+            String fileNamePath = "";
+            String fullPath = "";
+
+            if (!isFullPath) {
+                fileNamePath = "\\" + fileName + Constants.FILE_FORMAT;
+                fullPath = ABRPropertyManager.getInstance().getProperty(property) + fileNamePath;
+            } else {
+                fullPath = fileName;
+            }
             this.fileManager = new FileManager(fullPath);
             this.excelWorkbook = manageExcelFile(create, purpose);
         }
