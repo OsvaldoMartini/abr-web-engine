@@ -28,6 +28,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -36,6 +37,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.util.Pair;
 import javax.swing.*;
 import org.apache.commons.lang3.StringUtils;
 import org.openqa.selenium.By;
@@ -67,6 +69,11 @@ public class PerformActions {
     public static Wait<WebDriver> waitForAction;
     private boolean justCalledRefreshPage = false;
 
+    private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    private static final int MIN_LENGTH = 3;
+    private static final int MAX_LENGTH = 30;
+    private static final Random RANDOM = new Random();
+
     // Static final variable to hold the singleton instance
     protected static final SingletonSupplier<PerformActions> instance = () -> new PerformActions();
 
@@ -86,20 +93,23 @@ public class PerformActions {
         return instance.get();
     }
 
-    public String performWebActions(
-            Map<String, String> data,
-            BlockLoopInstructionLoadDTO instruction,
-            int botJobId,
-            String blockJobName,
-            Map<String, String> mapOperators)
-            throws Exception {
+    public WebElement searchElement(BlockLoopInstructionLoadDTO instruction, int botJobId) {
         WebElement instructionElement = null;
-        String[] actions = instruction.getActions().split(Constants.ACTIONS_AND_PATHS_SPLITTER);
 
         if (!StringUtils.isBlank(instruction.getPath())) {
             instructionElement = locateElement(instruction, botJobId);
         }
-        String result = null;
+        return instructionElement;
+    }
+
+    public void performWebActions(
+            Pair<String, String> data,
+            BlockLoopInstructionLoadDTO instruction,
+            Map<String, String> mapOperators,
+            WebElement instructionElement,
+            String actions[])
+            throws Exception {
+
         if (instructionElement != null
                 || actions[0].equals(Constants.HOLD)
                 || actions[0].equals(Constants.QUIT)
@@ -111,44 +121,41 @@ public class PerformActions {
                         scrollToElement(instructionElement);
                         break;
                     case Constants.OTHER:
-                        result = "other Element --> " + instruction.getName() + " --> "
-                                + clickElement(instructionElement);
+                        clickElement(instructionElement);
                         break;
                     case Constants.OUTPUT:
                         String fieldName = instruction.getId() + "-" + instruction.getName();
-                        result = "outPutElement --> " + instruction.getName() + " --> "
-                                + getOutPutElement(
-                                        instructionElement, fieldName, instruction.getActions(), mapOperators);
+                        getOutPutElement(instructionElement, fieldName, instruction.getActions(), mapOperators);
                         break;
                     case Constants.CLICK:
-                        result = "clickElement --> " + instruction.getName() + " --> "
-                                + clickElement(instructionElement);
+                        clickElement(instructionElement);
                         break;
                     case Constants.INSERT:
                         if ("select".equalsIgnoreCase(instructionElement.getTagName())) {
-                            result = "Select: -> "
-                                    + insertDataInSelectElement(instructionElement, data, action, instruction);
+                            insertDataInSelectElement(instructionElement, data);
                         } else {
-                            result = insertInElement(instructionElement, data, action, instruction);
+                            insertInElement(
+                                    instructionElement,
+                                    data.getKey(),
+                                    data.getKey(),
+                                    instruction.getDefaultValue(),
+                                    instruction.isEncrypted());
                         }
                         break;
                     case Constants.LIST_OPERATION:
-                        listOperation(instruction, data);
+                        listOperation(instruction);
                         break;
                     case Constants.HOLD:
                         //                        executeAlert(instruction);
-                        result = onHoldForSeconds(instruction);
+                        onHoldForSeconds(instruction);
                         break;
                     case Constants.REFRESH:
                         refreshPage();
-                        result = "refreshPage";
                         break;
                     case Constants.QUIT:
-                        result = "Close Browser";
                         // quit(0);
                         break;
                     case Constants.SCREEN:
-                        result = instruction.getName() + " --> " + blockJobName;
                         break;
                 }
                 onHoldForSeconds(null);
@@ -158,7 +165,6 @@ public class PerformActions {
         //            executeActionsAtInstructionCoordinates(instruction, data);
         //            onHoldForSeconds(null);
         //        }
-        return result;
     }
 
     public String performActionOperator(
@@ -638,38 +644,30 @@ public class PerformActions {
     }
 
     private String insertInElement(
-            WebElement element,
-            Map<String, String> data,
-            String singleInstruction,
-            BlockLoopInstructionLoadDTO instructionDTO)
+            WebElement element, String dataFieldName, String dataFieldValue, String defaultValue, boolean isEncrypted)
             throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
         waitForAction.until(ExpectedConditions.visibilityOf(element));
-        String dataFieldName = "";
-        String dataFieldValue = "";
-        if (data != null) {
-            String[] arr = UtilsMethods.splitIfContains(singleInstruction, Constants.ACTION_SPECIFICATIONS_SPLITTER);
-            if (arr.length > 1) {
-                dataFieldName = arr[1].split(Constants.PATH_FIELD_SUBSTITUTION)[0];
 
-                dataFieldValue = data.get(dataFieldName);
-                if (instructionDTO.isEncrypted()) {
-                    dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
-                }
+        if (Strings.isNullOrEmpty(defaultValue)) {
 
-                if (dataFieldValue != null) {
-                    element.clear();
-                    element.sendKeys(dataFieldValue);
-                    element.sendKeys(Keys.TAB);
-
-                } else {
-                    element.sendKeys(UtilsMethods.generateRandomID(10));
-                    element.sendKeys(Keys.TAB);
-                }
+            if (isEncrypted) {
+                dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
             }
-        } else if (instructionDTO.getDefaultValue() != null) {
-            dataFieldValue = instructionDTO.getDefaultValue();
-            if (instructionDTO.isEncrypted()) {
+
+            if (dataFieldValue != null) {
+                element.clear();
+                element.sendKeys(dataFieldValue);
+                element.sendKeys(Keys.TAB);
+
+            } else {
+                element.sendKeys(UtilsMethods.generateRandomID(10));
+                element.sendKeys(Keys.TAB);
+            }
+        } else {
+            dataFieldValue = defaultValue;
+
+            if (isEncrypted) {
                 dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
             }
             element.sendKeys(dataFieldValue);
@@ -678,46 +676,50 @@ public class PerformActions {
         return dataFieldName + "->" + dataFieldValue;
     }
 
-    private String insertDataInSelectElement(
-            WebElement element,
-            Map<String, String> data,
-            String singleInstruction,
-            BlockLoopInstructionLoadDTO instructionDTO)
-            throws Exception {
-        UtilsMethods.exceptionIfNullWebElement(element);
-        waitForAction.until(ExpectedConditions.visibilityOf(element));
+    /**
+     * Extracts the dataFieldName and dataFieldValue based on the instruction and DTO.
+     */
+    public Pair<String, String> extractFieldData(
+            Map<String, String> data, String[] actions, String defaultValue, boolean isEncrypted) throws Exception {
+
         String dataFieldName = "";
         String dataFieldValue = "";
-        if (data != null) {
-            String[] arr = UtilsMethods.splitIfContains(singleInstruction, Constants.ACTION_SPECIFICATIONS_SPLITTER);
-            if (arr.length > 1) {
-                dataFieldName = arr[1].split(Constants.PATH_FIELD_SUBSTITUTION)[0];
 
+        if (data != null) {
+            if (actions.length > 1) {
+                dataFieldName = actions[1].split(Constants.PATH_FIELD_SUBSTITUTION)[0];
                 dataFieldValue = data.get(dataFieldName);
-                if (instructionDTO.isEncrypted()) {
+
+                if (isEncrypted && dataFieldValue != null) {
                     dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
                 }
-
-                try {
-                    // Create a Select instance to interact with the dropdown
-                    Select selectCountry = new Select(element);
-                    // Select "Switzerland" by visible text
-                    selectCountry.selectByVisibleText(dataFieldValue);
-
-                } catch (Exception ex) {
-                    return "Error: -> Cannot find: " + dataFieldName + "-> \"" + dataFieldValue
-                            + "\" - Attention to Case-Sentitives!";
-                }
             }
-        } else if (instructionDTO.getDefaultValue() != null) {
-            dataFieldValue = instructionDTO.getDefaultValue();
-            if (instructionDTO.isEncrypted()) {
+        } else if (!Strings.isNullOrEmpty(defaultValue)) {
+            dataFieldValue = defaultValue;
+            if (isEncrypted) {
                 dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
             }
-            element.sendKeys(dataFieldValue);
         }
 
-        return "Select: -> " + dataFieldName + "->" + dataFieldValue;
+        return new Pair<>(dataFieldName, dataFieldValue);
+    }
+
+    private String insertDataInSelectElement(WebElement element, Pair<String, String> data) throws Exception {
+        UtilsMethods.exceptionIfNullWebElement(element);
+        waitForAction.until(ExpectedConditions.visibilityOf(element));
+
+        try {
+            // Create a Select instance to interact with the dropdown
+            Select selectCountry = new Select(element);
+            // Select "Switzerland" by visible text
+            selectCountry.selectByVisibleText(data.getValue());
+
+        } catch (Exception ex) {
+            return "Error: -> Cannot find: " + data.getKey() + "-> \"" + data.getValue()
+                    + "\" - Attention to Case-Sentitives!";
+        }
+
+        return "Select: -> " + data.getKey() + "->" + data.getValue();
     }
 
     private String getOutPutElement(
@@ -808,7 +810,7 @@ public class PerformActions {
         return Strings.isNullOrEmpty(finalText) ? "$EMPTY" : finalText;
     }
 
-    private void listOperation(BlockLoopInstructionLoadDTO instructionDTO, Map<String, String> data) {
+    private void listOperation(BlockLoopInstructionLoadDTO instructionDTO) {
 
         /*
         TODO: Da rivedere, attualmente non del tutto funzionante
@@ -1593,5 +1595,66 @@ public class PerformActions {
         dialog.getContentPane().add(panel);
         dialog.setAlwaysOnTop(true);
         dialog.setVisible(true); // This will block other input until the dialog is closed
+    }
+
+    public String actionResultMessage(
+            BlockLoopInstructionLoadDTO instruction,
+            String blockJobName,
+            WebElement instructionElement,
+            String actions[],
+            Pair<String, String> fieldData)
+            throws Exception {
+
+        if (instructionElement != null
+                || actions[0].equals(Constants.HOLD)
+                || actions[0].equals(Constants.QUIT)
+                || actions[0].equals(Constants.SCREEN)) {
+
+            for (String action : actions) {
+                switch (String.valueOf(action.charAt(0))) {
+                    case Constants.VISUALIZE:
+                        return "Visualize action executed for " + instruction.getName();
+                    case Constants.OTHER:
+                        return "Other Element --> " + instruction.getName();
+                    case Constants.OUTPUT:
+                        return "Output Element --> " + instruction.getName();
+                    case Constants.CLICK:
+                        return "Click Element --> " + instruction.getName();
+                    case Constants.INSERT:
+                        return "Insert action for " + instruction.getName() + " -> " + fieldData.getKey() + " = "
+                                + fieldData.getValue();
+                    case Constants.LIST_OPERATION:
+                        return "List Operation performed for " + instruction.getName();
+                    case Constants.HOLD:
+                        return "Hold action executed for " + instruction.getName();
+                    case Constants.REFRESH:
+                        return "Refresh Page action triggered";
+                    case Constants.QUIT:
+                        return "Quit action processed";
+                    case Constants.SCREEN:
+                        return "Screen action executed for " + instruction.getName() + " --> " + blockJobName;
+                    default:
+                        return "Unknown action for " + instruction.getName();
+                }
+            }
+        }
+        return "No Action Detected";
+    }
+
+    public static Pair<String, String> insertRandomName(String key) {
+        String randomName = generateRandomName();
+        return new Pair<>(key, randomName);
+    }
+
+    public static String generateRandomName() {
+        int length = RANDOM.nextInt(MAX_LENGTH - MIN_LENGTH + 1) + MIN_LENGTH;
+        StringBuilder nameBuilder = new StringBuilder(length);
+
+        for (int i = 0; i < length; i++) {
+            char randomChar = CHARACTERS.charAt(RANDOM.nextInt(CHARACTERS.length()));
+            nameBuilder.append(randomChar);
+        }
+
+        return nameBuilder.toString();
     }
 }

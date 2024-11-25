@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javafx.scene.control.Alert;
+import javafx.util.Pair;
 import javax.swing.*;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -32,6 +33,7 @@ import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
+import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 public class Engine {
@@ -45,11 +47,6 @@ public class Engine {
 
     private static Map<String, String> mapOperators;
     private static Map<String, String> mapExport;
-
-    private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-    private static final int MIN_LENGTH = 3;
-    private static final int MAX_LENGTH = 30;
-    private static final Random RANDOM = new Random();
 
     private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
 
@@ -313,6 +310,7 @@ public class Engine {
                     instructionsExecuted.clear();
                     BlockLoadDTO blockLoad = blocksLoaded.get(currentBlock);
                     String excelFieldName = blockLoad.getExportFile();
+                    String blockName = blocksLoaded.get(currentBlock).getName();
 
                     executionTimes++;
                     boolean jumpGoto = false;
@@ -351,7 +349,8 @@ public class Engine {
                                     ? currentInstruction.getOperation().split(Constants.ACTION_SPECIFICATIONS_SPLITTER)
                                     : null;
 
-                            // If IF clause failed, look for ELSE to start executing the ELSE block
+                            resultActions = "Last Executed: " + currentInstruction.getName() + " --> "
+                                    + currentInstruction.getOperation();
 
                             if (actions[0].equalsIgnoreCase(ABRConstants.PAUSE)) {
 
@@ -672,14 +671,29 @@ public class Engine {
                                     }
 
                                 } else if (!execOperation && !checkOperation && !excelWriteOperation) {
+
                                     dataExcel = extractedData.getRowFieldValues(i);
 
                                     lastInstructionExecuted = currentInstruction.getName()
                                             + Constants.BLANK_STRING
                                             + currentInstruction.getPath();
 
-                                    resultActions = performAction.performWebActions(
-                                            dataExcel, currentInstruction, botJobId, blockLoad.getName(), mapOperators);
+                                    WebElement webElementFound = performAction.searchElement(
+                                            currentInstruction,
+                                            botLoadJobs.get(0).getId());
+
+                                    // Extract dataFieldName and dataFieldValue using a separate method
+                                    Pair<String, String> fieldData = performAction.extractFieldData(
+                                            dataExcel,
+                                            actions,
+                                            currentInstruction.getDefaultValue(),
+                                            currentInstruction.getEncrypted() > 0);
+
+                                    resultActions = performAction.actionResultMessage(
+                                            currentInstruction, blockName, webElementFound, actions, fieldData);
+
+                                    performAction.performWebActions(
+                                            fieldData, currentInstruction, mapOperators, webElementFound, actions);
 
                                     // Special Cases for Select Responses
                                     // It could be Improved the case
@@ -1020,7 +1034,7 @@ public class Engine {
                 }
             } else { //  if dataExel is NULL
                 // Creating Dynamic Data if Default is Null
-                Map<String, String> dataDynamic = new HashMap<>();
+                Pair<String, String> dataDynamic = null;
                 for (int j = 0; success && j < blocksLoaded.size(); j++) {
 
                     // Call the method to get the filtered list
@@ -1033,12 +1047,14 @@ public class Engine {
                                     currentInstruction.getActions(), Constants.ACTION_SPECIFICATIONS_SPLITTER);
                             if (arr.length > 1) {
                                 String dataFieldName = arr[1].split(Constants.PATH_FIELD_SUBSTITUTION)[0];
-                                insertRandomName(dataDynamic, dataFieldName);
+                                performAction.insertRandomName(dataFieldName);
                             }
                         }
                     }
                 }
                 for (int j = 0; success && j < blocksLoaded.size(); j++) {
+
+                    String blockName = blocksLoaded.get(j).getName();
 
                     // Call the method to get the filtered list
                     List<BlockLoopInstructionLoadDTO> unexecutedInstructions = getUnexecutedInstructions(
@@ -1051,12 +1067,18 @@ public class Engine {
                             lastInstructionExecuted = currentInstruction.getName()
                                     + Constants.BLANK_STRING
                                     + currentInstruction.getPath();
-                            resultActions = performAction.performWebActions(
-                                    dataDynamic,
-                                    currentInstruction,
-                                    botJobId,
-                                    blocksLoaded.get(j).getName(),
-                                    mapOperators);
+
+                            WebElement webElementFound = performAction.searchElement(
+                                    currentInstruction, botLoadJobs.get(0).getId());
+
+                            String[] actions =
+                                    currentInstruction.getActions().split(Constants.ACTIONS_AND_PATHS_SPLITTER);
+
+                            resultActions = performAction.actionResultMessage(
+                                    currentInstruction, blockName, webElementFound, actions, dataDynamic);
+
+                            performAction.performWebActions(
+                                    dataDynamic, currentInstruction, mapOperators, webElementFound, actions);
 
                             // Special Cases for Select Responses
                             // It could be Improved the case
@@ -1129,6 +1151,10 @@ public class Engine {
                         + labelsValue.getProperty(Labels.END)
                         + Constants.FIELDS_SEPARATOR
                         + labelsValue.getProperty(Labels.OK);
+
+                performAction.showAlertCombinedVBOX(
+                        Alert.AlertType.INFORMATION, "Success", "Execution Finished", null, combinedTextContainer);
+
             } else {
                 baseLogString = botLoadJobs.get(0).getName()
                         + Constants.FIELDS_SEPARATOR
@@ -1214,23 +1240,6 @@ public class Engine {
         } catch (Exception e) {
             ABRLogger.getInstance(WebPage.class).severe("printLogExcel Error: " + e.getMessage());
         }
-    }
-
-    public static String generateRandomName() {
-        int length = RANDOM.nextInt(MAX_LENGTH - MIN_LENGTH + 1) + MIN_LENGTH;
-        StringBuilder nameBuilder = new StringBuilder(length);
-
-        for (int i = 0; i < length; i++) {
-            char randomChar = CHARACTERS.charAt(RANDOM.nextInt(CHARACTERS.length()));
-            nameBuilder.append(randomChar);
-        }
-
-        return nameBuilder.toString();
-    }
-
-    public static void insertRandomName(Map<String, String> map, String key) {
-        String randomName = generateRandomName();
-        map.put(key, randomName);
     }
 
     private static void showAlertInfo(String title, String header, String content) {
