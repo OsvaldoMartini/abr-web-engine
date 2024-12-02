@@ -886,7 +886,31 @@ public class Engine {
                                             || actions[0].equals(Constants.SCREEN)
                                             || actions[0].equals(Constants.REFRESH_ONLY)) {
                                         performAction.performOtherActions(currentInstruction, actions);
-                                        continue;
+
+                                        if (actions[0].equals(Constants.QUIT)) {
+                                            stopAll = true;
+                                            success = true;
+
+
+                                            long duration = performAction.duration(currentInstructionStartTime);
+
+                                            performAction.excelReportWrite(
+                                                    success, actions, msgInitial, duration, dataExcel, writerReport);
+
+                                            totalExecutionTime += duration;
+
+                                            status = performAction.operationLog(
+                                                    success,
+                                                    currentInstruction.isOptional()
+                                                            ? "OPTIONAL INSTRUCTION"
+                                                            : "MANDATORY INSTRUCTION",
+                                                    resultActions,
+                                                    duration);
+
+
+
+                                        }
+                                        
                                     }
 
                                     WebElement webElementFound = null;
