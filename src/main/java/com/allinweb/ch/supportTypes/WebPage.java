@@ -454,7 +454,7 @@ public class WebPage {
                     case Constants.HOLD:
                         onHoldForSeconds(instruction);
                         break;
-                    case Constants.REFRESH:
+                    case Constants.REFRESH_ONLY:
                         refreshPage();
                         break;
                     case Constants.QUIT:
@@ -570,7 +570,7 @@ public class WebPage {
                         //                        executeAlert(instruction);
                         result = onHoldForSeconds(instruction);
                         break;
-                    case Constants.REFRESH:
+                    case Constants.REFRESH_ONLY:
                         refreshPage();
                         result = "refreshPage";
                         break;

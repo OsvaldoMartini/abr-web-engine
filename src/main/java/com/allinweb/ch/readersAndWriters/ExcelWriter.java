@@ -1,6 +1,5 @@
 package com.allinweb.ch.readersAndWriters;
 
-import com.allinweb.ch.dto.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.util.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -14,6 +13,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
+import javafx.util.Pair;
 import javax.imageio.ImageIO;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.ss.usermodel.*;
@@ -44,6 +44,7 @@ public class ExcelWriter {
         String now = LocalDateTime.now().format(FORMAT_DATE_AND_TIME);
         try {
             managedExcelMap.put("export", new ManagedExcel(botJobName, "export", true, isFullPath));
+
             managedExcelMap.put("excel", new ManagedExcel(botJobName, "excel", !exist, isFullPath));
             managedExcelMap.put("report", new ManagedExcel(botJobName + " (" + now + ")", "report", true, isFullPath));
         } catch (Exception ex) {
@@ -115,28 +116,35 @@ public class ExcelWriter {
             managedExcel.save();
         }
 
-        public void insertInstructionResult(
-                BlockLoopInstructionLoadDTO instruction, Map<String, String> data, LocalTime time, String status) {
+        public boolean insertInstructionResult(
+                String[] actions,
+                Pair<String, String> msgLoop,
+                Map<String, String> data,
+                LocalTime time,
+                String status) {
             try {
 
-                String[] splittedAction = UtilsMethods.splitIfContains(
-                        instruction.getActions(), ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
-                String[] operations = new String[0];
-                if (instruction.getOperation() != null) {
-                    operations = UtilsMethods.splitIfContains(
-                            instruction.getOperation(), ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
-                }
+                //                String[] splittedAction = UtilsMethods.splitIfContains(
+                //                        instruction.getActions(), ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
+                //                String[] operations = new String[0];
+                //                if (instruction.getOperation() != null) {
+                //                    operations = UtilsMethods.splitIfContains(
+                //                            instruction.getOperation(), ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
+                //                }
+
+                String[] operations = msgLoop.getValue().split(":");
 
                 String action =
-                        switch (splittedAction[0]) {
+                        switch (actions[0]) {
                             case ABRConstants.OTHER -> "OTHER";
                             case ABRConstants.OUTPUT -> "OUTPUT";
                             case ABRConstants.CLICK -> "CLICK";
                             case ABRConstants.INSERT -> "INSERT";
                             case ABRConstants.EXTRACT_FIELD -> "EXTRACT";
                             case ABRConstants.QUIT -> "QUIT";
-                            case ABRConstants.HOLD -> "WAIT";
-                            case ABRConstants.REFRESH -> "REFRESH";
+                            case ABRConstants.HOLD -> "HOLD";
+                            case ABRConstants.REFRESH_ONLY -> "REFRESH";
+                            case ABRConstants.REFRESH_LOOP -> "LOOP TO";
                             case ABRConstants.VISUALIZE -> "VISUALIZE";
                             case ABRConstants.SEARCH -> "SEARCH";
                             case ABRConstants.SET_VALUE -> "SET VALUE";
@@ -151,15 +159,23 @@ public class ExcelWriter {
                             default -> "Unsupported action";
                         };
                 String value = "";
-                if (splittedAction.length > 1) {
-                    String reference = splittedAction[1];
+                if (actions.length > 1) {
+                    String reference = actions[1];
                     value = data.get(reference);
+                }
+
+                if (actions.length == 2 && actions[0].equalsIgnoreCase(ABRConstants.OUTPUT)) {
+                    value = msgLoop.getValue();
                 }
 
                 if (operations.length == 2) {
                     value = operations[1];
                 } else if (operations.length == 3) {
                     value = operations[1] + " " + operations[2];
+                } else if (actions[0].equalsIgnoreCase(ABRConstants.REFRESH_LOOP) && operations.length == 4) {
+                    value = String.format("Loop %s times", operations[0], operations[1]);
+                } else if (actions[0].equalsIgnoreCase(ABRConstants.HOLD) && operations.length == 4) {
+                    value = String.format("%s seconds", operations[0], operations[1]);
                 }
 
                 if (!action.equals("SCREENSHOT")) {
@@ -167,7 +183,7 @@ public class ExcelWriter {
                             .onSheet(0)
                             .insertValueAfterLastRowOfColumn(action, 0)
                             .setCellFontStyleOfColumnOfLastRow(0, true, false, false)
-                            .insertValueOnLastRowAfterLastColumn(instruction.getName())
+                            .insertValueOnLastRowAfterLastColumn(msgLoop.getKey())
                             .insertValueOnLastRowAfterLastColumn(value)
                             .insertValueOnLastRowAfterLastColumn(time.format(FORMAT_TIME))
                             .insertValueOnLastRowAfterLastColumn(status);
@@ -180,7 +196,7 @@ public class ExcelWriter {
                             .onSheet(0)
                             .insertValueAfterLastRowOfColumn(action, 0)
                             .setCellFontStyleOfColumnOfLastRow(0, true, false, false)
-                            .insertValueOnLastRowAfterLastColumn(instruction.getName())
+                            .insertValueOnLastRowAfterLastColumn(msgLoop.getKey())
                             .insertValueOnLastRowAfterLastColumn("")
                             .insertValueOnLastRowAfterLastColumn(time.format(FORMAT_TIME))
                             .insertValueOnLastRowAfterLastColumn(status)
@@ -191,10 +207,12 @@ public class ExcelWriter {
                     }
                 }
                 managedExcel.save();
+                return true;
             } catch (Exception ex) {
                 ABRLogger.getInstance(ExcelWriter.class)
                         .severe(String.format(
-                                "InsertInstructionResult ( %s ) Error: %s ", instruction.getName(), ex.getMessage()));
+                                "InsertInstructionResult ( %s ) Error: %s ", msgLoop.getKey(), ex.getMessage()));
+                return false;
             }
         }
 

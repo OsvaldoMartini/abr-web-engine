@@ -22,7 +22,9 @@ public class Constants {
     public static final String SEARCH = "S";
     public static final String INSERT = "I";
     public static final String HOLD = "H";
-    public static final String REFRESH = "R";
+    public static final String PAUSE = "PAUSE";
+    public static final String REFRESH_ONLY = "REFRESH";
+    public static final String REFRESH_LOOP = "REFRESH_LOOP";
     public static final String LIST_OPERATION = "L";
     public static final String QUIT = "Q";
     public static final String SCREEN = "P";
