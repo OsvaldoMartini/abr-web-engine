@@ -161,7 +161,7 @@ public class PerformActions {
                 refreshPage();
                 break;
             case Constants.QUIT:
-                // quit(0);
+                quit(1);
                 break;
             case Constants.SCREEN:
                 break;

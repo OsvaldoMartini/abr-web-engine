@@ -890,27 +890,24 @@ public class Engine {
                                         if (actions[0].equals(Constants.QUIT)) {
                                             stopAll = true;
                                             success = true;
-
-
-                                            long duration = performAction.duration(currentInstructionStartTime);
-
-                                            performAction.excelReportWrite(
-                                                    success, actions, msgInitial, duration, dataExcel, writerReport);
-
-                                            totalExecutionTime += duration;
-
-                                            status = performAction.operationLog(
-                                                    success,
-                                                    currentInstruction.isOptional()
-                                                            ? "OPTIONAL INSTRUCTION"
-                                                            : "MANDATORY INSTRUCTION",
-                                                    resultActions,
-                                                    duration);
-
-
-
                                         }
-                                        
+
+                                        long duration = performAction.duration(currentInstructionStartTime);
+
+                                        performAction.excelReportWrite(
+                                                success, actions, msgInitial, duration, dataExcel, writerReport);
+
+                                        totalExecutionTime += duration;
+
+                                        status = performAction.operationLog(
+                                                success,
+                                                currentInstruction.isOptional()
+                                                        ? "OPTIONAL INSTRUCTION"
+                                                        : "MANDATORY INSTRUCTION",
+                                                resultActions,
+                                                duration);
+
+                                        continue;
                                     }
 
                                     WebElement webElementFound = null;
