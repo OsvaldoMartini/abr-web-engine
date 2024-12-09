@@ -1846,7 +1846,7 @@ public class Engine {
                 + " bli.on_hold_seconds, bli.encrypted, bli.export_to_abr, "
                 + " irl.reference_type, irl.value, "
                 + "  bli.operation, bli.parent_id, "
-                + "  b.export_file "
+                + "  b.export_file, b.active, b.wait "
                 + " FROM bot_job bj "
                 + " LEFT JOIN block b ON b.bot_job_id = bj.id "
                 + "  JOIN block_loop_instruction bli ON bli.block_id = b.id "
@@ -1886,6 +1886,8 @@ public class Engine {
                     blockDTO.setName(rs.getString("block_name"));
                     blockDTO.setDescription(rs.getString("block_description"));
                     blockDTO.setTypeId(rs.getInt("type_id"));
+                    blockDTO.setActive(rs.getBoolean("active"));
+                    blockDTO.setWait(rs.getInt("wait"));
                     blockDTO.setExportFile(rs.getString("export_file"));
                     blockDTO.setBotJobId(botJobDTO.getId());
                     blockDTO.setBotJobName(botJobDTO.getName());
