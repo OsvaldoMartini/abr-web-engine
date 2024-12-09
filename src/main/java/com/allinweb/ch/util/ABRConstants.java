@@ -18,6 +18,7 @@ public class ABRConstants {
     public static final String DEFAULT_FILENAME_FOR_ABR = "_filtered_for_ABR";
 
     public static final String DEFAULT_VALUE_NO_IDENTIFICATION = "No significant identification found";
+    public static final String TO_IGNORE = "TO IGNORE";
 
     public static final String FOLDER_BIN = "\\bin";
     public static final String FOLDER_LIB = "\\lib";
@@ -28,6 +29,7 @@ public class ABRConstants {
     public static final Double SPACE_M = 20D;
     public static final Double SPACE_L = 30D;
     public static final Double SPACE_XL = 40D;
+    public static final Double SPACE_XXS = 2.5D;
 
     // IMPORTANT FILE NAMES
     public static final String FILE_NAME_ENGINE_BASE_LOG = "\\abr_web_engine_base.log";
@@ -42,6 +44,8 @@ public class ABRConstants {
     public static final String ICON_APPLICATION = "/ABR_icon.png";
     public static final String ICON_DIRECTORY = "/directory.png";
     public static final String ICON_REFRESH = "/refresh.png";
+    public static final String ICON_REFRESH_ONLY = "/refresh-only.png";
+    public static final String ICON_REFRESH_LOOP = "/refresh-loop.png";
     public static final String ICON_NEW = "/new_document.png";
     public static final String ICON_LIST = "/list.png";
     public static final String ICON_INFO = "/info.png";
@@ -49,32 +53,75 @@ public class ABRConstants {
     public static final String ICON_PLAY = "/play.png";
     public static final String ICON_CHROME = "/open_browser.png";
     public static final String ICON_EXCEL = "/excel.png";
+    public static final String ICON_EXCEL2 = "/excel2.png";
+    public static final String ICON_EXCEL3 = "/excel3.png";
     public static final String ICON_EDIT = "/edit.png";
+    public static final String ICON_BLOCK = "/brick.png";
     public static final String ICON_COPY = "/copy.png";
     public static final String ICON_PRINT = "/print.png";
     public static final String ICON_SAVE = "/save.png";
     public static final String ICON_SEARCH = "/search.png";
     public static final String ICON_WAIT = "/wait.png";
+    public static final String ICON_PAUSE = "/pause3.png";
     public static final String ICON_CLICK = "/click.png";
+    public static final String ICON_OUTPUT = "/output1.png";
+    public static final String ICON_HIDDEN = "/hidden-black.png";
     public static final String ICON_INSERT = "/input_field.png";
+    public static final String ICON_TEXT = "/text.png";
     public static final String ICON_UP = "/up.png";
     public static final String ICON_DOWN = "/down.png";
     public static final String ICON_CROSS = "/cross.png";
+    public static final String ICON_CROSS2 = "/cross2.png";
+    public static final String ICON_BIN = "/Bin.png";
+    public static final String ICON_SET_VALUE = "/setValue1.png";
+    public static final String ICON_GET_VALUE = "/getValue1.png";
+    public static final String ICON_SET_VALUE_BTN = "/setValueBtn2.png";
+    public static final String ICON_VARIABLES = "/variables.png";
+    public static final String ICON_GET_VALUE_BTN = "/getValueBtn2.png";
+    public static final String ICON_CHECK = "/check3.png";
+    public static final String ICON_IF_ELSE = "/ifElse.png";
+    public static final String ICON_GOTO = "/goto8.png";
+    public static final String ICON_STEP = "/step.png";
+    public static final String ICON_PLUS = "/plus4.png";
+    public static final String ICON_BLANK = "/blank.png";
+    public static final String ICON_MOVE = "/move.png";
+    public static final String ICON_ARROWLEFT = "/ArrowLeft.png";
+    public static final String ICON_ARROWRIGHT = "/ArrowRight.png";
+    public static final String ICON_LEFT = "/left.png";
+    public static final String ICON_RIGHT = "/right.png";
+
+    public static final String ICON_DOCS = "/docs.png";
+    public static final String ICON_CUBES = "/Cubes.png";
+    public static final String ICON_SCREEN = "/screen.png";
+    public static final String ICON_TICK = "/tick.png";
+    public static final String ICON_EQUAL = "/equal.png";
+    public static final String ICON_GREATER = "/greater.png";
+    public static final String ICON_DIFFERENT = "/different.png";
 
     // ACTION CODES
+    public static final String CLEAR = "CLEAR";
+    public static final String TAB = "TAB";
+    public static final String SEND_KEYS = "SEND_KEYS";
+    public static final String INSERT = "I";
+    public static final String CLICK = "C";
+    public static final String FOCUS = "FOCUS";
+    public static final String SELECT = "SELECT";
+
+    public static final String COORD_VISUALIZA = "COORD_VISUALIZA";
+    public static final String COORD_CLICK = "COORD_CLICK";
+    public static final String COORD_INSERT = "COORD_INSERT";
     public static final String VISUALIZE = "V";
     public static final String OUTPUT = "O";
+    public static final String HIDDEN = "hidden";
     public static final String OTHER = "W";
-    public static final String CLICK = "C";
     public static final String SEARCH = "S";
-    public static final String INSERT = "I";
     public static final String HOLD = "H";
-    public static final String PAUSE = "PAUSE";
     public static final String REFRESH_ONLY = "REFRESH";
     public static final String REFRESH_LOOP = "REFRESH_LOOP";
     public static final String LIST_OPERATION = "L";
     public static final String QUIT = "Q";
     public static final String SCREEN = "P";
+    public static final String PAUSE = "PAUSE";
     public static final String EXTRACT_FIELD = "E";
     public static final String SET_VALUE = "SET";
     public static final String GET_VALUE = "GET";
@@ -102,6 +149,7 @@ public class ABRConstants {
 
     // FILE FORMATS
     public static final String FILE_FORMAT_EXCEL = ".xlsx";
+    public static final String FILE_FORMAT_CSV = ".csv";
     public static final String FILE_FORMAT_LOG = ".log";
 
     // BROWSERS
@@ -109,4 +157,8 @@ public class ABRConstants {
     public static final String EDGE = "edge";
     public static final String FIREFOX = "firefox";
     public static final String SAFARI = "safari";
+
+    public static final String POSTGRES = "PostGres";
+    public static final String ACCESS = "Access";
+    public static final String SQLSERVER = "SQLServer";
 }

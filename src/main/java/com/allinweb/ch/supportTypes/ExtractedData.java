@@ -1,11 +1,14 @@
 package com.allinweb.ch.supportTypes;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 public class ExtractedData {
     private Map<String, Map<Integer, String>> extractedData = new HashMap<>();
 
     private String errorMessage;
+    private String missingFields;
 
     public ExtractedData() {}
 
@@ -15,6 +18,14 @@ public class ExtractedData {
 
     public void setErrorMessage(String errorMessage) {
         this.errorMessage = errorMessage;
+    }
+
+    public String getMissingFields() {
+        return missingFields;
+    }
+
+    public void setMissingFields(String missingFields) {
+        this.missingFields = missingFields;
     }
 
     public void addField(String fieldName) {
@@ -53,5 +64,9 @@ public class ExtractedData {
             }
         }
         return max;
+    }
+
+    public Set<String> getExtractedFields() {
+        return extractedData.keySet();
     }
 }

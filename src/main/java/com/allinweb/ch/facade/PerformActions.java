@@ -20,11 +20,17 @@ import com.allinweb.ch.util.PriorityTypeEnum;
 import com.allinweb.ch.util.UtilsMethods;
 import com.google.common.base.Strings;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -44,8 +50,10 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.ElementClickInterceptedException;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Keys;
+import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
@@ -63,8 +71,6 @@ public class PerformActions {
 
     private ABRPriorities abrPriorities;
     private ABRWebDriver abrWebDriver;
-    private boolean periodicActivated;
-    private static JavascriptExecutor jsExecutor;
     public static Wait<WebDriver> waitForPage;
     public static Wait<WebDriver> waitForAction;
     private boolean justCalledRefreshPage = false;
@@ -78,6 +84,7 @@ public class PerformActions {
     protected static final SingletonSupplier<PerformActions> instance = () -> new PerformActions();
 
     private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
+
     // Private constructor to prevent instantiation
     private PerformActions() {
         // Initialize if necessary
@@ -102,55 +109,116 @@ public class PerformActions {
         return instructionElement;
     }
 
-    public void performWebActions(
+    public WebElement getElementAtCoordinates(int x, int y, WebDriver driver) {
+        String script = "return document.elementFromPoint(arguments[0], arguments[1]);";
+
+        // Execute the script and retrieve the element
+        Object element = ((JavascriptExecutor) driver).executeScript(script, x, y);
+
+        // Check if the returned element is not null and cast it to WebElement
+        if (element instanceof WebElement) {
+            return (WebElement) element;
+        } else {
+            throw new NoSuchElementException("No element found at the given coordinates: (" + x + ", " + y + ")");
+        }
+    }
+
+    public boolean performWebActions(
+            boolean byPassNotFound,
+            String savedCoordinates,
             Pair<String, String> data,
-            BlockLoopInstructionLoadDTO instruction,
+            BlockLoopInstructionLoadDTO currentInstruction,
             Map<String, String> mapOperators,
             WebElement instructionElement,
             String actions[])
             throws Exception {
 
-        if (instructionElement != null) {
+        WebDriver originalDriver = abrWebDriver.getDriver(); // Save the original WebDriver state
+        boolean switchedToIframe = false;
 
-            switch (actions[0]) {
-                case Constants.VISUALIZE:
-                    scrollToElement(instructionElement);
-                    break;
-                case Constants.OUTPUT:
-                    String fieldName = instruction.getId() + "-" + instruction.getName();
-                    getOutPutElement(instructionElement, fieldName, instruction.getActions(), mapOperators);
-                    break;
-                case Constants.CLICK:
-                case Constants.OTHER:
-                    clickElement(instructionElement);
-                    break;
-                case Constants.INSERT:
-                    if ("select".equalsIgnoreCase(instructionElement.getTagName())) {
-                        insertDataInSelectElement(instructionElement, data);
-                    } else {
-                        insertInElement(
-                                instructionElement,
-                                data.getKey(),
-                                data.getValue(),
-                                instruction.getDefaultValue(),
-                                instruction.isEncrypted());
-                    }
-                    break;
+        try {
+            String xPath = currentInstruction.getPath().toLowerCase();
+            if (currentInstruction.getPath() != null && xPath.contains("iframe")) {
+                // Locate and switch to the iframe
+                WebElement iframeElement = abrWebDriver.getDriver().findElement(By.xpath(xPath));
+                WebDriver driver = abrWebDriver.getDriver().switchTo().frame(iframeElement);
+                abrWebDriver.setDriver(driver);
+                switchedToIframe = true;
             }
 
-            onHoldForSeconds(null);
+            if (instructionElement != null) {
+                boolean passed = true;
+                switch (actions[0]) {
+                    case Constants.VISUALIZE:
+                        passed = scrollToElement(byPassNotFound, instructionElement);
+
+                        if (!passed) {
+                            // Try by coordinates
+                            Pair<String, String> filedData = new Pair("&EMPTY", "&EMPTY");
+                            passed = executeActionsAtCoordinates(savedCoordinates, filedData, ABRConstants.VISUALIZE);
+                        }
+                        return passed;
+                    case Constants.OUTPUT:
+                        String fieldName = currentInstruction.getId() + "-" + currentInstruction.getName();
+                        return getOutPutElement(
+                                byPassNotFound,
+                                instructionElement,
+                                fieldName,
+                                currentInstruction.getActions(),
+                                mapOperators);
+                    case Constants.CLICK:
+                    case Constants.OTHER:
+                        passed = clickElement(byPassNotFound, instructionElement);
+                        if (!passed) {
+                            // Try by coordinates
+                            Pair<String, String> filedData = new Pair("&EMPTY", "&EMPTY");
+                            passed = executeActionsAtCoordinates(savedCoordinates, filedData, ABRConstants.CLICK);
+                        }
+                        return passed;
+                    case Constants.INSERT:
+                        if ("select".equalsIgnoreCase(instructionElement.getTagName())) {
+                            passed = insertDataInSelectElement(
+                                    byPassNotFound, instructionElement, savedCoordinates, data);
+
+                            if (!passed) {
+                                // Try by coordinates
+                                passed = executeActionsAtCoordinates(savedCoordinates, data, ABRConstants.SELECT);
+                            }
+                            return passed;
+                        } else {
+                            passed = insertInElement(
+                                    byPassNotFound,
+                                    instructionElement,
+                                    data.getValue(),
+                                    currentInstruction.getDefaultValue(),
+                                    currentInstruction.isEncrypted());
+
+                            if (!passed) {
+                                // Try by coordinates
+                                passed = executeActionsAtCoordinates(savedCoordinates, data, ABRConstants.INSERT);
+                            }
+                            return passed;
+                        }
+                }
+
+                onHoldForSeconds(null);
+            }
+
+            return true;
+        } finally {
+            // Restore the original WebDriver state
+            if (switchedToIframe) {
+                abrWebDriver.setDriver(originalDriver);
+            }
         }
-        //        } else {
-        //            executeActionsAtInstructionCoordinates(instruction, data);
-        //            onHoldForSeconds(null);
-        //        }
     }
 
-    public void performOtherActions(BlockLoopInstructionLoadDTO instruction, String actions[]) throws Exception {
+    public void performOtherActions(boolean byPassNotFound, BlockLoopInstructionLoadDTO instruction, String actions[])
+            throws Exception {
 
         switch (actions[0]) {
             case Constants.LIST_OPERATION:
-                listOperation(instruction);
+                listOperation(byPassNotFound, instruction);
                 break;
             case Constants.HOLD:
                 //                        executeAlert(instruction);
@@ -170,7 +238,8 @@ public class PerformActions {
         onHoldForSeconds(null);
     }
 
-    public String performActionOperator(
+    public String performOperatorActions(
+            boolean byPassNotFound,
             BlockLoopInstructionLoadDTO instruction,
             String targetXPath,
             String action,
@@ -182,20 +251,21 @@ public class PerformActions {
         WebElement instructionElement = null;
 
         if (!StringUtils.isBlank(targetXPath)) {
-            instructionElement = locateTargetElement(targetXPath, instruction.getActionCustomMaxWaitSec());
+            instructionElement =
+                    locateTargetElement(byPassNotFound, targetXPath, instruction.getActionCustomMaxWaitSec());
         }
         if (instructionElement != null) {
 
             switch (action) {
                 case "SET":
-                    insertTargetElement(instructionElement, operations[0], operations[1]);
+                    insertTargetElement(byPassNotFound, instructionElement, operations[0], operations[1]);
                     return "SET_VALUE to (Parent: " + parentField + ") Var:" + operations[0] + " <-- " + operations[1];
                 case "GET":
                     String valueElem;
                     if (mapOperators.containsKey(parentField)) {
                         valueElem = mapOperators.get(parentField);
                     } else {
-                        valueElem = getValueInElement(instructionElement);
+                        valueElem = getValueInElement(byPassNotFound, instructionElement);
                         mapOperators.put(parentField, valueElem);
                     }
                     return "GET_VALUE from (Parent: " + parentField + ") Var" + operations[1] + " <-- " + valueElem;
@@ -217,7 +287,7 @@ public class PerformActions {
         return null;
     }
 
-    private WebElement locateTargetElement(String targetXPath, Integer actionCustomMaxWaitSec) {
+    private WebElement locateTargetElement(boolean byPassNotFound, String targetXPath, Integer actionCustomMaxWaitSec) {
 
         String tagName = null;
         try {
@@ -249,29 +319,42 @@ public class PerformActions {
                         } catch (Exception e) {
                             ABRLogger.getInstance(PerformActions.class)
                                     .fine(String.format(
-                                            "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
+                                            "Could Not Find xPath \"%s\" Criteria \"%s\" Cause: %s",
                                             targetXPath, criteria, e.getMessage()));
+
+                            showNotFoundElement(targetXPath, criteria);
+
+                            //                                SwingUtilities.invokeLater(() ->
+
+                            if (!byPassNotFound) {
+                                couldNotFindElement(String.valueOf(criteria));
+                            }
                         }
                     } else if (actionCustomMaxWaitSec != null) {
                         try {
-
                             new WebDriverWait(abrWebDriver.getDriver(), Duration.ofSeconds(actionCustomMaxWaitSec))
                                     .until(ExpectedConditions.presenceOfElementLocated(criteria));
                         } catch (Exception e) {
                             ABRLogger.getInstance(PerformActions.class)
                                     .fine(String.format(
-                                            "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
+                                            "Could Not Find xPath \"%s\" Criteria \"%s\" Cause: %s",
                                             targetXPath, criteria, e.getMessage()));
+                            if (!byPassNotFound) {
+                                couldNotFindElement(String.valueOf(criteria));
+                            }
                         }
                     } else {
                         try {
-
                             waitForAction.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                         } catch (Exception e) {
                             ABRLogger.getInstance(PerformActions.class)
                                     .fine(String.format(
-                                            "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
+                                            "Could Not Find xPath \"%s\" Criteria \"%s\" Cause: %s",
                                             targetXPath, criteria, e.getMessage()));
+
+                            if (!byPassNotFound) {
+                                couldNotFindElement(String.valueOf(criteria));
+                            }
                         }
                     }
                     if (foundElementList.size() > 0) {
@@ -286,9 +369,44 @@ public class PerformActions {
         }
     }
 
-    private WebElement locateElement(BlockLoopInstructionLoadDTO instruction, int botJobId) {
+    private void callErrorMessageNotEnabled(String criteria) {
+        showCustomModalDialog(
+                String.format("The Element \"%s\" is not Enabled", criteria),
+                "1. Consider Fill Up all the Mandatory Fields",
+                null,
+                null,
+                null,
+                true);
+    }
 
-        String instructionPath = instruction.getPath();
+    private void showNotFoundElement(String targetXPath, By criteria) {}
+
+    private WebElement locateElement(BlockLoopInstructionLoadDTO currentInstruction, int botJobId) {
+
+        //        WebElement elementInsideIframe = null;
+        //                if (xPath.toLowerCase().contains("iframe")){
+        //                    // Switch to the iframe using ID or name
+        //        //            abrWebDriver.getDriver().switchTo().frame("iframeID");
+        //
+        //                    // Alternatively, switch to the iframe using a WebElement
+        //        //            WebElement iframeElement =
+        //         abrWebDriver.getDriver().findElement(By.xpath("//iframe[@name='iframeName']"));
+        //                    WebElement iframeElement = abrWebDriver.getDriver().findElement(By.xpath(xPath));
+        //                    abrWebDriver.getDriver().switchTo().frame(iframeElement);
+        //                    // Now, interact with elements inside the iframe
+        //                    elementInsideIframe = abrWebDriver.getDriver().findElement(By.id("elementID"));
+        //                }
+        //
+        //                if (elementInsideIframe != null) {
+        //                    element = elementInsideIframe;
+        //                }
+        //
+        //                if (elementInsideIframe != null) {
+        //                    // Switch back to the main page
+        //                    abrWebDriver.getDriver().switchTo().defaultContent();
+        //                }
+
+        String instructionPath = currentInstruction.getPath();
         String tagName = null;
         try {
             tagName = removeTrailingSlash(instructionPath);
@@ -299,7 +417,8 @@ public class PerformActions {
                             "Error RemoveTrailingSlash for %s   \nxPath  %s\nCause: %s",
                             tagName, instructionPath, e.getMessage()));
         }
-        List<InstructionReferenceLoadDTO> instructionReferenceList = instruction.getInstructionReferenceLoadDTOList();
+        List<InstructionReferenceLoadDTO> instructionReferenceList =
+                currentInstruction.getInstructionReferenceLoadDTOList();
 
         if (instructionReferenceList.size() == 0) {
             ABRLogger.getInstance(PerformActions.class)
@@ -315,15 +434,15 @@ public class PerformActions {
         // If Not Loaded get if the JobId Changed
         if (abrPriorities.getJobId() == null) {
             abrPriorities.setJobId(botJobId);
-            if (instruction.getPriority() != null) {
-                abrPriorities.loadPrioritiesFromString(instruction.getPriority());
+            if (currentInstruction.getPriority() != null) {
+                abrPriorities.loadPrioritiesFromString(currentInstruction.getPriority());
             } else {
                 abrPriorities.loadPriorities();
             }
         } else if (abrPriorities.getJobId() != botJobId) {
             abrPriorities.setJobId(botJobId);
-            if (instruction.getPriority() != null) {
-                abrPriorities.loadPrioritiesFromString(instruction.getPriority());
+            if (currentInstruction.getPriority() != null) {
+                abrPriorities.loadPrioritiesFromString(currentInstruction.getPriority());
             } else {
                 abrPriorities.loadPriorities();
             }
@@ -387,7 +506,18 @@ public class PerformActions {
                                 instructionReference.get().getValue());
                             //                                criteria = By.cssSelector(tagName + "[" +
                             // priority.getName() + "='" + instructionReference.get().getValue() + "']");
-                        case coordinates -> {} // System.out.println("coordinates case");
+                        case coordinates -> {
+                            /// THIS MEANT TO BE USED JUST TO LOCATE THE ELEMENT NOT APPLYING ACTIONS TO IT
+
+                            //                            Pair<String, String> filedData = new Pair("martini",
+                            // "Martini");
+                            //                            try {
+                            //                                executeActionsAtInstructionCoordinates(currentInstruction,
+                            // filedData);
+                            //                            } catch (Exception e) {
+                            //                                e.printStackTrace();
+                            //
+                        } // System.out.println("coordinates case");
                         case ById -> {} // System.out.println("ById case");
                         case ByClassName -> {} // System.out.println("Default case");
                         case ByName -> {} // System.out.println("Default case");
@@ -438,31 +568,37 @@ public class PerformActions {
                                     } catch (Exception e) {
                                         ABRLogger.getInstance(PerformActions.class)
                                                 .fine(String.format(
-                                                        "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
+                                                        "Could Not Find xPath \"%s\" Criteria \"%s\" Cause: %s",
                                                         instructionPath, criteria, e.getMessage()));
+
+                                        couldNotFindElement(String.valueOf(criteria));
                                     }
-                                } else if (instruction.getActionCustomMaxWaitSec() != null) {
+                                } else if (currentInstruction.getActionCustomMaxWaitSec() != null) {
                                     try {
 
                                         new WebDriverWait(
                                                         abrWebDriver.getDriver(),
-                                                        Duration.ofSeconds(instruction.getActionCustomMaxWaitSec()))
+                                                        Duration.ofSeconds(
+                                                                currentInstruction.getActionCustomMaxWaitSec()))
                                                 .until(ExpectedConditions.presenceOfElementLocated(criteria));
                                     } catch (Exception e) {
                                         ABRLogger.getInstance(PerformActions.class)
                                                 .fine(String.format(
-                                                        "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
+                                                        "Could Not Find xPath \"%s\" Criteria \"%s\" Cause: %s",
                                                         instructionPath, criteria, e.getMessage()));
+
+                                        couldNotFindElement(String.valueOf(criteria));
                                     }
                                 } else {
                                     try {
-
                                         waitForAction.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                                     } catch (Exception e) {
                                         ABRLogger.getInstance(PerformActions.class)
                                                 .fine(String.format(
-                                                        "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
+                                                        "Could Not Find xPath \"%s\" Criteria \"%s\" Cause: %s",
                                                         instructionPath, criteria, e.getMessage()));
+
+                                        couldNotFindElement(String.valueOf(criteria));
                                     }
                                 }
                                 int k = 0;
@@ -535,9 +671,21 @@ public class PerformActions {
         return criteriaList;
     }
 
-    private String insertTargetElement(WebElement element, String fieldName, String dataFieldValue) throws Exception {
+    private String insertTargetElement(
+            boolean byPassNotFound, WebElement element, String fieldName, String dataFieldValue) throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
-        waitForAction.until(ExpectedConditions.visibilityOf(element));
+        try {
+            waitForAction.until(ExpectedConditions.visibilityOf(element));
+        } catch (Exception e) {
+            ABRLogger.getInstance(PerformActions.class)
+                    .fine(String.format(
+                            "Could Not Find Field Name \"%s\" Value \"%s\" Cause: %s",
+                            fieldName, dataFieldValue, e.getMessage()));
+
+            if (!byPassNotFound) {
+                couldNotFindElement(fieldName);
+            }
+        }
 
         if (dataFieldValue != null) {
             element.clear();
@@ -548,9 +696,19 @@ public class PerformActions {
         return fieldName + "->" + dataFieldValue;
     }
 
-    private String getValueInElement(WebElement element) throws Exception {
+    private String getValueInElement(boolean byPassNotFound, WebElement element) throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
-        waitForAction.until(ExpectedConditions.visibilityOf(element));
+        try {
+            waitForAction.until(ExpectedConditions.visibilityOf(element));
+        } catch (Exception e) {
+            ABRLogger.getInstance(PerformActions.class)
+                    .fine(String.format(
+                            "Could Not Find TagName \"%s\" Cause: %s", element.getTagName(), e.getMessage()));
+
+            if (!byPassNotFound) {
+                couldNotFindElement(element.getTagName());
+            }
+        }
 
         // Assuming instructionElement is an input field
         return element.getAttribute("value");
@@ -608,7 +766,9 @@ public class PerformActions {
             } catch (Exception ex) {
                 ABRLogger.getInstance(PerformActions.class)
                         .warning(String.format(
-                                "WaitForPage.until(d -> ((JavascriptExecutor) driver) error:\n%s", ex.getMessage()));
+                                "WaitForPage.until(d -> ((JavascriptExecutor) driver) error: %s", ex.getMessage()));
+
+                couldNotFindElement("WaitForPage.until");
             }
         } else {
             // Handle the case when driver is null (e.g., throw an exception or initialize the driver)
@@ -617,33 +777,82 @@ public class PerformActions {
         }
     }
 
-    public void scrollToElement(WebElement element) throws Exception {
-        UtilsMethods.exceptionIfNullWebElement(element);
-        ((JavascriptExecutor) abrWebDriver.getDriver()).executeScript("arguments[0].scrollIntoView(true);", element);
-    }
-
-    public String clickElement(WebElement element) throws Exception {
-        UtilsMethods.exceptionIfNullWebElement(element);
-        if (!element.isEnabled()) {
-            // throw new TimeoutException();
-        }
-        waitForAction.until(ExpectedConditions.visibilityOf(element).andThen(e -> {
+    public boolean scrollToElement(boolean byPassNotFound, WebElement element) throws Exception {
+        try {
+            UtilsMethods.exceptionIfNullWebElement(element);
             ((JavascriptExecutor) abrWebDriver.getDriver())
                     .executeScript("arguments[0].scrollIntoView(true);", element);
-            return waitForAction.until(ExpectedConditions.elementToBeClickable(element));
-        }));
+            return true;
+        } catch (Exception e) {
+            ABRLogger.getInstance(PerformActions.class)
+                    .severe(String.format(
+                            "Failed to Scroll to Element \"%s\" Cause: %s", element.getTagName(), e.getMessage()));
+            if (!byPassNotFound) {
+                couldNotFindElement("Failed to Scroll to Element " + element.getTagName());
+            }
+            return false;
+        }
+    }
+
+    public boolean clickElement(boolean byPassNotFound, WebElement element) throws Exception {
+        UtilsMethods.exceptionIfNullWebElement(element);
+        if (!element.isEnabled()) {
+            //        callErrorMessageNotEnabled(element.getTagName());
+            showCustomModalDialog(
+                    "BOT JOB STOP",
+                    String.format("The Element \"%s\" is not Enabled", element.getTagName()),
+                    "Consider Fill Up all the Mandatory Fields!");
+            // throw new TimeoutException();
+            return false;
+        }
+
+        //        try {
+        //            waitForAction.until(ExpectedConditions.visibilityOf(element).andThen(e -> {
+        //                ((JavascriptExecutor) abrWebDriver.getDriver())
+        //                        .executeScript("arguments[0].scrollIntoView(true);", element);
+        //                return waitForAction.until(ExpectedConditions.elementToBeClickable(element));
+        //            }));
+        //        } catch (Exception e) {
+        //            ABRLogger.getInstance(PerformActions.class)
+        //                    .fine(String.format(
+        //                            "Could Not Find TagName \"%s\" Cause: %s", element.getTagName(), e.getMessage()));
+        //
+        //            if (!byPassNotFound) {
+        //                couldNotFindElement(element.getTagName());
+        //            }
+        //            return false;
+        //        }
+
         try {
             element.click();
-            try {
-                return ABRWebUtil.extractXPath(element.toString());
-            } catch (Exception e) {
-                return "Extract XPath Problem: ON ABRWebUtil.extractXPath for " + element.getTagName();
-            }
+            return true;
         } catch (ElementClickInterceptedException e) {
-            JavascriptExecutor jse = (JavascriptExecutor) abrWebDriver.getDriver();
-            jse.executeScript("arguments[0].click()", element);
-            return "ElementClickIntercepted Exception: " + ABRWebUtil.extractXPath(element.toString());
+            try {
+                JavascriptExecutor jse = (JavascriptExecutor) abrWebDriver.getDriver();
+                jse.executeScript("arguments[0].click()", element);
+                return true;
+            } catch (Exception ex) {
+
+                ABRLogger.getInstance(PerformActions.class)
+                        .fine(String.format(
+                                "Could Not Click on  \"%s\" Cause: %s", element.getTagName(), e.getMessage()));
+                return false;
+            }
         }
+    }
+
+    public void couldNotFindElement(String criteria) {
+        showCustomModalDialog(
+                criteria,
+                "1. Verify if you are on the correct web page.",
+                "2. Check if the page layout or content has been updated. (Page Refreshed)",
+                "3. Consider increasing the wait time to ensure the page loads completely.",
+                "4. Consider to Re Scanner or Re Select the Element!",
+                true);
+    }
+
+    public void errorMessage(String criteria, String msg1, String msg2, String msg3, String msg4) {
+        showCustomModalDialog(criteria, msg1, msg2, msg3, msg4, true);
     }
 
     public void refreshPage() {
@@ -651,37 +860,58 @@ public class PerformActions {
         justCalledRefreshPage = true;
     }
 
-    private String insertInElement(
-            WebElement element, String dataFieldName, String dataFieldValue, String defaultValue, boolean isEncrypted)
+    private boolean insertInElement(
+            boolean byPassNotFound, WebElement element, String dataFieldValue, String defaultValue, boolean isEncrypted)
             throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
-        waitForAction.until(ExpectedConditions.visibilityOf(element));
 
-        if (Strings.isNullOrEmpty(defaultValue)) {
-
-            if (isEncrypted) {
-                dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
+        try {
+            waitForAction.until(ExpectedConditions.visibilityOf(element));
+        } catch (Exception e) {
+            ABRLogger.getInstance(PerformActions.class)
+                    .fine(String.format(
+                            "Could Not Find TagName \"%s\" Cause: %s", element.getTagName(), e.getMessage()));
+            if (!byPassNotFound) {
+                couldNotFindElement(element.getTagName());
             }
-
-            if (dataFieldValue != null) {
-                element.clear();
-                element.sendKeys(dataFieldValue);
-                element.sendKeys(Keys.TAB);
-
-            } else {
-                element.sendKeys(UtilsMethods.generateRandomID(10));
-                element.sendKeys(Keys.TAB);
-            }
-        } else {
-            dataFieldValue = defaultValue;
-
-            if (isEncrypted) {
-                dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
-            }
-            element.sendKeys(dataFieldValue);
+            return false;
         }
 
-        return dataFieldName + "->" + dataFieldValue;
+        try {
+
+            if (Strings.isNullOrEmpty(defaultValue)) {
+
+                if (isEncrypted) {
+                    dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
+                }
+
+                if (dataFieldValue != null) {
+                    element.clear();
+                    element.sendKeys(dataFieldValue);
+                    element.sendKeys(Keys.TAB);
+
+                } else {
+                    element.sendKeys(UtilsMethods.generateRandomID(10));
+                    element.sendKeys(Keys.TAB);
+                }
+            } else {
+                dataFieldValue = defaultValue;
+
+                if (isEncrypted) {
+                    dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
+                }
+                element.sendKeys(dataFieldValue);
+            }
+        } catch (Exception e) {
+            ABRLogger.getInstance(PerformActions.class)
+                    .severe(String.format(
+                            "Could Not Input Value to \"%s\" Cause: %s", element.getTagName(), e.getMessage()));
+
+            couldNotFindElement("Could Input Values to Element " + element.getTagName());
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -712,29 +942,64 @@ public class PerformActions {
         return new Pair<>(dataFieldName, dataFieldValue);
     }
 
-    private String insertDataInSelectElement(WebElement element, Pair<String, String> data) throws Exception {
+    private boolean insertDataInSelectElement(
+            boolean byPassNotFound, WebElement element, String coordinates, Pair<String, String> data)
+            throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
-        waitForAction.until(ExpectedConditions.visibilityOf(element));
+        try {
+            waitForAction.until(ExpectedConditions.visibilityOf(element));
+        } catch (Exception e) {
+            ABRLogger.getInstance(PerformActions.class)
+                    .fine(String.format(
+                            "Could Not Find Select \"%s\" Value  \"%s\" Cause: %s",
+                            data.getKey(), data.getValue(), e.getMessage()));
+            if (!byPassNotFound) {
+                couldNotFindElement(data.getKey());
+            }
+        }
 
         try {
             // Create a Select instance to interact with the dropdown
-            Select selectCountry = new Select(element);
-            // Select "Switzerland" by visible text
-            selectCountry.selectByVisibleText(data.getValue());
+            //            Select selectCountry = new Select(element);
+            //            // Select "Switzerland" by visible text
+            //            selectCountry.selectByVisibleText(data.getValue());
 
-        } catch (Exception ex) {
-            return "Error: -> Cannot find: " + data.getKey() + "-> \"" + data.getValue()
-                    + "\" - Attention to Case-Sentitives!";
+            String[] coordArray = new String[] {coordinates, "coordinates"};
+            sequenceOfCommands(element, ABRConstants.SELECT, coordArray, data, abrWebDriver.getDriver());
+
+        } catch (Exception e) {
+            ABRLogger.getInstance(PerformActions.class)
+                    .severe(String.format(
+                            "Could Not Input Value to \"%s\" Cause: %s", element.getTagName(), e.getMessage()));
+
+            couldNotFindElement("Could Input Values to Element " + element.getTagName());
+
+            return false;
         }
-
-        return "Select: -> " + data.getKey() + "->" + data.getValue();
+        return true;
     }
 
-    private String getOutPutElement(
-            WebElement element, String fieldName, String action, Map<String, String> mapOperators) throws Exception {
+    private boolean getOutPutElement(
+            boolean byPassNotFound,
+            WebElement element,
+            String fieldName,
+            String action,
+            Map<String, String> mapOperators)
+            throws Exception {
 
         UtilsMethods.exceptionIfNullWebElement(element);
-        waitForAction.until(ExpectedConditions.visibilityOf(element));
+
+        try {
+            waitForAction.until(ExpectedConditions.visibilityOf(element));
+        } catch (Exception ex) {
+            ABRLogger.getInstance(PerformActions.class)
+                    .warning(String.format("Could Not Find Field Name \"%s\" Cause: %s", fieldName, ex.getMessage()));
+
+            if (!byPassNotFound) {
+                couldNotFindElement(fieldName);
+            }
+            return false;
+        }
 
         String textByhJS = "";
         String finalTextNested = "";
@@ -786,9 +1051,9 @@ public class PerformActions {
         try {
             waitForAction.until(ExpectedConditions.elementToBeClickable(element));
             isClickable = true;
-        } catch (Exception ex) {
+        } catch (Exception e) {
             ABRLogger.getInstance(PerformActions.class)
-                    .warning(String.format("Element is not clickable: %s", fieldName));
+                    .warning(String.format("Element is not clickable: \"%s\"", fieldName));
         }
 
         // Set the final text value by priority and add to mapOperators
@@ -810,15 +1075,15 @@ public class PerformActions {
             finalText = textContext;
             mapOperators.put(fieldName, finalText);
         } else {
-            mapOperators.put(fieldName, "Failed");
+            mapOperators.put(fieldName, "Failed to Load teh Text");
             ABRLogger.getInstance(PerformActions.class)
                     .severe(String.format("Failed to retrieve text from element for: %s", fieldName));
         }
 
-        return Strings.isNullOrEmpty(finalText) ? "$EMPTY" : finalText;
+        return true;
     }
 
-    private void listOperation(BlockLoopInstructionLoadDTO instructionDTO) {
+    private void listOperation(boolean byPassNotFound, BlockLoopInstructionLoadDTO instructionDTO) {
 
         /*
         TODO: Da rivedere, attualmente non del tutto funzionante
@@ -836,7 +1101,19 @@ public class PerformActions {
 
         boolean existNextPage;
         do {
-            waitForPage.until(ExpectedConditions.visibilityOfElementLocated(By.tagName(complexActionParts[2])));
+            try {
+                waitForPage.until(ExpectedConditions.visibilityOfElementLocated(By.tagName(complexActionParts[2])));
+            } catch (Exception e) {
+                ABRLogger.getInstance(PerformActions.class)
+                        .fine(String.format(
+                                "Could Not Find TagName \"%s\" Criteria \"%s\" Cause: %s",
+                                complexActionParts[2], By.tagName(complexActionParts[2]), e.getMessage()));
+
+                if (!byPassNotFound) {
+                    couldNotFindElement(complexActionParts[2]);
+                }
+            }
+
             backwardButton = abrWebDriver.getDriver().findElement(By.xpath(complexActionParts[0]));
             forwardButton = abrWebDriver.getDriver().findElement(By.xpath(complexActionParts[1]));
             webElementList = abrWebDriver.getDriver().findElements(By.tagName(complexActionParts[2]));
@@ -846,8 +1123,21 @@ public class PerformActions {
             for (int i = 0; i < 5; i++) {
 
                 if (i != 0) {
-                    waitForPage.until(ExpectedConditions.visibilityOfElementLocated(By.tagName(complexActionParts[2])));
-                    webElementList = abrWebDriver.getDriver().findElements(By.tagName(complexActionParts[2]));
+
+                    try {
+                        waitForPage.until(
+                                ExpectedConditions.visibilityOfElementLocated(By.tagName(complexActionParts[2])));
+                        webElementList = abrWebDriver.getDriver().findElements(By.tagName(complexActionParts[2]));
+                    } catch (Exception e) {
+                        ABRLogger.getInstance(PerformActions.class)
+                                .fine(String.format(
+                                        "Could Not Find TagName \"%s\" Criteria \"%s\" Cause: %s",
+                                        complexActionParts[2], By.tagName(complexActionParts[2]), e.getMessage()));
+
+                        if (!byPassNotFound) {
+                            couldNotFindElement(complexActionParts[2]);
+                        }
+                    }
                 }
 
                 element = webElementList.get(i);
@@ -860,9 +1150,12 @@ public class PerformActions {
                         continue;
                     }
 
-                    clickElement(element.findElement(
-                            By.xpath(".//button[@test-id='web-banking-payment-core.payment-ctx-action.button']")));
                     clickElement(
+                            byPassNotFound,
+                            element.findElement(By.xpath(
+                                    ".//button[@test-id='web-banking-payment-core.payment-ctx-action.button']")));
+                    clickElement(
+                            byPassNotFound,
                             abrWebDriver
                                     .getDriver()
                                     .findElement(
@@ -870,13 +1163,17 @@ public class PerformActions {
                                                     ".//button[@test-id='web-banking-payment-core.payment-ctx-action.payment-action-VIEW']")));
 
                     Thread.sleep(1000);
-                    clickElement(abrWebDriver
-                            .getDriver()
-                            .findElement(By.xpath(
-                                    ".//button[@test-id='web-banking-common.export-to-file.single-file-button']")));
+                    clickElement(
+                            byPassNotFound,
+                            abrWebDriver
+                                    .getDriver()
+                                    .findElement(
+                                            By.xpath(
+                                                    ".//button[@test-id='web-banking-common.export-to-file.single-file-button']")));
 
                     Thread.sleep(1000);
                     clickElement(
+                            byPassNotFound,
                             abrWebDriver
                                     .getDriver()
                                     .findElement(
@@ -888,8 +1185,8 @@ public class PerformActions {
             }
 
             try {
-                scrollToElement(forwardButton);
-                clickElement(forwardButton);
+                scrollToElement(byPassNotFound, forwardButton);
+                clickElement(byPassNotFound, forwardButton);
                 existNextPage = true;
             } catch (Exception e) {
                 existNextPage = false;
@@ -1304,7 +1601,7 @@ public class PerformActions {
         }
     }
 
-    //    // Creating SAVED BLOCKS FORM BLOCKS DTO
+    // Creating SAVED BLOCKS FORM BLOCKS DTO
     //    public static SavedBlocksDTO createSavedBlocksDTOFromBlocksDTO(BlockDTO blockDTO) {
     //        SavedBlocksDTO savedBlocksDTO = new SavedBlocksDTO();
     //        savedBlocksDTO.setName(blockDTO.getName());
@@ -1357,17 +1654,18 @@ public class PerformActions {
     //        return savedBlockLoopInstructionDTOs;
     //    }
 
-    //    // Creating BLOCKS DTO FROM SAVED BLOCKS
+    // Creating BLOCKS DTO FROM SAVED BLOCKS
     //    public static BlockDTO createBlocksDTOFromSavedBlocksDTO(SavedBlocksDTO savedBlocksDTO, BotJobDTO botJobDTO) {
     //        BlockDTO blocksDTO = new BlockDTO();
     //        blocksDTO.setName(savedBlocksDTO.getName());
     //        blocksDTO.setBotJob(botJobDTO);
     //        blocksDTO.setDescription(savedBlocksDTO.getDescription());
     //        blocksDTO.setTypeId(savedBlocksDTO.getTypeId());
+    //        blocksDTO.setExportFile(savedBlocksDTO.getExportFile());
     //        return blocksDTO;
     //    }
-    //
-    //    // Creating BLOCK INSTRUCTIONS FROM COMPONENT SAVED INSTRUCTIONS
+
+    // Creating BLOCK INSTRUCTIONS FROM COMPONENT SAVED INSTRUCTIONS
     //    public static List<BlockLoopInstructionDTO> createBlockLoopInstructionsFromSavedBlocksDTO(
     //            SavedBlocksDTO savedBlocksDTO, BlockDTO blockDTO) {
     //        List<BlockLoopInstructionDTO> blockLoopInstructionDTOs = new ArrayList<>();
@@ -1428,44 +1726,43 @@ public class PerformActions {
     //
     //        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
     //            stmt.executeUpdate(insertSQL);
-    //            ABRLogger.getInstance(ABRViewBotJobPane.class).info("Block data saved successfully id: " + nextId);
+    //            ABRLogger.getInstance(PerformActions.class).info("Block data saved successfully id: " + nextId);
     //            return nextId;
     //        } catch (SQLException e) {
-    //            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("saveBlock  \nError: " + e.getMessage());
+    //            ABRLogger.getInstance(PerformActions.class).severe("saveBlock  \nError: " + e.getMessage());
     //            return -1;
     //        }
     //    }
-    //
+
     //    private Integer loadNextSavedBlockOrderNumber(int botJobId) {
     //        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
     //        String selectSQL = "SELECT MAX(ID) AS max_id FROM saved_blocks where bot_job_id = " + botJobId;
     //        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
-    //             ResultSet rs = stmt.executeQuery(selectSQL)) {
+    //                ResultSet rs = stmt.executeQuery(selectSQL)) {
     //            while (rs.next()) {
     //                return rs.getInt("max_id");
     //            }
     //        } catch (SQLException e) {
-    //            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("loadNextIdBlockData  \nError: " +
-    // e.getMessage());
+    //            ABRLogger.getInstance(PerformActions.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
     //        }
     //        return null;
     //    }
-    //
+
     //    private Integer loadNextIdSavedInstructionData() {
     //        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
     //        String selectSQL = "SELECT MAX(ID) AS max_id FROM saved_block_loop_instruction";
     //        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
-    //             ResultSet rs = stmt.executeQuery(selectSQL)) {
+    //                ResultSet rs = stmt.executeQuery(selectSQL)) {
     //            while (rs.next()) {
     //                return rs.getInt("max_id");
     //            }
     //        } catch (SQLException e) {
-    //            ABRLogger.getInstance(ABRViewBotJobPane.class)
+    //            ABRLogger.getInstance(PerformActions.class)
     //                    .severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
     //        }
     //        return null;
     //    }
-    //
+
     //    private Integer loadNextIdSavedBlockData() {
     //        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
     //        String selectSQL = "SELECT MAX(ID) AS max_id FROM saved_blocks";
@@ -1475,8 +1772,7 @@ public class PerformActions {
     //                return rs.getInt("max_id");
     //            }
     //        } catch (SQLException e) {
-    //            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("loadNextIdBlockData  \nError: " +
-    // e.getMessage());
+    //            ABRLogger.getInstance(PerformActions.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
     //        }
     //        return null;
     //    }
@@ -1592,11 +1888,10 @@ public class PerformActions {
         dialog.setVisible(true);
     }
 
-    public static void showCustomModalDialog(
-            String title, String message, String message2, String message3, boolean redMsg) {
+    public static void showCustomModalDialog(String title, String message, String message2) {
         // Create a JDialog as a custom modal message dialog
         JDialog dialog = new JDialog((Frame) null, title, true); // true makes it modal
-        dialog.setSize(300, 250);
+        dialog.setSize(300, 200);
         dialog.setLocationRelativeTo(null); // Center on screen
         dialog.setUndecorated(true); // Remove the default border
 
@@ -1606,27 +1901,88 @@ public class PerformActions {
         panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         panel.setLayout(new BorderLayout());
 
-        String concatenaMsg = "<html><br><span style='color: blue;'>" + message
-                + "</span><br>---------------------------<br><span style='color: blue;'>" + message2 + "</span>";
-        if (Strings.isNullOrEmpty(message3)) {
-            concatenaMsg = concatenaMsg + "</html>";
-        } else {
-            concatenaMsg = concatenaMsg + "<br>---------------------------<br><span style='color: blue;'>" + message3
-                    + "</span></html>";
-        }
-
-        if (redMsg) {
-            concatenaMsg = concatenaMsg.replaceAll("blue", "red");
-        }
-
         // Style the message
-        JLabel messageLabel = new JLabel(concatenaMsg, SwingConstants.CENTER);
+        JLabel messageLabel = new JLabel(
+                "<html><br><span style='color: blue;'>" + message
+                        + "</span><<br>---------------------------<br><span style='color: blue;'>" + message2
+                        + "</span></html>",
+                SwingConstants.CENTER);
         messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
         panel.add(messageLabel, BorderLayout.CENTER);
 
         // OK button to close the dialog
         JButton okButton = new JButton("OK");
         okButton.addActionListener(e -> dialog.dispose());
+        panel.add(okButton, BorderLayout.SOUTH);
+
+        // Add panel to dialog and set properties
+        dialog.getContentPane().add(panel);
+        dialog.setAlwaysOnTop(true);
+        dialog.setVisible(true); // This will block other input until the dialog is closed
+    }
+
+    public static void showCustomModalDialog(
+            String title, String message, String message2, String message3, String message4, boolean redMsg) {
+        // Create a JDialog as a custom modal message dialog
+        // Create a JDialog as a custom modal message dialog
+        JDialog dialog = new JDialog((Frame) null, title, true); // true makes it modal
+        if (message3 == null && message4 == null) {
+            dialog.setSize(350, 210);
+        } else if (message3 != null && message4 == null) {
+            dialog.setSize(350, 230);
+        } else if (message3 != null && message4 != null) {
+            dialog.setSize(350, 300);
+        } else {
+            dialog.setSize(350, 300);
+        }
+
+        dialog.setLocationRelativeTo(null); // Center on screen
+        dialog.setUndecorated(true); // Remove the default border  IT REMOVE TEH ORIGINAL TITLE
+
+        // Style the dialog's main panel
+        JPanel panel = new JPanel();
+        panel.setBackground(new Color(255, 218, 51)); // Light orange background
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        panel.setLayout(new BorderLayout());
+
+        // Build the message
+        String titleMessage = "<html><br><span style='color: blue;'>";
+        titleMessage += "<span style='font-size: 14px; font-weight: bold;'>" + title
+                + "</span><br>---------------------------<br>";
+
+        String concatenaMsg = "<span style='color: blue;'>" + message
+                + "</span><br>---------------------------<br><span style='color: blue;'>" + message2 + "</span>";
+
+        if (message3 != null && message4 == null) {
+            concatenaMsg +=
+                    "<br>---------------------------<br><span style='color: blue;'>" + message3 + "</span></html>";
+        } else if (message3 != null && message4 != null) {
+            concatenaMsg += "<br>---------------------------<br><span style='color: blue;'>"
+                    + message3 + "</span><br>---------------------------<br><span style='color: blue;'>"
+                    + message4 + "</span><br><br></html>";
+        } else {
+            concatenaMsg += "</html>";
+        }
+
+        // Apply red color to message if redMsg is true
+        if (redMsg) {
+            concatenaMsg = concatenaMsg.replaceAll("blue", "red");
+        }
+        concatenaMsg = titleMessage + concatenaMsg;
+
+        // Create a JLabel to display the formatted message
+        JLabel messageLabel = new JLabel(concatenaMsg, SwingConstants.CENTER);
+        messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+        panel.add(messageLabel, BorderLayout.CENTER);
+
+        // OK button to close the dialog
+        JButton okButton = new JButton("OK");
+        okButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                dialog.dispose();
+            }
+        });
         panel.add(okButton, BorderLayout.SOUTH);
 
         // Add panel to dialog and set properties
@@ -1651,7 +2007,7 @@ public class PerformActions {
             case Constants.LIST_OPERATION:
                 return "List Operation performed for " + fieldData.getKey();
             case Constants.HOLD:
-                return "Hold action executed for " + fieldData.getKey();
+                return "Hold executed ( " + fieldData.getKey() + " )";
             case Constants.PAUSE:
                 return "Pause action triggered";
             case Constants.REFRESH_ONLY:
@@ -1716,5 +2072,398 @@ public class PerformActions {
         } catch (Exception ex) {
             return null;
         }
+    }
+
+    public void createOutputHtml(String type, WebDriver driver) {
+        // Save the HTML to a file
+        List<WebElement> elements = driver.findElements(By.cssSelector(type));
+
+        // Create a Set to store unique visible elements
+        Set<String> uniqueElements = new HashSet<>();
+
+        // Create a List to store the HTML content
+        List<String> htmlArray = new ArrayList<>();
+
+        // Iterate over all elements and add their outer HTML to the List
+        for (WebElement element : elements) {
+            if (isElementVisible(element, driver)) {
+                String outerHTML = element.getAttribute("outerHTML");
+
+                // Only add the element if it hasn't been added before
+                if (uniqueElements.add(outerHTML)) {
+                    htmlArray.add(outerHTML);
+                }
+            }
+        }
+
+        // Save the content as an array of strings to a new file
+        String htmlPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXPORT);
+        try (FileWriter writer = new FileWriter(htmlPath + "/" + type + ".json")) {
+            // Convert the list of strings to a JSON-like array format
+            writer.write(htmlArray.stream()
+                    .map(s -> "\"" + s.replace("\"", "\\\"") + "\"") // Escape double quotes
+                    .collect(Collectors.joining(", ", "[", "]"))); // Format as JSON array
+        } catch (IOException e) {
+            System.out.println("Error writing to file: " + e.getMessage());
+        } finally {
+            // Close the browser if necessary
+            // driver.quit();
+        }
+    }
+
+    // Function to check if the element is visible
+    private static boolean isElementVisible(WebElement element, WebDriver driver) {
+        // Check if the element is displayed and within the viewport
+        try {
+            return element.isDisplayed() && isInViewport(element, driver);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    // Function to check if the element is within the viewport
+    private static boolean isInViewport(WebElement element, WebDriver driver) {
+        // Use JavaScript to check if the element is in the viewport
+        // Use the WebDriver (which implements JavascriptExecutor) to execute JavaScript
+        JavascriptExecutor js = (JavascriptExecutor) driver;
+
+        // Execute the JavaScript to get the element's position and check if it's in the viewport
+        return (boolean) js.executeScript(
+                "var rect = arguments[0].getBoundingClientRect(); "
+                        + "return (rect.top >= 0 && rect.left >= 0 && rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) && rect.right <= (window.innerWidth || document.documentElement.clientWidth));",
+                element);
+    }
+
+    public void executeActionsAtInstructionCoordinates(
+            BlockLoopInstructionLoadDTO currentInstruction, Pair<String, String> data) throws Exception {
+
+        List<com.allinweb.ch.util.Priority> priorityList = ABRPriorities.getAllPriorityList();
+        Optional<com.allinweb.ch.util.Priority> priority = priorityList.stream()
+                .filter(p -> p.getPriorityType() == PriorityTypeEnum.coordinates)
+                .findFirst();
+        if (priority.isPresent()) {
+            List<InstructionReferenceLoadDTO> instructionReferenceList =
+                    currentInstruction.getInstructionReferenceLoadDTOList();
+            Optional<InstructionReferenceLoadDTO> reference = instructionReferenceList.stream()
+                    .filter(ref -> ref.getReferenceType().equals(priority.get().getName()))
+                    .findFirst();
+            int x = 0;
+            int y = 0;
+            int xCoord = 0;
+            int yCoord = 0;
+            if (reference.isPresent()) {
+                String[] coordinates = reference.get().getValue().split(ABRConstants.FIELDS_SEPARATOR);
+
+                double temp1 = Double.parseDouble(coordinates[0]);
+                double temp2 = Double.parseDouble(coordinates[1]);
+                x = (int) temp1;
+                y = (int) temp2;
+                int maxHeight =
+                        abrWebDriver.getDriver().manage().window().getSize().getHeight();
+                int maxWidth =
+                        abrWebDriver.getDriver().manage().window().getSize().getWidth();
+                int offsetY = y - maxHeight;
+                int offsetX = x - maxWidth;
+                xCoord = x > maxWidth ? x - offsetX : x;
+                yCoord = y > maxHeight ? y - offsetY : y;
+            }
+            String[] actions = currentInstruction.getActions().split(ABRConstants.ACTIONS_AND_PATHS_SPLITTER);
+            for (String action : actions) {
+                switch (String.valueOf(action.charAt(0))) {
+                    case Constants.VISUALIZE:
+                        scrollToCoordinates(x, y);
+                        break;
+                    case Constants.CLICK:
+                        scrollToCoordinates(x, y);
+                        onHoldForSeconds(null);
+                        clickAtCoordinates(xCoord, yCoord);
+                        break;
+                    case Constants.INSERT:
+                        scrollToCoordinates(x, y);
+                        onHoldForSeconds(null);
+                        clickAtCoordinates(xCoord, yCoord);
+                        onHoldForSeconds(null);
+                        typeCharacters(data);
+                        break;
+                }
+                onHoldForSeconds(null);
+            }
+        }
+    }
+
+    public Map<String, String> calculateCoordinates(String savedCoordinates) {
+        int x = 0;
+        int y = 0;
+        int xCoord = 0;
+        int yCoord = 0;
+        String[] coordinates = savedCoordinates.split(ABRConstants.FIELDS_SEPARATOR);
+        double temp1 = Double.parseDouble(coordinates[0]);
+        double temp2 = Double.parseDouble(coordinates[1]);
+        x = (int) temp1;
+        y = (int) temp2;
+        int maxHeight = abrWebDriver.getDriver().manage().window().getSize().getHeight();
+        int maxWidth = abrWebDriver.getDriver().manage().window().getSize().getWidth();
+        int offsetY = y - maxHeight;
+        int offsetX = x - maxWidth;
+        xCoord = x > maxWidth ? x - offsetX : x;
+        yCoord = y > maxHeight ? y - offsetY : y;
+
+        Map<String, String> mapCoordinates = new HashMap<>();
+
+        mapCoordinates.put("ScrollTo", x + ":" + y);
+        mapCoordinates.put("ClickOn", xCoord + ":" + yCoord);
+        return mapCoordinates;
+    }
+
+    public boolean executeActionsAtCoordinates(String savedCoordinates, Pair<String, String> data, String action) {
+
+        int x = 0;
+        int y = 0;
+        int xCoord = 0;
+        int yCoord = 0;
+        try {
+            String[] coordinates = savedCoordinates.split(ABRConstants.FIELDS_SEPARATOR);
+            double temp1 = Double.parseDouble(coordinates[0]);
+            double temp2 = Double.parseDouble(coordinates[1]);
+            x = (int) temp1;
+            y = (int) temp2;
+            int maxHeight = abrWebDriver.getDriver().manage().window().getSize().getHeight();
+            int maxWidth = abrWebDriver.getDriver().manage().window().getSize().getWidth();
+            int offsetY = y - maxHeight;
+            int offsetX = x - maxWidth;
+            xCoord = x > maxWidth ? x - offsetX : x;
+            yCoord = y > maxHeight ? y - offsetY : y;
+
+            if (ABRConstants.VISUALIZE.equals(action)) {
+                scrollToCoordinates(x, y);
+            } else if (ABRConstants.CLICK.equals(action)) {
+                scrollToCoordinates(x, y);
+                //                circleAtCoordinates(x, y, abrWebDriver.getDriver());
+                onHoldForSeconds(null);
+                clickAtCoordinates(xCoord, yCoord);
+            } else if (ABRConstants.INSERT.equals(action)) {
+                scrollToCoordinates(x, y);
+                //                sendInputJS(x, y, data.getValue(),abrWebDriver.getDriver());
+                //                circleAtCoordinates(x, y, abrWebDriver.getDriver());
+                onHoldForSeconds(null);
+                clickAtCoordinates(xCoord, yCoord);
+                onHoldForSeconds(null);
+                typeCharacters(data);
+            }
+            onHoldForSeconds(null);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private void scrollToCoordinates(int x, int y) {
+        int maxHeight = abrWebDriver.getDriver().manage().window().getSize().getHeight();
+        int maxWidth = abrWebDriver.getDriver().manage().window().getSize().getWidth();
+        int offsetY = y - maxHeight;
+        int offsetX = x - maxWidth;
+        if (offsetX > 0 || offsetY > 0) {
+            String script = "function getScrollableParent(element){\n" + "    console.log(\"finding\");"
+                    + "    let value = window.getComputedStyle(element).overflowY;\n"
+                    + "    if(value !== \"scroll\" && value !== \"auto\"){\n"
+                    + "        return getScrollableParent(element.parentNode);\n"
+                    + "    }\n"
+                    + "    return element;\n"
+                    + "}\n"
+                    + "getScrollableParent(document.elementFromPoint("
+                    + (maxWidth / 2) + "," + (maxHeight / 2)
+                    + ")).scrollTo(" + Math.max(offsetX, 0) + "," + Math.max(offsetY, 0) + ");" + "return true;";
+            new WebDriverWait(abrWebDriver.getDriver(), Duration.ofSeconds(10))
+                    .until((item) -> (Boolean) ((JavascriptExecutor) abrWebDriver.getDriver()).executeScript(script));
+        }
+    }
+
+    private void clickAtCoordinates(int x, int y) {
+        /*
+        String script = "function createCircle(x, y, diameter) {\n" +
+                "    const randomColor = Math.floor(Math.random()*16777215).toString(16);\n" +
+                "\n" +
+                "    return `\n" +
+                "    <svg style='height:100%;width:100%;position:absolute;top:0;z-index:9999'><circle\n" +
+                "        cx=\"${x}\"\n" +
+                "      cy=\"${y}\"\n" +
+                "      r=\"${diameter/2}\"\n" +
+                "      fill=\"#${randomColor}\"\n" +
+                "    ></circle></svg>\n" +
+                "  `;\n" +
+                "}\n" +
+                "\n" +
+                "function pri(ev){\n" +
+                "    console.log(ev);\n" +
+                "    document.body.innerHTML += createCircle(ev.pageX,ev.pageY,10);\n" +
+                "}\n" +
+                "\n" +
+                "window.addEventListener(\"click\", pri);";
+        ((JavascriptExecutor)driver).executeScript(script);
+         */
+        new Actions(abrWebDriver.getDriver()).moveToLocation(x, y).click().perform();
+    }
+
+    private void circleAtCoordinates(int x, int y, WebDriver driver) {
+        String script = "function createCircle(x, y, diameter) {\n"
+                + "    const randomColor = Math.floor(Math.random()*16777215).toString(16);\n"
+                + "\n"
+                + "    return `\n"
+                + "    <svg style='height:100%;width:100%;position:absolute;top:0;z-index:9999'><circle\n"
+                + "        cx=\"${x}\"\n"
+                + "      cy=\"${y}\"\n"
+                + "      r=\"${diameter/2}\"\n"
+                + "      fill=\"#${randomColor}\"\n"
+                + "    ></circle></svg>\n"
+                + "  `;\n"
+                + "}\n"
+                + "\n"
+                + "function pri(ev){\n"
+                + "    console.log(ev);\n"
+                + "    document.body.innerHTML += createCircle(ev.pageX,ev.pageY,10);\n"
+                + "}\n"
+                + "\n"
+                + "window.addEventListener(\"click\", pri);";
+        ((JavascriptExecutor) driver).executeScript(script);
+    }
+
+    private void typeCharacters(Pair<String, String> fieldData) {
+        new Actions(abrWebDriver.getDriver()).sendKeys(fieldData.getValue()).perform();
+    }
+
+    public String sequenceOfCommands(
+            WebElement element,
+            String typeCommand,
+            String[] coordinates,
+            Pair<String, String> fieldData,
+            WebDriver driver) {
+
+        String message = "Nothing to execute";
+        try {
+            if (typeCommand.equals(ABRConstants.SELECT)) {
+                // Create a Select instance to interact with the dropdown
+                message = "Select(element)";
+                Select selectCountry = new Select(element);
+                selectCountry.selectByVisibleText(fieldData.getValue());
+            } else if (typeCommand.equals(ABRConstants.CLEAR)) {
+                message = "clear()";
+                element.clear();
+            } else if (typeCommand.equals(ABRConstants.CLICK)) {
+                message = "click()";
+                element.click();
+            } else if (typeCommand.equals(ABRConstants.INSERT)) {
+                message = "sendKeys(\"" + fieldData.getValue() + "\")";
+                element.sendKeys(fieldData.getValue());
+            } else if (typeCommand.equals(ABRConstants.TAB)) {
+                message = "(Keys.TAB)";
+                element.sendKeys(Keys.TAB);
+            } else if (typeCommand.equals(ABRConstants.GET_VALUE)) {
+                message = "getText()";
+                element.getText();
+            } else if (typeCommand.equals(ABRConstants.FOCUS)) {
+                message = "focusElement(element, driver)";
+                focusElement(element, driver);
+            } else if (typeCommand.equals(ABRConstants.COORD_VISUALIZA)) {
+                message = "Coordinates COORD_VISUALIZA";
+                executeActionsAtCoordinates(coordinates[1], fieldData, ABRConstants.VISUALIZE);
+                executeActionsAtCoordinates(coordinates[0], fieldData, ABRConstants.VISUALIZE);
+            } else if (typeCommand.equals(ABRConstants.COORD_CLICK)) {
+                message = "Coordinates COORD_CLICK";
+                executeActionsAtCoordinates(coordinates[1], fieldData, ABRConstants.CLICK);
+                executeActionsAtCoordinates(coordinates[0], fieldData, ABRConstants.CLICK);
+            } else if (typeCommand.equals(ABRConstants.COORD_INSERT)) {
+                message = "Coordinates COORD_INSERT";
+                executeActionsAtCoordinates(coordinates[1], fieldData, ABRConstants.INSERT);
+                executeActionsAtCoordinates(coordinates[0], fieldData, ABRConstants.INSERT);
+            }
+
+            return "Success " + message;
+
+        } catch (Exception ex) {
+            return "Failed Attempt " + message;
+        }
+    }
+
+    private void focusElement(WebElement element, WebDriver driver) {
+        JavascriptExecutor js = (JavascriptExecutor) driver;
+        js.executeScript("arguments[0].focus();", element);
+
+        Actions actions = new Actions(driver);
+        actions.moveToElement(element).perform();
+    }
+
+    public void sendInputJS(int x, int y, String text, WebDriver driver) {
+        String script = "function sendTextToElementAtCoordinates(x, y, text) {\n"
+                + "    const element = document.elementFromPoint(x, y);\n"
+                + "    if (element) {\n"
+                + "        console.log('Found element:', element);\n"
+                + "        element.click();\n"
+                + "        if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {\n"
+                + "            element.focus();\n"
+                + "            element.value = text;\n"
+                + "            const event = new Event('input', { bubbles: true });\n"
+                + "            element.dispatchEvent(event);\n"
+                + "        } else {\n"
+                + "            console.warn('Element is not an input or textarea.');\n"
+                + "        }\n"
+                + "    } else {\n"
+                + "        console.warn('No element found at the given coordinates.');\n"
+                + "    }\n"
+                + "}\n"
+                + "\n"
+                + "sendTextToElementAtCoordinates(arguments[0], arguments[1], arguments[2]);";
+
+        // Execute the JavaScript with the provided x, y, and text arguments
+        ((JavascriptExecutor) driver).executeScript(script, x, y, text);
+    }
+
+    public void moveAndClickAtCoordinates(String savedCoordinates, WebDriver driver) {
+        String[] coordinates = savedCoordinates.split(ABRConstants.FIELDS_SEPARATOR);
+        double temp1 = Double.parseDouble(coordinates[0]);
+        double temp2 = Double.parseDouble(coordinates[1]);
+        int x = (int) temp1;
+        int y = (int) temp2;
+
+        String script = "function moveAndClickMouse(x, y) {\n" + "    const mouseDiv = document.createElement('div');\n"
+                + "    mouseDiv.style.position = 'absolute';\n"
+                + "    mouseDiv.style.width = '10px';\n"
+                + "    mouseDiv.style.height = '10px';\n"
+                + "    mouseDiv.style.backgroundColor = 'red';\n"
+                + "    mouseDiv.style.borderRadius = '50%';\n"
+                + "    mouseDiv.style.zIndex = '10000';\n"
+                + "    mouseDiv.style.pointerEvents = 'none';\n"
+                + "    mouseDiv.id = 'virtualMouse';\n"
+                + "    document.body.appendChild(mouseDiv);\n"
+                + "\n"
+                + "    function blinkMouse() {\n"
+                + "        const mouse = document.getElementById('virtualMouse');\n"
+                + "        if (mouse) {\n"
+                + "            mouse.style.visibility = mouse.style.visibility === 'hidden' ? 'visible' : 'hidden';\n"
+                + "        }\n"
+                + "    }\n"
+                + "\n"
+                + "    const blinkInterval = setInterval(blinkMouse, 500);\n"
+                + "\n"
+                + "    mouseDiv.style.left = `${x}px`;\n"
+                + "    mouseDiv.style.top = `${y}px`;\n"
+                + "\n"
+                + "    const element = document.elementFromPoint(x, y);\n"
+                + "    if (element) {\n"
+                + "        element.click();\n"
+                + "    }\n"
+                + "\n"
+                + "    setTimeout(() => {\n"
+                + "        clearInterval(blinkInterval);\n"
+                + "        const mouse = document.getElementById('virtualMouse');\n"
+                + "        if (mouse) {\n"
+                + "            mouse.remove();\n"
+                + "        }\n"
+                + "    }, 3000);\n"
+                + "}\n"
+                + "\n"
+                + "moveAndClickMouse(arguments[0], arguments[1]);";
+
+        ((JavascriptExecutor) driver).executeScript(script, x, y);
     }
 }

@@ -202,23 +202,32 @@ public class Engine {
             return false;
         }
 
+        List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
+
+        String excelPath = idsAndPaths[2];
+
+        // Assuming blocksLoaded is your List<BlockLoadDTO>
+        List<String> allActions = blocksLoaded.stream()
+                .flatMap(
+                        blockLoadDTO -> blockLoadDTO
+                                .getBlockLoopInstructionLoadDTOS()
+                                .stream()) // Flatten the stream of BlockLoopInstructionLoadDTO
+                .map(BlockLoopInstructionLoadDTO::getActions) // Extract the actions
+                .collect(Collectors.toList()); // Collect all actions into a List
+
+        ExcelReader excelReader = new ExcelReader();
+        ExtractedData extractedData = null;
         try {
-            String excelPath = idsAndPaths[2];
+            extractedData = excelReader.extractData(excelPath, allActions);
+        } catch (Exception e) {
 
-            ExcelReader excelReader = new ExcelReader();
-            ExtractedData extractedData = excelReader.extractData(excelPath, repository, botJobId);
-            if (extractedData.getErrorMessage() != null) {
-                //				showAlert("Excel Data File", "Warning: Excel File exist" , "Fields in the excel not matching the
-                // botjob requirements");
-                ABRLogger.getInstance(Engine.class).info("Fields in the excel not matching the botjob requirements");
+            performAction.errorMessage(
+                    "Excel Error", "Could Not Execute Excel File", "Check All Excel Columns and Values!", null, null);
 
-                performAction.showCustomModalDialog(
-                        "Verify the Possible Errors:",
-                        "1. Excel File is OPEN",
-                        "2. Column Names Different from INPUT names",
-                        "3. INPUTS names Not In Excel File",
-                        true);
-            }
+            //            Platform.exit();
+        }
+
+        try {
 
             //            String browser = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.BROWSER);
             //            WebPage webPage = new WebPage(
@@ -268,7 +277,6 @@ public class Engine {
                         abrWebDriver.getDriver(), Duration.ofSeconds(Integer.parseInt(interactionTimeout)));
             }
 
-            List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
             String botJobName = botLoadJobs.get(0).getName();
 
             String baseLogString = blocksLoaded.get(0).getBotJobName()
@@ -292,6 +300,9 @@ public class Engine {
             Set<String> mapIgnore = new HashSet<>();
             int[] refreshLoopArray = null; // new int[] {0, 0, 0};
 
+            boolean searchByJavaScript = false;
+
+            boolean byPassNotFound = false;
             boolean success = true;
             boolean stopAll = false;
             long botJobStartTime = System.nanoTime();
@@ -317,18 +328,29 @@ public class Engine {
                 execLimitReach = Integer.parseInt(limitReach);
             }
 
+            Map<String, String> mapSavedLocators = new HashMap<>();
+
             Set<Integer> parentIdsForRefreshLoop = null;
             int exportIndex = 1;
             if (extractedData.getNumberOfDataRows() > 0) {
+
+                // Execute All Blocks starting from executeSpecificBlock if Defined
                 int currentBlock = (executeSpecificBlock > -1) ? executeSpecificBlock - 1 : 0;
 
+                //            while ((executeSpecificBlock > -1
+                //                    && currentBlock == executeSpecificBlock - 1) // Execute specific block only
+                //                    || (executeSpecificBlock == -1 && currentBlock <= blocksLoaded.size() - 1) //
+                // Execute
+                // all blocks
+                //                    && blocksLoaded.size() > 0
+                //                    && !stopAll
+                //                    && executionTimes < execLimitReach) {
+
                 outerLoop:
-                while ((executeSpecificBlock > -1
-                                && currentBlock == executeSpecificBlock - 1) // Execute specific block only
-                        || (executeSpecificBlock == -1 && currentBlock <= blocksLoaded.size() - 1) // Execute all blocks
-                                && blocksLoaded.size() > 0
-                                && !stopAll
-                                && executionTimes < execLimitReach) {
+                while (currentBlock <= blocksLoaded.size() - 1
+                        && blocksLoaded.size() > 0
+                        && !stopAll
+                        && executionTimes < execLimitReach) {
                     instructionsExecuted.clear();
                     BlockLoadDTO blockLoad = blocksLoaded.get(currentBlock);
                     String excelFieldName = blockLoad.getExportFile();
@@ -350,6 +372,7 @@ public class Engine {
                         boolean elseClause = false;
                         boolean elseFailed = false;
                         boolean byPassFlagLoop = false;
+                        mapExport.clear();
                         //                    writerReport.insertBlockSeparation(blockLoad.getName());
 
                         dataExcel = extractedData.getRowFieldValues(i);
@@ -364,6 +387,17 @@ public class Engine {
 
                             BlockLoopInstructionLoadDTO currentInstruction =
                                     blockLoad.getBlockLoopInstructionLoadDTOS().get(currentIndex);
+
+                            mapSavedLocators.clear();
+
+                            // Loop through the instructionReferenceLoadDTOList
+                            if (currentInstruction.getInstructionReferenceLoadDTOList() != null) {
+                                for (InstructionReferenceLoadDTO reference :
+                                        currentInstruction.getInstructionReferenceLoadDTOList()) {
+                                    // Populate the map with referenceType as the key and value as the value
+                                    mapSavedLocators.put(reference.getReferenceType(), reference.getValue());
+                                }
+                            }
 
                             currentIndex++;
 
@@ -395,7 +429,6 @@ public class Engine {
                             // Case for Inputs
                             String valueInsert = "No Data Found";
                             if (actions[0].equalsIgnoreCase(ABRConstants.INSERT)) {
-
                                 String reference = actions[1];
                                 valueInsert = dataExcel.get(reference);
                             }
@@ -421,9 +454,7 @@ public class Engine {
                                 performAction.showCustomModalDialog(
                                         "PAUSE BOT JOB",
                                         String.format("PAUSE BOT JOB at Block Name:\"%s\"", blockLoad.getName()),
-                                        " Please click OK to continue!",
-                                        null,
-                                        false);
+                                        " Please click OK to continue!");
                                 //
                                 long duration = performAction.duration(currentInstructionStartTime);
 
@@ -554,6 +585,7 @@ public class Engine {
                                 }
 
                             } else if (actions[0].equalsIgnoreCase(ABRConstants.CHECK_VALUE)) {
+
                                 checkOperation = true;
                                 parentField = performAction.getInstructionParentField(currentInstruction, blockLoad);
 
@@ -579,6 +611,7 @@ public class Engine {
                                     }
                                 }
                             } else if (actions[0].equalsIgnoreCase(ABRConstants.EXTRACT_FIELD)) {
+
                                 excelWriteOperation = true;
 
                                 parentField = performAction.getInstructionParentField(currentInstruction, blockLoad);
@@ -603,6 +636,7 @@ public class Engine {
                                         break;
                                     }
                                 }
+
                             } else if (actions[0].equalsIgnoreCase(ABRConstants.REFRESH_ONLY)) {
 
                                 ABRLogger.getInstance(Engine.class)
@@ -701,7 +735,6 @@ public class Engine {
                                     continue;
                                 }
                             }
-
                             long currentInstructionStartTime = System.nanoTime();
                             File logFileForSingleExcel = excelReader.createLogFile(excelPath);
 
@@ -772,8 +805,7 @@ public class Engine {
 
                                 } else if (refreshOnly) {
 
-                                    performAction.performWebActions(
-                                            null, currentInstruction, mapOperators, null, actions);
+                                    performAction.performOtherActions(byPassNotFound, currentInstruction, actions);
 
                                     long duration = performAction.duration(currentInstructionStartTime);
                                     performAction.excelReportWrite(
@@ -795,7 +827,7 @@ public class Engine {
                                 } else if (refreshLoopArray != null && !refreshLoopExecuted && !ignoreRefreshLoop) {
 
                                     if (!refreshLoopExecuted && actions[0].equals(Constants.REFRESH_LOOP)) {
-                                        performAction.performOtherActions(currentInstruction, actions);
+                                        performAction.performOtherActions(byPassNotFound, currentInstruction, actions);
                                     }
 
                                     refreshLoopExecuted = true;
@@ -881,11 +913,12 @@ public class Engine {
                                                 "(REFRESH_LOOP)-HOLD TIME" + refreshLoopArray[0] + " Seconds",
                                                 duration);
                                     }
+
                                     if (actions[0].equals(Constants.HOLD)
                                             || actions[0].equals(Constants.QUIT)
                                             || actions[0].equals(Constants.SCREEN)
                                             || actions[0].equals(Constants.REFRESH_ONLY)) {
-                                        performAction.performOtherActions(currentInstruction, actions);
+                                        performAction.performOtherActions(byPassNotFound, currentInstruction, actions);
 
                                         if (actions[0].equals(Constants.QUIT)) {
                                             stopAll = true;
@@ -910,26 +943,42 @@ public class Engine {
                                         continue;
                                     }
 
+                                    // Extract dataFieldName and dataFieldValue using a separate method
+                                    Pair<String, String> fieldData = performAction.extractFieldData(
+                                            dataExcel,
+                                            actions,
+                                            currentInstruction.getDefaultValue(),
+                                            currentInstruction.getEncrypted() > 0);
+
                                     WebElement webElementFound = null;
                                     try {
                                         webElementFound = performAction.searchElement(currentInstruction, botJobId);
                                     } catch (Exception ex) {
                                         extraMsg = "Element not found. Please try rescanning.!";
+                                        success = false;
                                     }
 
-                                    if (webElementFound != null) {
-                                        // Extract dataFieldName and dataFieldValue using a separate method
-                                        Pair<String, String> fieldData = performAction.extractFieldData(
-                                                dataExcel,
-                                                actions,
-                                                currentInstruction.getDefaultValue(),
-                                                currentInstruction.getEncrypted() > 0);
+                                    if (webElementFound == null && searchByJavaScript) {
+                                        if (actions[0].equalsIgnoreCase(ABRConstants.VISUALIZE)
+                                                || actions[0].equalsIgnoreCase(ABRConstants.CLICK)
+                                                || actions[0].equalsIgnoreCase(ABRConstants.INSERT)) {
+                                            success = performAction.executeActionsAtCoordinates(
+                                                    mapSavedLocators.get("coordinates"), fieldData, actions[0]);
+                                        }
+                                    }
 
-                                        resultActions =
-                                                performAction.actionResultMessage(blockName, actions, fieldData);
+                                    if (webElementFound != null && success) {
 
-                                        performAction.performWebActions(
-                                                fieldData, currentInstruction, mapOperators, webElementFound, actions);
+                                        byPassNotFound = byPassFlagLoop || ifClause || elseClause;
+
+                                        success = performAction.performWebActions(
+                                                byPassNotFound,
+                                                mapSavedLocators.get("coordinates"),
+                                                fieldData,
+                                                currentInstruction,
+                                                mapOperators,
+                                                webElementFound,
+                                                actions);
 
                                         if (actions[0].equalsIgnoreCase(ABRConstants.OUTPUT)) {
                                             fieldName = currentInstruction.getId() + "-" + currentInstruction.getName();
@@ -942,9 +991,10 @@ public class Engine {
                                     }
                                     // Special Cases for Select Responses
                                     // It could be Improved the case
-                                    if (resultActions.contains("Error:") || webElementFound == null) {
+                                    if (resultActions.contains("Error:") || webElementFound == null || !success) {
+                                        resultActions = "Failed " + resultActions;
                                         success = false;
-                                    } else if (resultActions != null) {
+                                    } else if (resultActions != null && success) {
                                         currentInstruction.setExecuted(true);
                                         // Assuming currentInstruction and instructionsExecuted are already defined
                                         if (currentInstruction != null
@@ -958,9 +1008,6 @@ public class Engine {
 
                                         executedSuccess.add(currentInstruction.getId());
                                         success = true;
-                                    } else {
-                                        resultActions = "Failed to Execute -> " + currentInstruction.getName();
-                                        success = false;
                                     }
 
                                     if (!success && refreshLoopExecuted && refreshLoopArray != null) {
@@ -969,11 +1016,6 @@ public class Engine {
                                     }
 
                                     if (byPassFlagLoop) {
-                                        Pair<String, String> fieldData = performAction.extractFieldData(
-                                                dataExcel,
-                                                actions,
-                                                currentInstruction.getDefaultValue(),
-                                                currentInstruction.getEncrypted() > 0);
 
                                         resultActions = "By Passing Loop Flag "
                                                 + performAction.actionResultMessage(blockName, actions, fieldData);
@@ -995,6 +1037,7 @@ public class Engine {
                                             duration);
 
                                 } else if (execOperation) {
+
                                     resultActions = currentInstruction.getName()
                                             + Constants.BLANK_STRING
                                             + currentInstruction.getActions()
@@ -1003,7 +1046,8 @@ public class Engine {
 
                                     // Special Operators
                                     if (operations.length == 2) {
-                                        resultActions = performAction.performActionOperator(
+                                        resultActions = performAction.performOperatorActions(
+                                                byPassNotFound,
                                                 currentInstruction,
                                                 xPathOperation,
                                                 actions[0],
@@ -1140,16 +1184,19 @@ public class Engine {
                                             if (!ifClause && !elseClause) {
                                                 stopAll = true;
                                                 success = false;
-                                                break;
                                             } else if (ifClause) {
                                                 ifFailed = true;
                                             } else if (elseClause) {
                                                 elseFailed = true;
                                             }
+
+                                            if (stopAll) {
+                                                break;
+                                            }
                                         }
 
                                     } else {
-                                        resultActions = "Failed to Execute Cmd: " + resultActions;
+                                        resultActions = "Failed: " + resultActions;
                                         success = false;
                                     }
 
@@ -1300,7 +1347,9 @@ public class Engine {
 
                                 //                            throw new RuntimeException(t);
                             }
+
                             printLog(generateTimestamp(), logFileForSingleExcel, resultActions, success);
+
                             if (!success) {
                                 //                                countdownTextField.setStyle("-fx-font-size: 16px;
                                 // -fx-text-fill: red;");
@@ -1320,11 +1369,14 @@ public class Engine {
                         }
                     }
                     // Increment currentBlock only if executing all blocks
-                    if (executeSpecificBlock == -1) {
-                        currentBlock++;
-                    } else {
-                        break; // Exit loop after executing the specific block
-                    }
+                    //                if (executeSpecificBlock == -1) {
+                    //                    currentBlock++;
+                    //                } else {
+                    //                    break; // Exit loop after executing the specific block
+                    //                }
+
+                    // Increment currentBlock only if executing all blocks
+                    currentBlock++;
                 }
 
                 if (executionTimes >= execLimitReach) {
@@ -1381,16 +1433,52 @@ public class Engine {
 
                         resultActions = performAction.actionResultMessage(blockName, actions, msgInitial);
 
-                        WebElement webElementFound = null;
-                        try {
-                            webElementFound = performAction.searchElement(currentInstruction, botJobId);
-                        } catch (Exception ex) {
-                            extraMsg = "Element not found. Please try rescanning.!";
-                        }
                         try {
 
-                            performAction.performWebActions(
-                                    dataDynamic, currentInstruction, mapOperators, webElementFound, actions);
+                            if (actions[0].equals(Constants.HOLD)
+                                    || actions[0].equals(Constants.QUIT)
+                                    || actions[0].equals(Constants.SCREEN)
+                                    || actions[0].equals(Constants.REFRESH_ONLY)) {
+                                performAction.performOtherActions(byPassNotFound, currentInstruction, actions);
+
+                                if (actions[0].equals(Constants.QUIT)) {
+                                    stopAll = true;
+                                    success = true;
+                                }
+
+                                long duration = performAction.duration(currentInstructionStartTime);
+
+                                performAction.excelReportWrite(
+                                        success, actions, msgInitial, duration, dataExcel, writerReport);
+
+                                totalExecutionTime += duration;
+
+                                status = performAction.operationLog(
+                                        success,
+                                        currentInstruction.isOptional()
+                                                ? "OPTIONAL INSTRUCTION"
+                                                : "MANDATORY INSTRUCTION",
+                                        resultActions,
+                                        duration);
+
+                                continue;
+                            }
+
+                            WebElement webElementFound = null;
+                            try {
+                                webElementFound = performAction.searchElement(currentInstruction, botJobId);
+                            } catch (Exception ex) {
+                                extraMsg = "Element not found. Please try rescanning.!";
+                            }
+
+                            success = performAction.performWebActions(
+                                    byPassNotFound,
+                                    mapSavedLocators.get("coordinates"),
+                                    dataDynamic,
+                                    currentInstruction,
+                                    mapOperators,
+                                    webElementFound,
+                                    actions);
 
                             // Special Cases for Select Responses
                             // It could be Improved the case
