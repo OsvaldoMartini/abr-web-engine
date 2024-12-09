@@ -571,7 +571,8 @@ public class PerformActions {
                                                         "Could Not Find xPath \"%s\" Criteria \"%s\" Cause: %s",
                                                         instructionPath, criteria, e.getMessage()));
 
-                                        couldNotFindElement(String.valueOf(criteria));
+                                        //
+                                        // couldNotFindElement(String.valueOf(criteria));
                                     }
                                 } else if (currentInstruction.getActionCustomMaxWaitSec() != null) {
                                     try {
@@ -587,7 +588,8 @@ public class PerformActions {
                                                         "Could Not Find xPath \"%s\" Criteria \"%s\" Cause: %s",
                                                         instructionPath, criteria, e.getMessage()));
 
-                                        couldNotFindElement(String.valueOf(criteria));
+                                        //
+                                        // couldNotFindElement(String.valueOf(criteria));
                                     }
                                 } else {
                                     try {
@@ -598,7 +600,8 @@ public class PerformActions {
                                                         "Could Not Find xPath \"%s\" Criteria \"%s\" Cause: %s",
                                                         instructionPath, criteria, e.getMessage()));
 
-                                        couldNotFindElement(String.valueOf(criteria));
+                                        //
+                                        // couldNotFindElement(String.valueOf(criteria));
                                     }
                                 }
                                 int k = 0;
@@ -732,7 +735,7 @@ public class PerformActions {
         }
     }
 
-    public synchronized String onHoldRefreshLoopForSeconds(Integer seconds) throws Exception {
+    public synchronized String onHoldInSeconds(Integer seconds) throws Exception {
         wait(fromSecondsToMilliseconds(TimeUnit.SECONDS, seconds));
         return "HOLD" + "->" + seconds + " seconds";
     }

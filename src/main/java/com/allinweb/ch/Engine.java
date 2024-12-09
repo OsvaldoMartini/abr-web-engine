@@ -355,6 +355,62 @@ public class Engine {
                     BlockLoadDTO blockLoad = blocksLoaded.get(currentBlock);
                     String excelFieldName = blockLoad.getExportFile();
                     String blockName = blocksLoaded.get(currentBlock).getName();
+                    int blockWait = blocksLoaded.get(currentBlock).getWait() > 0
+                            ? blocksLoaded.get(currentBlock).getWait()
+                            : 2;
+                    boolean blockActive = blocksLoaded.get(currentBlock).isActive();
+
+                    long blockStartTime = System.nanoTime();
+
+                    if (!blockActive) {
+                        currentBlock++;
+
+                        Pair<String, String> msgBlock =
+                                new Pair(String.format("Ignore: \"%s\"", blockLoad.getName()), ABRConstants.IGNORE);
+                        long duration = performAction.duration(blockStartTime);
+                        performAction.excelReportWrite(
+                                success,
+                                new String[] {ABRConstants.IGNORE},
+                                msgBlock,
+                                duration,
+                                dataExcel,
+                                writerReport);
+                        totalExecutionTime += duration;
+
+                        status = performAction.operationLog(
+                                success,
+                                "BLOCK IGNORED",
+                                String.format("Block: \"%s\" is Inactive: ", blockName),
+                                duration);
+
+                        continue;
+                    }
+
+                    try {
+
+                        performAction.onHoldInSeconds(blockWait);
+                        ABRLogger.getInstance(Engine.class)
+                                .info(String.format(
+                                        "Default Wait for Block: \"%s\" ->  %d Seconds",
+                                        blockLoad.getName(), blockWait));
+
+                        long duration = performAction.duration(blockStartTime);
+                        Pair<String, String> msgBlock = new Pair(
+                                String.format("Default Wait: \"%s\" ->  %d Seconds", blockLoad.getName(), blockWait),
+                                ABRConstants.HOLD);
+                        performAction.excelReportWrite(
+                                success, new String[] {ABRConstants.HOLD}, msgBlock, duration, dataExcel, writerReport);
+                        totalExecutionTime += duration;
+
+                        status = performAction.operationLog(
+                                success,
+                                "BLOCK DEFAULT WAIT",
+                                "Block Default Wait " + blockWait + " Seconds",
+                                duration);
+                    } catch (Exception ex) {
+                        ABRLogger.getInstance(Engine.class)
+                                .severe(String.format("Error Wait Block for :\"%s\"", blockLoad.getName()));
+                    }
 
                     // Step 1: Filter rows where actions = "REFRESH_LOOP" and collect their parent IDs
                     parentIdsForRefreshLoop = blocksLoaded.get(currentBlock).getBlockLoopInstructionLoadDTOS().stream()
@@ -509,8 +565,13 @@ public class Engine {
                                 }
                             }
 
-                            // Process ENDIF to reset flags and resume normal flow after IF-ELSE blocks
-                            if (ifClause && !ifFailed && actions[0].equalsIgnoreCase(ABRConstants.ELSE)) {
+                            // AND SOME RESON JUMPED INTO A FIELD INSIDE OF THE IF STATEMENT
+                            if ((ifClause && !ifFailed && actions[0].equalsIgnoreCase(ABRConstants.ELSE))
+                                    || (refreshLoopArray != null
+                                            && !ifClause
+                                            && !ifFailed
+                                            && !ifDone
+                                            && actions[0].equalsIgnoreCase(ABRConstants.ELSE))) {
 
                                 ABRLogger.getInstance(Engine.class)
                                         .info("Closing Block { IF -> ELSE } -> Success Execution inside Block :\""
@@ -518,6 +579,8 @@ public class Engine {
 
                                 ifClause = false;
                                 ifFailed = false;
+                                elseClause = true;
+                                elseFailed = false; // Reset failure status for this ELSE clause
                                 ifDone = true;
                                 continue;
                             }
@@ -532,9 +595,11 @@ public class Engine {
                                 elseClause = false;
                                 elseFailed = false;
                                 continue;
-                            } else if (ifDone && !actions[0].equalsIgnoreCase(ABRConstants.ENDIF)) {
-                                continue;
                             }
+                            //                        else if (ifDone &&
+                            // !actions[0].equalsIgnoreCase(ABRConstants.ENDIF)) {
+                            //                            continue;
+                            //                        }
 
                             // Process ENDIF to reset flags and resume normal flow after IF-ELSE blocks
                             if (!ifClause
@@ -873,7 +938,16 @@ public class Engine {
                                         boolean pauseParentLoop =
                                                 parentIdsForRefreshLoop.contains(currentInstruction.getId());
                                         if (pauseParentLoop) {
-                                            performAction.onHoldRefreshLoopForSeconds(refreshLoopArray[0]);
+                                            performAction.onHoldInSeconds(refreshLoopArray[0]);
+
+                                            //                                        if (refreshLoopExecuted) {
+                                            //
+                                            // performAction.performOtherActions(
+                                            //                                                    byPassNotFound,
+                                            //                                                    currentInstruction,
+                                            //                                                    new String[]
+                                            // {Constants.REFRESH_ONLY});
+                                            //                                        }
                                         }
 
                                         String currentField =
@@ -891,7 +965,7 @@ public class Engine {
                                         long duration = performAction.duration(currentInstructionStartTime);
 
                                         boolean excelSuccess = performAction.excelReportWrite(
-                                                success,
+                                                pauseParentLoop,
                                                 new String[] {ABRConstants.HOLD},
                                                 msgLoop,
                                                 duration,
@@ -906,7 +980,7 @@ public class Engine {
                                         totalExecutionTime += duration;
 
                                         status = performAction.operationLog(
-                                                success,
+                                                pauseParentLoop,
                                                 currentInstruction.isOptional()
                                                         ? "OPTIONAL INSTRUCTION"
                                                         : "MANDATORY INSTRUCTION",
@@ -1010,6 +1084,8 @@ public class Engine {
                                         success = true;
                                     }
 
+                                    long duration = performAction.duration(currentInstructionStartTime);
+
                                     if (!success && refreshLoopExecuted && refreshLoopArray != null) {
                                         byPassFlagLoop = parentIdsForRefreshLoop.contains(currentInstruction.getId());
                                         success = byPassFlagLoop;
@@ -1019,12 +1095,19 @@ public class Engine {
 
                                         resultActions = "By Passing Loop Flag "
                                                 + performAction.actionResultMessage(blockName, actions, fieldData);
+
+                                        performAction.excelReportWrite(
+                                                success,
+                                                new String[] {ABRConstants.BY_PASS},
+                                                msgInitial,
+                                                duration,
+                                                dataExcel,
+                                                writerReport);
+
+                                    } else {
+                                        performAction.excelReportWrite(
+                                                success, actions, msgInitial, duration, dataExcel, writerReport);
                                     }
-
-                                    long duration = performAction.duration(currentInstructionStartTime);
-
-                                    performAction.excelReportWrite(
-                                            success, actions, msgInitial, duration, dataExcel, writerReport);
 
                                     totalExecutionTime += duration;
 
@@ -1153,7 +1236,6 @@ public class Engine {
 
                                                 executedSuccess.add(currentInstruction.getId());
                                                 success = true;
-
                                             } else {
                                                 resultActions = performAction.checkValidationFailedEngine(
                                                         parentField,
@@ -1382,6 +1464,7 @@ public class Engine {
                 if (executionTimes >= execLimitReach) {
                     performAction.alertExecutionTimes(executionTimes, resultActions);
                 }
+
             } else { //  if dataExel is NULL
                 // Creating Dynamic Data if Default is Null
                 Pair<String, String> dataDynamic = null;

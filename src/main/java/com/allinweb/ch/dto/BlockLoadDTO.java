@@ -13,6 +13,8 @@ public class BlockLoadDTO {
     private int botJobId;
     private String botJobName;
     private String exportFile;
+    private boolean active;
+    private int wait;
 
     private List<BlockLoopInstructionLoadDTO> blockLoopInstructionLoadDTOS;
 }
