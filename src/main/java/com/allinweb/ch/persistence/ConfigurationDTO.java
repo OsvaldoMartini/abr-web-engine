@@ -2,19 +2,16 @@ package com.allinweb.ch.persistence;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
 
 @Entity
 @Table(name = "configuration")
-@SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "configurationSeq", allocationSize = 1)
+// @SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "configurationSeq", allocationSize = 1)
 public class ConfigurationDTO extends BaseDTO {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO, generator = "idgen")
+    // @GeneratedValue(strategy = GenerationType.AUTO, generator = "idgen")
     @Column(name = "id")
     private int id;
 
@@ -42,6 +39,9 @@ public class ConfigurationDTO extends BaseDTO {
     @Column(name = "browser")
     private String browser;
 
+    @Column(name = "dataBaseType")
+    private String dataBaseType;
+
     @Column(name = "pageUpdateTimeoutSec")
     private String pageUpdateTimeoutSec;
 
@@ -54,16 +54,25 @@ public class ConfigurationDTO extends BaseDTO {
     @Column(name = "pathExcel")
     private String pathExcel;
 
+    @Column(name = "pathExport")
+    private String pathExport;
+
+    @Column(name = "socketPort")
+    private String socketPort;
+
+    @Column(name = "blockLimit")
+    private String blockLimit;
+
     @Column(name = "pathJavaFx")
     private String pathJavaFx;
 
     @Override
-    public int getId() {
+    public Integer getId() {
         return id;
     }
 
     @Override
-    public void setId(int id) {
+    public void setId(Integer id) {
         this.id = id;
     }
 
@@ -129,6 +138,38 @@ public class ConfigurationDTO extends BaseDTO {
 
     public void setBrowser(String browser) {
         this.browser = browser;
+    }
+
+    public String getDataBaseType() {
+        return dataBaseType;
+    }
+
+    public void setDataBaseType(String dataBaseType) {
+        this.dataBaseType = dataBaseType;
+    }
+
+    public String getPathExport() {
+        return pathExport;
+    }
+
+    public void setPathExport(String pathExport) {
+        this.pathExport = pathExport;
+    }
+
+    public String getSocketPort() {
+        return socketPort;
+    }
+
+    public void setSocketPort(String socketPort) {
+        this.socketPort = socketPort;
+    }
+
+    public String getBlockLimit() {
+        return blockLimit;
+    }
+
+    public void setBlockLimit(String blockLimit) {
+        this.blockLimit = blockLimit;
     }
 
     public String getPageUpdateTimeoutSec() {

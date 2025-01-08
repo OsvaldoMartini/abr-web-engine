@@ -399,7 +399,9 @@ public class PerformActions {
                 null,
                 null,
                 null,
-                true);
+                true,
+                null,
+                0);
     }
 
     private void showNotFoundElement(String targetXPath, By criteria) {}
@@ -567,7 +569,7 @@ public class PerformActions {
                         String msg2 = "Restart the APP";
                         String msg3 = "Close all Browser or Restart the APP";
 
-                        errorMessage("Parent Id Error", msg1, msg2, msg3, null);
+                        errorMessage("Parent Id Error", msg1, msg2, msg3, null, 0);
 
                         return null;
                     }
@@ -881,11 +883,13 @@ public class PerformActions {
                 "2. Check if the page layout or content has been updated. (Page Refreshed)",
                 "3. Consider increasing the wait time to ensure the page loads completely.",
                 "4. Consider to Re Scanner or Re Select the Element!",
-                true);
+                true,
+                null,
+                0);
     }
 
-    public void errorMessage(String criteria, String msg1, String msg2, String msg3, String msg4) {
-        showCustomModalDialog(criteria, msg1, msg2, msg3, msg4, true);
+    public void errorMessage(String criteria, String msg1, String msg2, String msg3, String msg4, int height) {
+        showCustomModalDialog(criteria, msg1, msg2, msg3, msg4, true, null, height);
     }
 
     public void refreshPage() {
@@ -1332,7 +1336,7 @@ public class PerformActions {
             String msg2 =
                     "Check the GET for " + currentInstruction.getParentId() + "-" + currentInstruction.getOperation();
 
-            errorMessage("GET is Not Defined for \"" + currentInstruction.getName() + "\"", msg1, msg2, null, null);
+            errorMessage("GET is Not Defined for \"" + currentInstruction.getName() + "\"", msg1, msg2, null, null, 0);
         }
 
         String conditionalBlock = conditionStatus.equals(ABRConstants.ConditionStatus.IF_PASSED)
@@ -1366,7 +1370,7 @@ public class PerformActions {
         String msg2 = "There is NOT PARENT VALUE defined for: ";
         String msg3 = "Check the PARENT Web field for \"" + parentField + "\"";
 
-        errorMessage("Parent Id Error", msg1, msg2, msg3, null);
+        errorMessage("Parent Id Error", msg1, msg2, msg3, null, 0);
 
         return "Failed to Execute Cmd: " + resultActions;
     }
@@ -1386,7 +1390,7 @@ public class PerformActions {
         String msg2 = "There is NOT PARENT VALUE defined for: \"" + instructionName + "\"";
         String msg3 = "Check the PARENT Web field for \"" + parentField + "\"";
 
-        errorMessage("Parent Id Error", msg1, msg2, msg3, null);
+        errorMessage("Parent Id Error", msg1, msg2, msg3, null, 0);
 
         return "Failed to Execute Cmd: " + resultActions;
     }
@@ -1477,12 +1481,15 @@ public class PerformActions {
             String msg2 = "Does not belong to the block: \"" + blockLoad.getBlockOrderNumber() + "-"
                     + blockLoad.getName() + "\"";
 
-            String msg3 = "Attempted Operation : \"" + currentInstruction.getActions() + "\" -> \""
-                    + currentInstruction.getOperation() + "\"";
+            String msg3 = "Attempted Operation : \""
+                    + (currentInstruction.getActions().equals(ABRConstants.EXTRACT_FIELD)
+                            ? "Extract "
+                            : currentInstruction.getActions())
+                    + "\" -> \"" + currentInstruction.getOperation() + "\"";
 
             String msg4 = "Check the Web Field \" ( ID ) <NAME> \" per Block";
 
-            errorMessage("Parent Id Error", msg1, msg2, msg3, msg4);
+            errorMessage("Parent Id Error", msg1, msg2, msg3, msg4, 0);
         }
 
         String conditionalBlock = conditionStatus.equals(ABRConstants.ConditionStatus.IF_PASSED)
@@ -1599,7 +1606,7 @@ public class PerformActions {
                     + ")";
             String msg4 = "\nExpected value: " + operations[2] + " Length: (" + operations[2].length() + ")";
 
-            errorMessage("Check Validation Error", msg1, msg2, msg3, msg4);
+            errorMessage("Check Validation Error", msg1, msg2, msg3, msg4, 0);
         }
 
         String conditionalBlock = conditionStatus.equals(ABRConstants.ConditionStatus.IF_PASSED)
@@ -1678,7 +1685,7 @@ public class PerformActions {
         String msg2 = "Check Correct Block Existence";
         String msg3 = "CMD: " + resultActions;
 
-        errorMessage("Parent Id Error", msg1, msg2, msg3, null);
+        errorMessage("Parent Id Error", msg1, msg2, msg3, null, 0);
 
         ABRLogger.getInstance(PerformActions.class)
                 .severe("Block GO TO Error: -> Check Correct Block Existence! -> CMD: " + resultActions);
@@ -1701,7 +1708,8 @@ public class PerformActions {
                 String.format("Process Reached BLOCK LIMIT of %d executions", executionTimes),
                 "Exiting All processes Now!",
                 "Last Execution",
-                lastInstructionExecuted);
+                lastInstructionExecuted,
+                0);
     }
 
     // Update the list of window handles (tabs)
@@ -1926,7 +1934,7 @@ public class PerformActions {
         alert.getDialogPane().setContent(combinedTextContainer);
 
         Optional<ButtonType> result = alert.showAndWait();
-        return result.isPresent() && result.get() == ButtonType.OK;
+        return result.isPresent() && result.get().equals(ButtonType.OK);
     }
 
     public boolean showAlertCombinedVBOX(
@@ -1944,9 +1952,9 @@ public class PerformActions {
         Optional<ButtonType> result = alert.showAndWait();
 
         if (alertType.equals(Alert.AlertType.CONFIRMATION)) {
-            return result.isPresent() && result.get() == ButtonType.YES;
+            return result.isPresent() && result.get().equals(ButtonType.YES);
         } else {
-            return result.isPresent() && result.get() == ButtonType.OK;
+            return result.isPresent() && result.get().equals(ButtonType.OK);
         }
     }
 
@@ -2049,23 +2057,31 @@ public class PerformActions {
         dialog.setVisible(true); // This will block other input until the dialog is closed
     }
 
-    public static void showCustomModalDialog(
-            String title, String message, String message2, String message3, String message4, boolean redMsg) {
-        // Create a JDialog as a custom modal message dialog
+    public static ABRConstants.DialogModal showCustomModalDialog(
+            String title,
+            String message,
+            String message2,
+            String message3,
+            String message4,
+            boolean redMsg,
+            String secondButton,
+            int height) {
         // Create a JDialog as a custom modal message dialog
         JDialog dialog = new JDialog((Frame) null, title, true); // true makes it modal
-        if (message3 == null && message4 == null) {
-            dialog.setSize(350, 210);
-        } else if (message3 != null && message4 == null) {
-            dialog.setSize(350, 230);
-        } else if (message3 != null && message4 != null) {
-            dialog.setSize(350, 300);
+        if (height > 0) {
+            dialog.setSize(350, height);
+        } else if (message2 != null && message3 == null && message4 == null) {
+            dialog.setSize(380, 210);
+        } else if (message2 != null && message3 != null && message4 == null) {
+            dialog.setSize(380, 250);
+        } else if (message2 != null && message3 != null && message4 != null) {
+            dialog.setSize(380, 260);
         } else {
-            dialog.setSize(350, 300);
+            dialog.setSize(380, 150);
         }
 
         dialog.setLocationRelativeTo(null); // Center on screen
-        dialog.setUndecorated(true); // Remove the default border  IT REMOVE TEH ORIGINAL TITLE
+        dialog.setUndecorated(true); // Remove the default border
 
         // Style the dialog's main panel
         JPanel panel = new JPanel();
@@ -2078,50 +2094,146 @@ public class PerformActions {
         titleMessage += "<span style='font-size: 14px; font-weight: bold;'>" + title
                 + "</span><br>------------------------------<br>";
 
-        String concatenaMsg = "<span style='color: blue;'>" + message;
+        String concatenateMsg = "<span style='color: blue;'>" + message;
         if (message2 != null) {
-            concatenaMsg +=
+            concatenateMsg +=
                     "</span><br>------------------------------<br><span style='color: blue;'>" + message2 + "</span>";
         } else {
-            concatenaMsg += "</span><br>------------------------------<br><br>                            <br>";
+            concatenateMsg += "</span><br>------------------------------<br><br>                            <br>";
         }
 
         if (message3 != null && message4 == null) {
-            concatenaMsg +=
+            concatenateMsg +=
                     "<br>------------------------------<br><span style='color: blue;'>" + message3 + "</span></html>";
         } else if (message3 != null && message4 != null) {
-            concatenaMsg += "<br>------------------------------<br><span style='color: blue;'>"
+            concatenateMsg += "<br>------------------------------<br><span style='color: blue;'>"
                     + message3 + "</span><br>------------------------------<br><span style='color: blue;'>"
                     + message4 + "</span><br><br></html>";
         } else {
-            concatenaMsg += "</html>";
+            concatenateMsg += "</html>";
         }
 
         // Apply red color to message if redMsg is true
         if (redMsg) {
-            concatenaMsg = concatenaMsg.replaceAll("blue", "red");
+            concatenateMsg = concatenateMsg.replaceAll("blue", "red");
         }
-        concatenaMsg = titleMessage + concatenaMsg;
+        concatenateMsg = titleMessage + concatenateMsg;
 
         // Create a JLabel to display the formatted message
-        JLabel messageLabel = new JLabel(concatenaMsg, SwingConstants.CENTER);
+        JLabel messageLabel = new JLabel(concatenateMsg, SwingConstants.CENTER);
         messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
         panel.add(messageLabel, BorderLayout.CENTER);
 
-        // OK button to close the dialog
-        JButton okButton = new JButton("OK");
-        okButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                dialog.dispose();
-            }
-        });
-        panel.add(okButton, BorderLayout.SOUTH);
+        final ABRConstants.DialogModal[] status = {ABRConstants.DialogModal.NONE};
+
+        if (!Strings.isNullOrEmpty(secondButton)) {
+
+            // Create a JPanel for the buttons with horizontal layout
+            JPanel buttonPanel = new JPanel();
+            buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 5, 0)); // Reduced horizontal gap to 5
+            buttonPanel.setBackground(new Color(255, 218, 51)); // Light orange background
+            buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); // Reduced padding to 10
+
+            Dimension buttonSize = new Dimension(150, 20); // Set button width to 120 and height to 20
+
+            // OK button with custom gradient background
+            JButton okButton = new JButton("OK") {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    if (isOpaque()) {
+                        Graphics2D g2 = (Graphics2D) g;
+                        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                        GradientPaint gradient =
+                                new GradientPaint(0, 0, Color.LIGHT_GRAY, getWidth(), getHeight(), Color.WHITE);
+                        g2.setPaint(gradient);
+                        g2.fillRect(0, 0, getWidth(), getHeight());
+                    }
+                    super.paintComponent(g);
+                }
+            };
+            okButton.setPreferredSize(buttonSize);
+            okButton.setFocusPainted(false);
+            buttonPanel.add(okButton);
+
+            // Stop button with custom gradient background
+            JButton stopButton = new JButton(secondButton) {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    if (isOpaque()) {
+                        Graphics2D g2 = (Graphics2D) g;
+                        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                        GradientPaint gradient =
+                                new GradientPaint(0, 0, Color.LIGHT_GRAY, getWidth(), getHeight(), Color.WHITE);
+                        g2.setPaint(gradient);
+                        g2.fillRect(0, 0, getWidth(), getHeight());
+                    }
+                    super.paintComponent(g);
+                }
+            };
+            stopButton.setPreferredSize(buttonSize);
+            stopButton.setFocusPainted(false);
+            buttonPanel.add(stopButton);
+
+            // OK button action listener
+            okButton.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    dialog.dispose();
+                    status[0] = ABRConstants.DialogModal.OK;
+                }
+            });
+
+            // Stop button action listener
+            stopButton.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    System.out.println("Stop button clicked!");
+                    dialog.dispose();
+                    status[0] = ABRConstants.DialogModal.STOP;
+                }
+            });
+
+            panel.add(buttonPanel, BorderLayout.SOUTH);
+        } else {
+
+            Dimension buttonSize = new Dimension(150, 20); // Set button width to 120 and height to 20
+
+            // OK button with custom gradient background
+            JButton okButton = new JButton("OK") {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    if (isOpaque()) {
+                        Graphics2D g2 = (Graphics2D) g;
+                        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                        GradientPaint gradient =
+                                new GradientPaint(0, 0, Color.LIGHT_GRAY, getWidth(), getHeight(), Color.WHITE);
+                        g2.setPaint(gradient);
+                        g2.fillRect(0, 0, getWidth(), getHeight());
+                    }
+                    super.paintComponent(g);
+                }
+            };
+            okButton.setPreferredSize(buttonSize);
+            okButton.setFocusPainted(false);
+
+            // OK button action listener
+            okButton.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    dialog.dispose();
+                    status[0] = ABRConstants.DialogModal.OK;
+                }
+            });
+
+            panel.add(okButton, BorderLayout.SOUTH);
+        }
 
         // Add panel to dialog and set properties
         dialog.getContentPane().add(panel);
         dialog.setAlwaysOnTop(true);
         dialog.setVisible(true); // This will block other input until the dialog is closed
+
+        return status[0];
     }
 
     public String actionResultMessage(String blockJobName, String actions[], Pair<String, String> fieldData) {
@@ -2171,6 +2283,25 @@ public class PerformActions {
                 return "Quit action processed";
             case ABRConstants.SCREEN:
                 return "Screen action executed for " + fieldData.getKey() + " --> " + blockJobName;
+            case ABRConstants.GET_VALUE:
+            case ABRConstants.SET_VALUE:
+                return actions[0]
+                        + ABRConstants.BLANK_STRING
+                        + fieldData.getKey()
+                        + ABRConstants.BLANK_STRING
+                        + fieldData.getValue();
+            case ABRConstants.CHECK_VALUE:
+                return actions[0]
+                        + ABRConstants.BLANK_STRING
+                        + fieldData.getValue()
+                        + ABRConstants.BLANK_STRING
+                        + fieldData.getKey();
+            case ABRConstants.EXTRACT_FIELD:
+                return ABRConstants.BLANK_STRING
+                        + fieldData.getKey() + " Extract "
+                        + ABRConstants.BLANK_STRING
+                        + fieldData.getValue();
+
             default:
                 return "No Action Detected for " + fieldData.getKey();
         }
@@ -2203,7 +2334,7 @@ public class PerformActions {
     public String getXPathInstruction(BlockLoopInstructionLoadDTO currentInstruction, BlockLoadDTO blockLoad) {
         try {
             return blockLoad.getBlockLoopInstructionLoadDTOS().stream()
-                    .filter(f -> f.getId() == currentInstruction.getParentId())
+                    .filter(f -> f.getId().equals(currentInstruction.getParentId()))
                     .findFirst()
                     .get()
                     .getPath();
@@ -2262,7 +2393,9 @@ public class PerformActions {
                     " Please click OK to continue!",
                     null,
                     null,
-                    true);
+                    true,
+                    null,
+                    0);
         }
 
         return -1; // Return -1 if no valid index is found
@@ -2466,7 +2599,7 @@ public class PerformActions {
 
         List<com.allinweb.ch.util.Priority> priorityList = ABRPriorities.getAllPriorityList();
         Optional<com.allinweb.ch.util.Priority> priority = priorityList.stream()
-                .filter(p -> p.getPriorityType() == PriorityTypeEnum.coordinates)
+                .filter(p -> p.getPriorityType().equals(PriorityTypeEnum.coordinates))
                 .findFirst();
         if (priority.isPresent()) {
             List<InstructionReferenceLoadDTO> instructionReferenceList =

@@ -16,6 +16,28 @@ public class ABRConstants {
         ENDIF
     }
 
+    public enum DialogModal {
+        NONE,
+        OK,
+        STOP,
+        EXIT
+    }
+
+    // Labels & Properties
+    public static final String LABELS_FILE_NAME_COMMON = "lang/labels.";
+    public static final String PROPERTIES_FILE_EXTENSION = ".properties";
+    public static final String CONFIG_FILE_NAME = "config";
+
+    // BROWSERS
+    public static final String CHROME = "chrome";
+    public static final String EDGE = "edge";
+    public static final String FIREFOX = "firefox";
+    public static final String SAFARI = "safari";
+
+    // column names
+    public static final String NAME = "name";
+    public static final String ID = "id";
+
     // DEFAULT VALUES
     public static final String DEFAULT_NAME_ENGINE = "\\ABR_Web_Engine.jar";
     public static final String DEFAULT_NAME_SCANNER = "\\ABR_Web_Scanner.jar";
@@ -124,6 +146,7 @@ public class ABRConstants {
     public static final String FOCUS = "FOCUS";
     public static final String SELECT = "SELECT";
 
+    // actions codes
     public static final String COORD_VISUALIZA = "COORD_VISUALIZA";
     public static final String COORD_CLICK = "COORD_CLICK";
     public static final String COORD_INSERT = "COORD_INSERT";
@@ -167,23 +190,22 @@ public class ABRConstants {
     public static final String PATH_SEPARATOR = "\\";
     public static final String COMPLEX_INSTRUCTION_SEPARATOR = "\\|\\|";
 
+    // actions specifications and various
+    public static final String ABSOLUT_XPATH = "ABSOLUT_XPATH"; // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
+    public static final String REGULAR_XPATH = "REGULAR_XPATH"; // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
+
     // FILE FORMATS
     public static final String FILE_FORMAT_EXCEL = ".xlsx";
     public static final String FILE_FORMAT_CSV = ".csv";
     public static final String FILE_FORMAT_LOG = ".log";
 
-    // Labels & Properties
-    public static final String LABELS_FILE_NAME_COMMON = "lang/labels.";
-    public static final String PROPERTIES_FILE_EXTENSION = ".properties";
-    public static final String CONFIG_FILE_NAME = "config";
-
-    // BROWSERS
-    public static final String CHROME = "chrome";
-    public static final String EDGE = "edge";
-    public static final String FIREFOX = "firefox";
-    public static final String SAFARI = "safari";
-
+    // DATABASES
     public static final String POSTGRES = "PostGres";
     public static final String ACCESS = "Access";
     public static final String SQLSERVER = "SQLServer";
+
+    public static final String XPATH_SCRIPT = "" + "window.addEventListener('click', onClick);"
+            + "const onClick = (event) => {\n"
+            + "  return event.srcElement.id;\n"
+            + "}";
 }

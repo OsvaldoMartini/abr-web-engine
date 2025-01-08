@@ -210,8 +210,12 @@ public class Engine {
         } catch (Exception e) {
 
             performAction.errorMessage(
-                    "Excel Error", "Could Not Execute Excel File", "Check All Excel Columns and Values!", null, null);
-
+                    "Excel Error",
+                    "Could Not Execute Excel File",
+                    "Check All Excel Columns and Values!",
+                    null,
+                    null,
+                    0);
             //            Platform.exit();
         }
 
@@ -326,6 +330,9 @@ public class Engine {
             Map<String, Integer> loopBlockLimits = new HashMap<>();
 
             ABRConstants.ConditionStatus currentCondition = ABRConstants.ConditionStatus.NONE;
+            ABRConstants.ConditionStatus previousCondition;
+            ABRConstants.ConditionStatus progressCondition;
+            ABRConstants.DialogModal respModal;
 
             int exportIndex = 1;
             if (extractedData.getNumberOfDataRows() > 0) {
@@ -336,9 +343,13 @@ public class Engine {
                 blockLoop:
                 while (currentBlock <= blocksLoaded.size() - 1 && blocksLoaded.size() > 0 && !stopAll) {
                     long blockStartTime = System.nanoTime();
+
                     currentCondition = ABRConstants.ConditionStatus.NONE;
-                    ABRConstants.ConditionStatus previousCondition = ABRConstants.ConditionStatus.NONE;
-                    ABRConstants.ConditionStatus progressCondition = ABRConstants.ConditionStatus.NONE;
+                    previousCondition = ABRConstants.ConditionStatus.NONE;
+                    progressCondition = ABRConstants.ConditionStatus.NONE;
+
+                    respModal = ABRConstants.DialogModal.NONE;
+
                     int parentBlockCondition = -1;
 
                     instructionsExecuted.clear();
@@ -434,10 +445,6 @@ public class Engine {
                     try {
 
                         performAction.onHoldInSeconds(blockWait);
-                        ABRLogger.getInstance(Engine.class)
-                                .info(String.format(
-                                        "Default Wait for Block: \"%s\" ->  %d Seconds",
-                                        blockLoad.getName(), blockWait));
 
                         Pair<String, String> msgBlock = new Pair(
                                 String.format("Default Wait: \"%s\" ->  %d Seconds", blockLoad.getName(), blockWait),
@@ -678,17 +685,15 @@ public class Engine {
                             if (actions[0].equalsIgnoreCase(ABRConstants.PAUSE)) {
                                 pauseOperation = true;
 
-                                ABRLogger.getInstance(Engine.class)
-                                        .info(String.format("PAUSE BOT JOB at Block Name:\"%s\"", blockLoad.getName()));
-
-                                //                                SwingUtilities.invokeLater(() ->
-                                performAction.showCustomModalDialog(
+                                respModal = performAction.showCustomModalDialog(
                                         "PAUSE BOT JOB",
                                         String.format("PAUSE BOT JOB at Block Name:\"%s\"", blockLoad.getName()),
                                         " Please click OK to continue!",
                                         null,
                                         null,
-                                        false);
+                                        false,
+                                        "stop all",
+                                        0);
                             }
 
                             if (actions[0].equalsIgnoreCase(ABRConstants.LOOP)) {
@@ -709,18 +714,6 @@ public class Engine {
                                         jumpLoop = false;
                                         refreshLoop = false;
 
-                                        //                                    String[] parts =
-                                        // parentFieldLoop.split(":");
-                                        //
-                                        // ABRLogger.getInstance(Engine.class)
-                                        //                                            .info(String.format(
-                                        //                                                    "IGNORING Loop to Parent
-                                        // :\"%s\" - %d Times",
-                                        //                                                    parts[0] + "-(" + parts[1]
-                                        // +
-                                        // ") " + parts[2],
-                                        //
-                                        // mapLoops.get(parentFieldLoop)));
                                         continue;
                                     }
 
@@ -749,18 +742,6 @@ public class Engine {
                                         jumpLoop = false;
                                         refreshLoop = false;
 
-                                        //                                    String[] parts =
-                                        // parentFieldLoop.split(":");
-                                        //
-                                        // ABRLogger.getInstance(Engine.class)
-                                        //                                            .info(String.format(
-                                        //                                                    "IGNORING Refresh Loop to
-                                        // Parent :\"%s\" - %d Times",
-                                        //                                                    parts[0] + "-(" + parts[1]
-                                        // +
-                                        // ") " + parts[2],
-                                        //
-                                        // mapLoops.get(parentFieldLoop)));
                                         continue;
                                     }
 
@@ -773,38 +754,16 @@ public class Engine {
                             } else if (actions[0].equalsIgnoreCase(ABRConstants.GET_VALUE)
                                     || actions[0].equalsIgnoreCase(ABRConstants.SET_VALUE)) {
 
-                                resultActions = currentInstruction.getName()
-                                        + ABRConstants.BLANK_STRING
-                                        + currentInstruction.getActions()
-                                        + ABRConstants.BLANK_STRING
-                                        + currentInstruction.getOperation();
-
                                 execOperation = true;
 
                                 xPathOperation = performAction.getXPathInstruction(currentInstruction, blockLoad);
                                 parentField = performAction.getInstructionParentField(currentInstruction, blockLoad);
 
                             } else if (actions[0].equalsIgnoreCase(ABRConstants.CHECK_VALUE)) {
-
-                                resultActions = currentInstruction.getName()
-                                        + ABRConstants.BLANK_STRING
-                                        + currentInstruction.getActions()
-                                        + ABRConstants.BLANK_STRING
-                                        + currentInstruction.getOperation();
-
                                 checkOperation = true;
                                 parentField = performAction.getInstructionParentField(currentInstruction, blockLoad);
-
                             } else if (actions[0].equalsIgnoreCase(ABRConstants.EXTRACT_FIELD)) {
-
-                                resultActions = currentInstruction.getName()
-                                        + ABRConstants.BLANK_STRING
-                                        + currentInstruction.getActions()
-                                        + ABRConstants.BLANK_STRING
-                                        + currentInstruction.getOperation();
-
                                 excelWriteOperation = true;
-
                                 parentField = performAction.getInstructionParentField(currentInstruction, blockLoad);
                             }
 
@@ -1020,30 +979,12 @@ public class Engine {
 
                                 } else if (refreshOnly) {
 
-                                    ABRLogger.getInstance(Engine.class)
-                                            .info("Refresh Current Web Page ->  inside Block :\"" + blockLoad.getName()
-                                                    + "\"");
-
                                     performAction.performOtherActions(byPassNotFound, currentInstruction, actions);
 
-                                    // Excel Report and Log
-                                    performAction.logAndReport(
-                                            currentCondition,
-                                            true,
-                                            true,
-                                            currentInstructionStartTime,
-                                            blockReportName,
-                                            success,
-                                            actions,
-                                            msgInstruction,
-                                            dataExcel,
-                                            writerReport,
-                                            mainMsg,
-                                            resultActions);
+                                    resultActions = "Refresh Current Web Page ->  inside Block :\""
+                                            + blockLoad.getName() + "\"";
 
                                     refreshOnly = false;
-
-                                    continue;
 
                                 } else if (actions[0].equals(ABRConstants.HOLD)
                                         || actions[0].equals(ABRConstants.QUIT)
@@ -1171,13 +1112,6 @@ public class Engine {
                                                 currentInstruction, blockLoad, resultActions, currentCondition);
 
                                         success = false;
-                                        if (currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
-                                            stopAll = true;
-                                        }
-
-                                        if (stopAll) {
-                                            break;
-                                        }
                                     }
 
                                 } else if (checkOperation) {
@@ -1195,26 +1129,12 @@ public class Engine {
                                                 currentInstruction, resultActions, currentCondition);
 
                                         success = false;
-                                        if (currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
-                                            stopAll = true;
-                                        }
-
-                                        if (stopAll) {
-                                            break;
-                                        }
 
                                     } else if (!mapOperators.containsKey(parentField)) {
                                         resultActions = performAction.getValueIsNotDefined(
                                                 currentInstruction, resultActions, currentCondition);
 
                                         success = false;
-                                        if (currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
-                                            stopAll = true;
-                                        }
-
-                                        if (stopAll) {
-                                            break;
-                                        }
                                     } else {
                                         //                                    fieldName = parentField;
 
@@ -1266,13 +1186,6 @@ public class Engine {
                                                     byPassNotFound);
 
                                             success = false;
-                                            if (currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
-                                                stopAll = true;
-                                            }
-
-                                            if (stopAll) {
-                                                break;
-                                            }
                                         }
                                     }
 
@@ -1290,23 +1203,12 @@ public class Engine {
                                                 currentInstruction, blockLoad, resultActions, currentCondition);
 
                                         success = false;
-                                        if (currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
-                                            stopAll = true;
-                                        }
 
-                                        if (stopAll) {
-                                            break;
-                                        }
                                     } else if (!mapOperators.containsKey(parentField)) {
                                         resultActions = performAction.getValueIsNotDefined(
                                                 currentInstruction, resultActions, currentCondition);
 
                                         success = false;
-                                        if (currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
-                                            stopAll = true;
-                                        }
-
-                                        if (stopAll) {}
                                     } else {
 
                                         if (excelExportOnceCreation) {
@@ -1370,16 +1272,24 @@ public class Engine {
 
                             } catch (Throwable t) {
                                 success = false;
-                                if (currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
-                                    stopAll = true;
+
+                                String[] lines = t.getMessage().split("\n");
+                                String msg1 = "";
+                                String msg2 = "";
+
+                                for (String line : lines) {
+                                    int indexMessage = line.indexOf("Message: ");
+                                    if (indexMessage != -1) {
+                                        msg1 = line.substring(indexMessage + "Message: ".length());
+                                    }
+
+                                    int indexCause = line.indexOf("Cause: ");
+                                    if (indexCause != -1) {
+                                        msg2 = line.substring(indexCause);
+                                    }
                                 }
 
-                                currentInstruction.setExecuted(false);
-
-                                if (stopAll) {
-                                    break;
-                                }
-
+                                performAction.errorMessage(resultActions, msg1, msg2, null, null, 260);
                                 //                            throw new RuntimeException(t);
                             }
 
@@ -1424,6 +1334,35 @@ public class Engine {
                                         writerReport,
                                         mainMsg,
                                         resultActions);
+                            }
+
+                            if (pauseOperation && respModal.equals(ABRConstants.DialogModal.STOP)) {
+
+                                String nameInstruc =
+                                        "(" + currentInstruction.getId() + ") " + currentInstruction.getName();
+
+                                resultActions = String.format("STOP ALL PROCESSES: \"%s\"", nameInstruc);
+
+                                Pair<String, String> msgBlock = new Pair(resultActions, ABRConstants.PAUSE);
+
+                                // Excel Report and Log
+                                performAction.logAndReport(
+                                        currentCondition,
+                                        true,
+                                        true,
+                                        blockStartTime,
+                                        blockReportName,
+                                        success,
+                                        new String[] {ABRConstants.PAUSE},
+                                        msgBlock,
+                                        dataExcel,
+                                        writerReport,
+                                        "PAUSE -> STOP",
+                                        String.format("STOP ALL CALLED AT: \"%s\" : ", nameInstruc));
+
+                                respModal = ABRConstants.DialogModal.NONE;
+                                stopAll = true;
+                                break;
                             }
 
                             // It decides Here if ByPass as per Loop or Per IF-ELSEIF-ELSE-ENDIF blocks
