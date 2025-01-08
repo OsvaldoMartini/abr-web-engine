@@ -179,9 +179,14 @@ public class ExcelWriter {
 
                 if (actions[0].equalsIgnoreCase(ABRConstants.GOTO)) {
                     String[] parts = msgLoop.getKey().split(":");
-                    keyAction = String.format(
-                            "GO TO Block Id \"%s\" Name: \"%s\"",
-                            parts[0] + "-(" + parts[1] + ")", "#" + parts[2] + " " + parts[3]);
+                    if (!msgLoop.getValue().equals("0")) {
+                        keyAction = String.format(
+                                "GO TO Block \"%s\" Id: \"%s\"",
+                                "#" + parts[2] + " " + parts[3], parts[0] + "-(" + parts[1] + ")");
+                    } else {
+                        keyAction =
+                                String.format("GO TO Block Limit Reached for \"%s\"", "#" + parts[2] + " " + parts[3]);
+                    }
                     value = String.format("Block Loop %s times", msgLoop.getValue());
                 } else if (actions[0].equalsIgnoreCase(ABRConstants.LOOP)) {
                     String[] msgParent = msgLoop.getKey().split(":");

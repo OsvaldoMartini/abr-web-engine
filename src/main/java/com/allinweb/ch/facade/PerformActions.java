@@ -445,8 +445,7 @@ public class PerformActions {
 
         if (instructionReferenceList.size() == 0) {
             ABRLogger.getInstance(PerformActions.class)
-                    .severe("####    Access Database Error   ####"
-                            + "\n####    It means there is not XPath to Be Located!   ####"
+                    .warning("####    Not XPath to Be Located!   ####"
                             + "\n####    Remove and Re-Scan the Failed Field Again   ####");
 
             return null;
@@ -1652,7 +1651,7 @@ public class PerformActions {
         });
     }
 
-    public boolean excelReportWriteD(
+    public boolean excelReportWrite(
             ABRConstants.ConditionStatus currentCondition,
             String blockName,
             boolean success,
@@ -2894,7 +2893,7 @@ public class PerformActions {
         long duration = duration(blockStartTime);
 
         if (excelReport) {
-            excelReportWriteD(
+            excelReportWrite(
                     currentCondition, blockReportName, success, action, msgBlock, duration, dataExcel, writerReport);
             totalExecutionTime += duration;
         }

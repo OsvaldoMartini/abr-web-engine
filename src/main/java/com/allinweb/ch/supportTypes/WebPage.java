@@ -7,6 +7,7 @@ import com.allinweb.ch.component.model.ComplexInstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.cryptingAlgorithm.CryptationAlgorithm;
 import com.allinweb.ch.driver.ABRWebDriver;
+import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.util.*;
 import io.github.bonigarcia.wdm.WebDriverManager;
@@ -178,9 +179,8 @@ public class WebPage {
         List<InstructionReferenceLoadDTO> instructionReferenceList = instruction.getInstructionReferenceLoadDTOList();
 
         if (instructionReferenceList.size() == 0) {
-            ABRLogger.getInstance(WebPage.class)
-                    .severe("####    Access Database Error   ####"
-                            + "\n####    It means there is not XPath to Be Located!   ####"
+            ABRLogger.getInstance(PerformActions.class)
+                    .warning("####    Not XPath to Be Located!   ####"
                             + "\n####    Remove and Re-Scan the Failed Field Again   ####");
             return null;
         }
