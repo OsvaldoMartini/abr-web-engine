@@ -1687,7 +1687,7 @@ public class PerformActions {
         return resultActions;
     }
 
-    public void alertExecutionTimes(int executionTimes, String lastInstructionExecuted) {
+    public void gotoLimitExecution(int executionTimes, String lastInstructionExecuted) {
         //        showAlert(
         //                Alert.AlertType.ERROR,
         //                "Block Execution Time LIMIT",

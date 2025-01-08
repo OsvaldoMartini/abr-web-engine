@@ -362,9 +362,28 @@ public class Engine {
                                 if (mapLoops.get(blocLoopKey) == 0) {
                                     stopAll = true;
                                     int limit = loopBlockLimits.get(blocLoopKey);
-                                    performAction.alertExecutionTimes(limit, resultActions);
+                                    performAction.gotoLimitExecution(limit, resultActions);
 
                                     Pair<String, String> msgBlock = new Pair(
+                                            String.format("Block Name: \"%s\"", blockLoad.getName()),
+                                            ABRConstants.GOTO);
+
+                                    // Excel Report and Log
+                                    performAction.logAndReport(
+                                            currentCondition,
+                                            true,
+                                            true,
+                                            blockStartTime,
+                                            blockReportName,
+                                            success,
+                                            new String[] {ABRConstants.GOTO},
+                                            msgBlock,
+                                            dataExcel,
+                                            writerReport,
+                                            "GOTO Limit Reached",
+                                            resultActions);
+
+                                    msgBlock = new Pair(
                                             String.format("Exit Bot Job: \"%s\"", blockLoad.getName()),
                                             ABRConstants.EXIT);
 
