@@ -1,4 +1,4 @@
-package com.allinweb.ch.dto;
+package com.allinweb.ch.persistence;
 
 import java.util.List;
 import javax.persistence.*;
@@ -10,7 +10,7 @@ import javax.persistence.*;
  */
 @Entity
 @Table(name = "block_loop_instruction")
-@SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "blockLoopInstructionSeq", allocationSize = 1)
+// @SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "blockLoopInstructionSeq", allocationSize = 1)
 public class BlockLoopInstructionDTO extends BaseDTO {
 
     @Column(name = "instruction_order_number")

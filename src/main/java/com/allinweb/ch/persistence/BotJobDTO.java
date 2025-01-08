@@ -1,4 +1,4 @@
-package com.allinweb.ch.dto;
+package com.allinweb.ch.persistence;
 
 import java.util.ArrayList;
 import java.util.List;

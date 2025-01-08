@@ -1,0 +1,129 @@
+package com.allinweb.ch.component.model;
+
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+
+public class VariableUserDTO {
+    private IntegerProperty id;
+    private StringProperty type;
+    private StringProperty name;
+    private StringProperty value;
+    private IntegerProperty botJobId;
+    private IntegerProperty instructionId;
+    private StringProperty usedVars;
+
+    public VariableUserDTO() {}
+
+    public VariableUserDTO(
+            Integer id,
+            String type,
+            String name,
+            String value,
+            Integer botJobId,
+            Integer instructionId,
+            String usedVars) {
+        this.id = new SimpleIntegerProperty(id);
+        this.type = new SimpleStringProperty(type);
+        this.name = new SimpleStringProperty(name);
+        this.value = new SimpleStringProperty(value);
+        this.botJobId = new SimpleIntegerProperty(botJobId);
+        this.instructionId = new SimpleIntegerProperty(instructionId);
+        this.usedVars = new SimpleStringProperty(usedVars);
+    }
+
+    public VariableUserDTO(
+            Integer id, String type, String name, String value, Integer botJobId, Integer instructionId) {
+        this.id = new SimpleIntegerProperty(id);
+        this.type = new SimpleStringProperty(type);
+        this.name = new SimpleStringProperty(name);
+        this.value = new SimpleStringProperty(value);
+        this.botJobId = new SimpleIntegerProperty(botJobId);
+        this.instructionId = new SimpleIntegerProperty(instructionId);
+    }
+
+    public Integer getId() {
+        return id.get();
+    }
+
+    public IntegerProperty idProperty() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id.set(id);
+    }
+
+    public String getType() {
+        return type.get();
+    }
+
+    public StringProperty typeProperty() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type.set(type);
+    }
+
+    public String getName() {
+        return name.get();
+    }
+
+    public StringProperty nameProperty() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name.set(name);
+    }
+
+    public String getValue() {
+        return value.get();
+    }
+
+    public StringProperty valueProperty() {
+        return value;
+    }
+
+    public void setValue(String value) {
+        this.value.set(value);
+    }
+
+    public Integer getBotJobId() {
+        return botJobId.get();
+    }
+
+    public IntegerProperty botJobIdProperty() {
+        return botJobId;
+    }
+
+    public void setBotJobId(Integer botJobId) {
+        this.botJobId.set(botJobId);
+    }
+
+    public Integer getInstructionId() {
+        return instructionId.get();
+    }
+
+    public IntegerProperty instructionIdProperty() {
+        return instructionId;
+    }
+
+    public void setInstructionId(Integer instructionId) {
+        this.instructionId.set(instructionId);
+    }
+
+    public String getUsedVars() {
+        return usedVars.get();
+    }
+
+    public StringProperty usedVarsProperty() {
+        return usedVars;
+    }
+
+    public void setUsedVars(String usedVars) {
+        this.usedVars.set(usedVars);
+    }
+}

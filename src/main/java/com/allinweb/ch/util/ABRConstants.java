@@ -2,6 +2,20 @@ package com.allinweb.ch.util;
 
 public class ABRConstants {
 
+    public enum ConditionStatus {
+        NONE, // No active condition
+        IF_PASSED, // IF condition was met
+        IF_FAILED, // IF condition failed
+        ELSEIF_PASSED, // ELSEIF condition was met
+        ELSEIF_FAILED, // ELSEIF condition failed
+        ELSE_PASSED,
+        ELSE_FAILED,
+        IF, // ELSE block is active
+        ELSEIF,
+        ELSE, // ELSE block is active
+        ENDIF
+    }
+
     // DEFAULT VALUES
     public static final String DEFAULT_NAME_ENGINE = "\\ABR_Web_Engine.jar";
     public static final String DEFAULT_NAME_SCANNER = "\\ABR_Web_Scanner.jar";
@@ -99,6 +113,7 @@ public class ABRConstants {
     public static final String ICON_DIFFERENT = "/different.png";
 
     // ACTION CODES
+    public static final String EXIT = "EXIT";
     public static final String IGNORE = "IGNORE";
     public static final String BY_PASS = "BY_PASS";
     public static final String CLEAR = "CLEAR";
@@ -118,7 +133,9 @@ public class ABRConstants {
     public static final String OTHER = "W";
     public static final String SEARCH = "S";
     public static final String HOLD = "H";
+    public static final String LOOP = "LOOP";
     public static final String REFRESH_ONLY = "REFRESH";
+    public static final String REFRESH_HOLD = "REFRESH_HOLD";
     public static final String REFRESH_LOOP = "REFRESH_LOOP";
     public static final String LIST_OPERATION = "L";
     public static final String QUIT = "Q";
@@ -129,6 +146,7 @@ public class ABRConstants {
     public static final String GET_VALUE = "GET";
     public static final String CHECK_VALUE = "CK";
     public static final String IF = "IF";
+    public static final String ELSEIF = "ELSEIF";
     public static final String ELSE = "ELSE";
     public static final String ENDIF = "ENDIF";
     public static final String GOTO = "GOTO";
@@ -153,6 +171,11 @@ public class ABRConstants {
     public static final String FILE_FORMAT_EXCEL = ".xlsx";
     public static final String FILE_FORMAT_CSV = ".csv";
     public static final String FILE_FORMAT_LOG = ".log";
+
+    // Labels & Properties
+    public static final String LABELS_FILE_NAME_COMMON = "lang/labels.";
+    public static final String PROPERTIES_FILE_EXTENSION = ".properties";
+    public static final String CONFIG_FILE_NAME = "config";
 
     // BROWSERS
     public static final String CHROME = "chrome";

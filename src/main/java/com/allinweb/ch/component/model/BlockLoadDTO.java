@@ -1,20 +1,20 @@
-package com.allinweb.ch.dto;
+package com.allinweb.ch.component.model;
 
 import java.util.List;
 import lombok.Data;
 
 @Data
 public class BlockLoadDTO {
-    private int id;
-    private int blockOrderNumber;
+    private Integer id;
+    private Integer blockOrderNumber;
     private String name;
     private String description;
-    private int typeId;
-    private int botJobId;
+    private Integer typeId;
+    private Integer botJobId;
     private String botJobName;
     private String exportFile;
     private boolean active;
-    private int wait;
+    private Integer wait;
 
     private List<BlockLoopInstructionLoadDTO> blockLoopInstructionLoadDTOS;
 }

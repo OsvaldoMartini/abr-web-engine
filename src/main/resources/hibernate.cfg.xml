@@ -10,16 +10,16 @@
         <property name="hbm2ddl.auto">update</property>
         <property name="show_sql">true</property>
 
-        <mapping class="com.allinweb.ch.dto.VariableDTO"/>
-        <mapping class="com.allinweb.ch.dto.ConfigurationDTO"/>
-        <mapping class="com.allinweb.ch.dto.BaseDTO"/>
-        <mapping class="com.allinweb.ch.dto.HomeBankingDTO"/>
-        <mapping class="com.allinweb.ch.dto.BotJobDTO"/>
-        <mapping class="com.allinweb.ch.dto.BlockDTO"/>
-        <mapping class="com.allinweb.ch.dto.BlockLoopInstructionDTO"/>
-        <mapping class="com.allinweb.ch.dto.ComplexInstructionDTO"/>
-        <mapping class="com.allinweb.ch.dto.InstructionReferenceDTO"/>
-        <mapping class="com.allinweb.ch.dto.ExcelReportDTO"/>
+        <mapping class="com.allinweb.ch.persistence.VariableDTO"/>
+        <mapping class="com.allinweb.ch.persistence.ConfigurationDTO"/>
+        <mapping class="com.allinweb.ch.persistence.BaseDTO"/>
+        <mapping class="com.allinweb.ch.persistence.HomeBankingDTO"/>
+        <mapping class="com.allinweb.ch.persistence.BotJobDTO"/>
+        <mapping class="com.allinweb.ch.persistence.BlockDTO"/>
+        <mapping class="com.allinweb.ch.persistence.BlockLoopInstructionDTO"/>
+        <mapping class="com.allinweb.ch.persistence.ComplexInstructionDTO"/>
+        <mapping class="com.allinweb.ch.persistence.InstructionReferenceDTO"/>
+        <mapping class="com.allinweb.ch.persistence.ExcelReportDTO"/>
 
     </session-factory>
 </hibernate-configuration>

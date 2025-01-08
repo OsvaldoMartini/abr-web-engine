@@ -1,12 +1,12 @@
 package com.allinweb.ch.supportTypes;
 
 import com.allinweb.ch.builder.WebElementAttributeEnum;
+import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
+import com.allinweb.ch.component.model.BotJobLoadDTO;
+import com.allinweb.ch.component.model.ComplexInstructionLoadDTO;
+import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.cryptingAlgorithm.CryptationAlgorithm;
 import com.allinweb.ch.driver.ABRWebDriver;
-import com.allinweb.ch.dto.BlockLoopInstructionLoadDTO;
-import com.allinweb.ch.dto.BotJobLoadDTO;
-import com.allinweb.ch.dto.ComplexInstructionLoadDTO;
-import com.allinweb.ch.dto.InstructionReferenceLoadDTO;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.util.*;
 import io.github.bonigarcia.wdm.WebDriverManager;
@@ -80,19 +80,19 @@ public class WebPage {
     }
 
     public WebDriver initDriver(String driverType) {
-        if (driverType.equalsIgnoreCase(Constants.FIREFOX)) {
+        if (driverType.equalsIgnoreCase(ABRConstants.FIREFOX)) {
             FirefoxOptions options = new FirefoxOptions();
             options.setBinary(ABRConstants.CURRENT_PATH + "\\geckodriver.exe");
             driver = new FirefoxDriver(options);
 
-        } else if (driverType.equalsIgnoreCase(Constants.EDGE)) {
+        } else if (driverType.equalsIgnoreCase(ABRConstants.EDGE)) {
             System.setProperty("webdriver.edge.driver", ABRConstants.CURRENT_PATH + "\\msedgedriver.exe");
             EdgeOptions options = new EdgeOptions();
             options.setExperimentalOption("useAutomationExtension", false);
             options.setExperimentalOption("excludeSwitches", Collections.singletonList("enable-automation"));
             driver = new EdgeDriver(options);
 
-        } else if (driverType.equalsIgnoreCase(Constants.CHROME)) {
+        } else if (driverType.equalsIgnoreCase(ABRConstants.CHROME)) {
 
             ChromeOptions options = new ChromeOptions();
             options.setBinary(ABRConstants.CURRENT_PATH + "\\chrome\\chrome.exe");
@@ -436,36 +436,36 @@ public class WebPage {
             String[] actions = instruction.getActions().split(ABRConstants.ACTIONS_AND_PATHS_SPLITTER);
             for (String action : actions) {
                 switch (String.valueOf(action.charAt(0))) {
-                    case Constants.VISUALIZE:
+                    case ABRConstants.VISUALIZE:
                         scrollToCoordinates(x, y);
                         break;
-                    case Constants.CLICK:
+                    case ABRConstants.CLICK:
                         scrollToCoordinates(x, y);
                         onHoldForSeconds(null);
                         clickAtCoordinates(xCoord, yCoord);
                         break;
-                    case Constants.INSERT:
+                    case ABRConstants.INSERT:
                         scrollToCoordinates(x, y);
                         onHoldForSeconds(null);
                         clickAtCoordinates(xCoord, yCoord);
                         onHoldForSeconds(null);
                         typeCharacters(instruction, action, data);
                         break;
-                    case Constants.HOLD:
+                    case ABRConstants.HOLD:
                         onHoldForSeconds(instruction);
                         break;
-                    case Constants.REFRESH_ONLY:
+                    case ABRConstants.REFRESH_ONLY:
                         refreshPage();
                         break;
-                    case Constants.QUIT:
+                    case ABRConstants.QUIT:
                         quit(0);
                         break;
-                    case Constants.SCREEN:
+                    case ABRConstants.SCREEN:
                         // screenshot();
                         break;
-                    case Constants.EXTRACT:
+                    case ABRConstants.EXTRACT_FIELD:
                         break;
-                    case Constants.LIST_OPERATION:
+                    case ABRConstants.LIST_OPERATION:
                 }
                 onHoldForSeconds(null);
             }
@@ -522,15 +522,15 @@ public class WebPage {
     private void typeCharacters(BlockLoopInstructionLoadDTO instruction, String action, Map<String, String> data) {
         String value = null;
         if (data != null) {
-            String[] arr = UtilsMethods.splitIfContains(action, Constants.ACTION_SPECIFICATIONS_SPLITTER);
+            String[] arr = UtilsMethods.splitIfContains(action, ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
             if (arr.length > 1) {
-                String dataFieldName = arr[1].split(Constants.PATH_FIELD_SUBSTITUTION)[0];
+                String dataFieldName = arr[1].split(ABRConstants.PATH_FIELD_SUBSTITUTION)[0];
                 value = data.get(dataFieldName);
             }
         } else {
             value = instruction.getDefaultValue();
         }
-        if (instruction.isEncrypted()) {
+        if (instruction.getCodified()) {
             value = CryptationAlgorithm.decrypt(value);
         }
         new Actions(abrWebDriver.getDriver()).sendKeys(value).perform();
@@ -540,49 +540,49 @@ public class WebPage {
             Map<String, String> data, BlockLoopInstructionLoadDTO instruction, int botJobId, String blockJobName)
             throws Exception {
         WebElement instructionElement = null;
-        String[] actions = instruction.getActions().split(Constants.ACTIONS_AND_PATHS_SPLITTER);
+        String[] actions = instruction.getActions().split(ABRConstants.ACTIONS_AND_PATHS_SPLITTER);
 
         if (!StringUtils.isBlank(instruction.getPath())) {
             instructionElement = locateElement(instruction, botJobId);
         }
         String result = null;
         if (instructionElement != null
-                || actions[0].equals(Constants.HOLD)
-                || actions[0].equals(Constants.QUIT)
-                || actions[0].equals(Constants.SCREEN)) {
+                || actions[0].equals(ABRConstants.HOLD)
+                || actions[0].equals(ABRConstants.QUIT)
+                || actions[0].equals(ABRConstants.SCREEN)) {
 
             for (String action : actions) {
                 switch (String.valueOf(action.charAt(0))) {
-                    case Constants.VISUALIZE:
+                    case ABRConstants.VISUALIZE:
                         scrollToElement(instructionElement);
                         break;
-                    case Constants.CLICK:
+                    case ABRConstants.CLICK:
                         result = "clickElement --> " + instruction.getName() + " --> "
                                 + clickElement(instructionElement);
                         break;
-                    case Constants.INSERT:
+                    case ABRConstants.INSERT:
                         result = insertInElement(instructionElement, data, action, instruction);
                         break;
-                    case Constants.LIST_OPERATION:
+                    case ABRConstants.LIST_OPERATION:
                         listOperation(instruction, data);
                         break;
-                    case Constants.HOLD:
+                    case ABRConstants.HOLD:
                         //                        executeAlert(instruction);
                         result = onHoldForSeconds(instruction);
                         break;
-                    case Constants.REFRESH_ONLY:
+                    case ABRConstants.REFRESH_ONLY:
                         refreshPage();
                         result = "refreshPage";
                         break;
-                    case Constants.QUIT:
+                    case ABRConstants.QUIT:
                         result = "Close Browser";
                         quit(0);
                         break;
-                    case Constants.EXTRACT:
+                    case ABRConstants.EXTRACT_FIELD:
                         result = "insertValueFieldNameInExcel-->"
                                 + insertValueFieldNameInExcel(instructionElement, instruction, action, blockJobName);
                         break;
-                    case Constants.SCREEN:
+                    case ABRConstants.SCREEN:
                         result = instruction.getName() + " --> " + blockJobName;
                         break;
                 }
@@ -738,9 +738,9 @@ public class WebPage {
             innerHTMLValue = innerHTMLValue.substring(firstIndexOfCloseTag + 1, firstIndexOfOpenTag);
         }
         String fieldName = null;
-        String[] arr = UtilsMethods.splitIfContains(action, Constants.ACTION_SPECIFICATIONS_SPLITTER);
+        String[] arr = UtilsMethods.splitIfContains(action, ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
         if (arr.length > 1) {
-            fieldName = arr[1].split(Constants.PATH_FIELD_SUBSTITUTION)[0];
+            fieldName = arr[1].split(ABRConstants.PATH_FIELD_SUBSTITUTION)[0];
         }
 
         new ExcelWriter(botJobName, null, false).withPurpose("excel").insertValueFieldName(fieldName, innerHTMLValue);
@@ -757,7 +757,7 @@ public class WebPage {
         */
         List<ComplexInstructionLoadDTO> complexInstructionDTOS = instructionDTO.getComplexInstructionLoadDTOList();
         String[] complexActionParts =
-                complexInstructionDTOS.get(0).getInstruction().split(Constants.COMPLEX_INSTRUCTION_SEPARATOR);
+                complexInstructionDTOS.get(0).getInstruction().split(ABRConstants.COMPLEX_INSTRUCTION_SEPARATOR);
         List<WebElement> webElementList;
         WebElement forwardButton;
         WebElement backwardButton;
@@ -838,12 +838,12 @@ public class WebPage {
         String dataFieldName = "";
         String dataFieldValue = "";
         if (data != null) {
-            String[] arr = UtilsMethods.splitIfContains(singleInstruction, Constants.ACTION_SPECIFICATIONS_SPLITTER);
+            String[] arr = UtilsMethods.splitIfContains(singleInstruction, ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
             if (arr.length > 1) {
-                dataFieldName = arr[1].split(Constants.PATH_FIELD_SUBSTITUTION)[0];
+                dataFieldName = arr[1].split(ABRConstants.PATH_FIELD_SUBSTITUTION)[0];
 
                 dataFieldValue = data.get(dataFieldName);
-                if (instructionDTO.isEncrypted()) {
+                if (instructionDTO.getCodified()) {
                     dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
                 }
 
@@ -859,7 +859,7 @@ public class WebPage {
             }
         } else if (instructionDTO.getDefaultValue() != null) {
             dataFieldValue = instructionDTO.getDefaultValue();
-            if (instructionDTO.isEncrypted()) {
+            if (instructionDTO.getCodified()) {
                 dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
             }
             element.sendKeys(dataFieldValue);

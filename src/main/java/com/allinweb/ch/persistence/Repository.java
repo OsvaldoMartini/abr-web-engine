@@ -1,4 +1,4 @@
-package com.allinweb.ch.dto;
+package com.allinweb.ch.persistence;
 
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRPropertyEnum;
