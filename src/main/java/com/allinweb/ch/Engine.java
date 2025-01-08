@@ -1672,7 +1672,30 @@ public class Engine {
 
             return true;
         } catch (Throwable t) {
-            ABRLogger.getInstance(Engine.class).severe("Error Executing JOB \n" + t.getMessage());
+            //            ABRLogger.getInstance(Engine.class).severe("Error Executing JOB \n" + t.getMessage());
+
+            if (t.getMessage().contains("Current browser version")) {
+                String[] lines = t.getMessage().split("\n");
+                String msg1 = "";
+                String msg2 = "";
+
+                for (String line : lines) {
+                    int indexMessage = line.indexOf("Message: ");
+                    if (indexMessage != -1) {
+                        msg1 = line.substring(indexMessage + "Message: ".length());
+                    }
+
+                    int indexBrowserVersion = line.indexOf("Current browser version");
+                    if (indexBrowserVersion != -1) {
+                        msg2 = line.substring(indexBrowserVersion);
+                    }
+                }
+
+                ABRLogger.getInstance(Engine.class).severe("Error Open URL: \n" + msg1 + "\n" + msg2);
+
+                performAction.errorMessage("Error WebDriver Version", msg1, msg2, null, null, 260);
+            }
+
             return false;
         }
     }
