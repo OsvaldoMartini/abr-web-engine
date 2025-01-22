@@ -12,7 +12,6 @@ import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.Repository;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
-import com.allinweb.ch.supportTypes.ExtractedData;
 import com.allinweb.ch.supportTypes.WebPage;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
