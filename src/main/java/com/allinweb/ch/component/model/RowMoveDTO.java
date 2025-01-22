@@ -6,13 +6,14 @@ import lombok.Data;
 @Data
 public class RowMoveDTO {
     private String type;
-    private int botJobId;
+    private Integer botJobId;
     private String botJobName;
-    private int blockId;
-    private int deleteBlockId;
+    private Integer blockId;
+    private Integer blockOrderNumber;
+    private Integer deleteBlockId;
     private String blockName;
-    private boolean blockActive;
-    private boolean instructionActive;
-    private boolean isBetween;
+    private Boolean blockActive;
+    private Boolean instructionActive;
+    private Boolean isBetween;
     private List<InstructionDTO> updatedRows;
 }

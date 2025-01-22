@@ -1,5 +1,6 @@
 package com.allinweb.ch.persistence;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import javax.persistence.*;
@@ -8,10 +9,10 @@ import org.hibernate.annotations.FetchMode;
 
 @Entity
 @Table(name = "bot_job")
-@SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "botJobSeq", allocationSize = 1)
-public class BotJobDTO extends BaseDTO {
+// @SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "botJobSeq", allocationSize = 1)
+public class BotJobDTO extends BaseDTO implements Serializable {
 
-    @Column(name = "name")
+    @Column(name = "name", unique = true)
     private String name;
 
     @Column(name = "description")
@@ -24,15 +25,16 @@ public class BotJobDTO extends BaseDTO {
     @JoinColumn(name = "home_banking_id")
     private HomeBankingDTO homeBankingDTO;
 
-    @OneToMany(cascade = CascadeType.ALL)
+    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @OrderBy("block_order_number ASC")
     @JoinColumn(name = "bot_job_id")
-    private List<BlockDTO> blockDTOS;
+    @Fetch(FetchMode.SUBSELECT)
+    private List<BlockDTO> blockDTOS = new ArrayList<>();
 
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "bot_job_id")
     @Fetch(FetchMode.SUBSELECT)
-    private List<ExcelReportDTO> excelReportDTO = new ArrayList<>();
+    private List<VariableDTO> variableDTOS = new ArrayList<>();
 
     public BotJobDTO() {
         super();
@@ -87,11 +89,27 @@ public class BotJobDTO extends BaseDTO {
         this.blockDTOS = blockDTOS;
     }
 
-    public List<ExcelReportDTO> getExcelReports() {
-        return excelReportDTO;
+    public HomeBankingDTO getHomeBankingDTO() {
+        return homeBankingDTO;
     }
 
-    public void setExcelReports(List<ExcelReportDTO> excelReportDTOS) {
-        this.excelReportDTO = excelReportDTOS;
+    public void setHomeBankingDTO(HomeBankingDTO homeBankingDTO) {
+        this.homeBankingDTO = homeBankingDTO;
+    }
+
+    public List<BlockDTO> getBlockDTOS() {
+        return blockDTOS;
+    }
+
+    public void setBlockDTOS(List<BlockDTO> blockDTOS) {
+        this.blockDTOS = blockDTOS;
+    }
+
+    public List<VariableDTO> getVariableDTOS() {
+        return variableDTOS;
+    }
+
+    public void setVariableDTOS(List<VariableDTO> variableDTOS) {
+        this.variableDTOS = variableDTOS;
     }
 }

@@ -45,11 +45,15 @@ public class ABRPropertyManager {
         File configurationFile = new File(configurationFileName);
         try (FileInputStream conf = new FileInputStream(configurationFile)) {
             this.properties.load(conf);
+            String logLevel = this.properties.getProperty(ABRPropertyEnum.LOG_LEVEL.getValue());
+            String extReference = this.properties.getProperty(ABRPropertyEnum.WEBDRIVER_EXT_REFERENCE.getValue());
+            System.out.println("LOG_LEVEL = " + logLevel + "   ConfigFile=" + configurationFileName);
         } catch (FileNotFoundException e) {
             JOptionPane.showMessageDialog(
                     null,
                     "Configuration file was not found. A new configuration file has been created at "
-                            + configurationFileName + ". Please set the values for the configuration.",
+                            + configurationFileName + ". Please set the values for the configuration.\nError:\n"
+                            + e.getMessage(),
                     "Configuration file not found",
                     JOptionPane.WARNING_MESSAGE);
             boolean dirSuccess = configurationFile.mkdirs();
@@ -57,28 +61,37 @@ public class ABRPropertyManager {
             try {
                 configurationFile.createNewFile();
                 loadProperties();
-                setProperty(ABRPropertyEnum.DATABASE_TYPE.getValue(), "");
                 setProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL.getValue(), "");
                 setProperty(ABRPropertyEnum.FOLDER_PATH_LOG.getValue(), "");
+                setProperty(ABRPropertyEnum.FOLDER_PATH_EXPORT.getValue(), "");
+                //                setProperty(ABRPropertyEnum.FILE_NAME_EXPORT.getValue(), "");
                 setProperty(
                         ABRPropertyEnum.FOLDER_PATH_JAVA.getValue(),
                         ABRConstants.CURRENT_PATH + ABRConstants.DEFAULT_PATH_JAVA);
                 setProperty(
                         ABRPropertyEnum.FOLDER_PATH_JAVA_FX.getValue(),
                         ABRConstants.CURRENT_PATH + ABRConstants.DEFAULT_PATH_JAVA_FX);
+                setProperty(ABRPropertyEnum.DATABASE_TYPE.getValue(), "Access");
+                setProperty(ABRPropertyEnum.PORT_SOCKET.getValue(), "8080");
                 setProperty(ABRPropertyEnum.BLOCK_EXEC_LIMIT.getValue(), "20");
                 setProperty(ABRPropertyEnum.FOLDER_PATH_DB.getValue(), "");
                 setProperty(ABRPropertyEnum.FOLDER_PATH_REPORT.getValue(), "");
                 setProperty(ABRPropertyEnum.PATH_ENGINE.getValue(), ABRConstants.CURRENT_PATH);
+                setProperty(ABRPropertyEnum.PATH_WEBDRIVER.getValue(), "");
                 setProperty(ABRPropertyEnum.LOG_LEVEL.getValue(), Level.ALL.getName());
                 setProperty(ABRPropertyEnum.BROWSER.getValue(), ABRConstants.CHROME);
                 setProperty(ABRPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC.getValue(), "60");
                 setProperty(ABRPropertyEnum.WEBDRIVER_INTERACTION_TIMEOUT_SEC.getValue(), "60");
                 setProperty(ABRPropertyEnum.DEFAULT_INSTRUCTION_STOP_SECONDS.getValue(), "15");
+
+                setProperty(
+                        ABRPropertyEnum.WEBDRIVER_EXT_REFERENCE.getValue(),
+                        "test-id='web-banking-payment-core.payment-details.external-reference'");
             } catch (IOException ex) {
                 JOptionPane.showMessageDialog(
                         null,
-                        "Could not create the file " + configurationFileName + ". Please check the permissions.",
+                        "Could not create the file " + configurationFileName + ". Please check the permissions.\nError:"
+                                + ex.getMessage(),
                         "Configuration file cannot be created",
                         JOptionPane.ERROR_MESSAGE);
             }
@@ -86,7 +99,8 @@ public class ABRPropertyManager {
         } catch (IOException e) {
             JOptionPane.showMessageDialog(
                     null,
-                    "Could not read the file " + configurationFileName + ". Please check the permissions.",
+                    "Could not read the file " + configurationFileName + ". Please check the permissions.\nError:"
+                            + e.getMessage(),
                     "Configuration file cannot be read",
                     JOptionPane.ERROR_MESSAGE);
         }
@@ -118,7 +132,7 @@ public class ABRPropertyManager {
             JOptionPane.showMessageDialog(
                     null,
                     "Could not read the file " + configurationFileName + ". Please check the permissions.",
-                    "Configuration file cannot be read",
+                    "Configuration file cannot be read\nError:\n" + e.getMessage(),
                     JOptionPane.ERROR_MESSAGE);
         }
     }

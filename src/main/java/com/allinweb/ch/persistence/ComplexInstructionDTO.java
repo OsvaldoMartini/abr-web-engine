@@ -4,7 +4,7 @@ import javax.persistence.*;
 
 @Entity
 @Table(name = "complex_instruction")
-@SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "complexInstructionSeq", allocationSize = 1)
+// @SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "complexInstructionSeq", allocationSize = 1)
 public class ComplexInstructionDTO extends BaseDTO {
 
     @ManyToOne
@@ -19,6 +19,18 @@ public class ComplexInstructionDTO extends BaseDTO {
 
     @Column(name = "way")
     private String way;
+
+    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JoinColumn(name = "bot_job_id")
+    private BotJobDTO botJobDTO;
+
+    public BotJobDTO getBotJobDTO() {
+        return botJobDTO;
+    }
+
+    public void setBotJobDTO(BotJobDTO botJobDTO) {
+        this.botJobDTO = botJobDTO;
+    }
 
     public ComplexInstructionDTO() {
         super();

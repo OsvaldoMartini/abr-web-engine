@@ -16,7 +16,7 @@ public class BlockLoopInstructionDTO extends BaseDTO {
     @Column(name = "instruction_order_number")
     private int instructionOrderNumber;
 
-    @Column(name = "actions")
+    @Column(name = "actions", length = 1000)
     private String actions;
 
     @Column(name = "name")
@@ -28,11 +28,17 @@ public class BlockLoopInstructionDTO extends BaseDTO {
     @Column(name = "description")
     private String description;
 
-    @Column(name = "optional")
-    private int optional;
+    @Column(name = "operation", length = 500)
+    private String operation;
 
-    @Column(name = "default_val")
-    private String default_val;
+    @Column(name = "optional")
+    private Boolean optional;
+
+    @Column(name = "block_marked")
+    private Boolean blockMarked;
+
+    @Column(name = "default_value")
+    private String defaultValue;
 
     @Column(name = "action_custom_max_wait_sec")
     private Integer actionCustomMaxWaitSec;
@@ -40,22 +46,49 @@ public class BlockLoopInstructionDTO extends BaseDTO {
     @Column(name = "on_hold_seconds")
     private Integer onHoldSeconds;
 
-    @Column(name = "encrypted")
-    private Integer encrypted;
+    @Column(name = "codified")
+    private Boolean codified;
 
     @Column(name = "export_to_abr")
-    private Integer exportToABR;
+    private Boolean exportToABR;
+
+    @Column(name = "active")
+    private Boolean active;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "block_id")
     private BlockDTO blockDTO;
 
-    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @Transient
+    private Boolean executed;
+
+    @Transient
+    private String priority;
+
+    @Column(name = "variable_id")
+    private Integer variableId;
+
+    @Column(name = "parent_id")
+    private Integer parentId;
+
+    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JoinColumn(name = "bot_job_id")
+    private BotJobDTO botJobDTO;
+
+    public BotJobDTO getBotJobDTO() {
+        return botJobDTO;
+    }
+
+    public void setBotJobDTO(BotJobDTO botJobDTO) {
+        this.botJobDTO = botJobDTO;
+    }
+
+    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("orderNumber ASC")
     @JoinColumn(name = "block_loop_instruction_id")
     private List<ComplexInstructionDTO> complexInstructionDTOList;
 
-    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "block_loop_instruction_id")
     private List<InstructionReferenceDTO> instructionReferenceDTOList;
 
@@ -92,6 +125,10 @@ public class BlockLoopInstructionDTO extends BaseDTO {
         return actions;
     }
 
+    public Boolean getBlockMarked() {
+        return blockMarked;
+    }
+
     public void setActions(String actions) {
         this.actions = actions;
     }
@@ -116,8 +153,24 @@ public class BlockLoopInstructionDTO extends BaseDTO {
         return description;
     }
 
+    public String getDefaultValue() {
+        return defaultValue;
+    }
+
+    public void setDefaultValue(String defaultValue) {
+        this.defaultValue = defaultValue;
+    }
+
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getOperation() {
+        return operation;
+    }
+
+    public void setOperation(String operation) {
+        this.operation = operation;
     }
 
     public BlockDTO getBlock() {
@@ -128,14 +181,6 @@ public class BlockLoopInstructionDTO extends BaseDTO {
         this.blockDTO = blockDTO;
     }
 
-    public String getDefaultValue() {
-        return default_val;
-    }
-
-    public void setDefaultValue(String default_val) {
-        this.default_val = default_val;
-    }
-
     public Integer getActionCustomMaxWaitSec() {
         return actionCustomMaxWaitSec;
     }
@@ -144,28 +189,40 @@ public class BlockLoopInstructionDTO extends BaseDTO {
         this.actionCustomMaxWaitSec = actionCustomMaxWaitSec;
     }
 
-    public boolean isOptional() {
-        return optional >= 1;
+    public void setBlockMarked(Boolean blockMarked) {
+        this.blockMarked = blockMarked;
     }
 
-    public void setOptional(boolean optional) {
-        this.optional = optional ? 1 : 0;
+    public Boolean getOptional() {
+        return optional;
     }
 
-    public boolean isEncrypted() {
-        return encrypted >= 1;
+    public void setOptional(Boolean optional) {
+        this.optional = optional;
     }
 
-    public void setEncrypted(boolean encrypted) {
-        this.encrypted = encrypted ? 1 : 0;
+    public Boolean getCodified() {
+        return codified;
     }
 
-    public boolean getExportToABR() {
-        return exportToABR >= 1;
+    public void setCodified(Boolean codified) {
+        this.codified = codified;
     }
 
-    public void setExportToABR(boolean exportToABR) {
-        this.exportToABR = exportToABR ? 1 : 0;
+    public Boolean getExportToABR() {
+        return exportToABR;
+    }
+
+    public void setExportToABR(Boolean exportToABR) {
+        this.exportToABR = exportToABR;
+    }
+
+    public Boolean getActive() {
+        return active;
+    }
+
+    public void setActive(Boolean active) {
+        this.active = active;
     }
 
     public List<ComplexInstructionDTO> getComplexInstrucions() {
@@ -182,5 +239,37 @@ public class BlockLoopInstructionDTO extends BaseDTO {
 
     public void setInstructionReferenceDTOList(List<InstructionReferenceDTO> instructionReferenceDTOList) {
         this.instructionReferenceDTOList = instructionReferenceDTOList;
+    }
+
+    public String getPriority() {
+        return priority;
+    }
+
+    public void setPriority(String priority) {
+        this.priority = priority;
+    }
+
+    public Boolean getExecuted() {
+        return executed;
+    }
+
+    public void setExecuted(Boolean executed) {
+        this.executed = executed;
+    }
+
+    public Integer getVariableId() {
+        return variableId;
+    }
+
+    public void setVariableId(Integer variableId) {
+        this.variableId = variableId;
+    }
+
+    public Integer getParentId() {
+        return parentId;
+    }
+
+    public void setParentId(Integer parentId) {
+        this.parentId = parentId;
     }
 }

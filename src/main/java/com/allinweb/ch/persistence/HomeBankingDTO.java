@@ -1,12 +1,13 @@
 package com.allinweb.ch.persistence;
 
+import java.io.Serializable;
 import java.util.List;
 import javax.persistence.*;
 
 @Entity()
 @Table(name = "home_banking")
-@SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "homeBankingSeq", allocationSize = 1)
-public class HomeBankingDTO extends BaseDTO {
+// @SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "homeBankingSeq", allocationSize = 1)
+public class HomeBankingDTO extends BaseDTO implements Serializable {
     @Column(name = "url")
     private String url;
 

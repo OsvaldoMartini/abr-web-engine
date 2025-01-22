@@ -8,6 +8,7 @@ import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.Repository;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
@@ -58,12 +59,14 @@ public class Engine {
     static List<Integer> executedSuccess = new ArrayList<>();
     Map<String, WebElement> mapAdvanced = new HashMap<>();
 
+    private static final PerformMessage performMessage;
     private static final PerformDataBase performDataBase;
     private static final PerformActions performAction;
     private static ABRPriorities abrPriorities;
 
     // Static block to initialize
     static {
+        performMessage = PerformMessage.getInstance();
         performDataBase = PerformDataBase.getInstance();
         performAction = PerformActions.getInstance();
         abrPriorities = ABRPriorities.getInstance();
@@ -209,7 +212,7 @@ public class Engine {
             extractedData = excelReader.extractData(excelPath, allActions);
         } catch (Exception e) {
 
-            performAction.errorMessage(
+            performMessage.errorMessage(
                     "Excel Error",
                     "Could Not Execute Excel File",
                     "Check All Excel Columns and Values!",
@@ -315,7 +318,7 @@ public class Engine {
             //            report.setStatus((short) ExcelReportStatusEnum.NOT_RUN.ordinal());
 
             // Execute All Blocks starting from executeSpecificBlock if Defined
-            //            int executeSpecificBlock = comboBoxBlocks.getValue().getVarId();
+            // int executeSpecificBlock = comboBoxBlocks.getValue().getVarId();
 
             mapOperators = new HashMap<>();
             mapExport = new LinkedHashMap<>();
@@ -364,7 +367,7 @@ public class Engine {
                     int blockWait = blocksLoaded.get(currentBlock).getWait() > 0
                             ? blocksLoaded.get(currentBlock).getWait()
                             : 2;
-                    boolean blockActive = blocksLoaded.get(currentBlock).isActive();
+                    boolean blockActive = blocksLoaded.get(currentBlock).getActive();
 
                     // It Searches the Block That have finished the Loops to Avoid recursivity
                     if (loopBlockActive.size() > 0) {
@@ -444,9 +447,26 @@ public class Engine {
 
                     try {
 
+                        Pair<String, String> msgBlock = new Pair(blockLoad.getName(), ABRConstants.EXCEL_BLOCK_HEADER);
+
+                        // Block Header Format
+                        performAction.logAndReport(
+                                currentCondition,
+                                true,
+                                false,
+                                blockStartTime,
+                                blockReportName,
+                                success,
+                                new String[] {ABRConstants.EXCEL_BLOCK_HEADER},
+                                msgBlock,
+                                null,
+                                writerReport,
+                                null,
+                                null);
+
                         performAction.onHoldInSeconds(blockWait);
 
-                        Pair<String, String> msgBlock = new Pair(
+                        msgBlock = new Pair(
                                 String.format("Default Wait: \"%s\" ->  %d Seconds", blockLoad.getName(), blockWait),
                                 ABRConstants.HOLD);
 
@@ -494,6 +514,8 @@ public class Engine {
                     //                executionTimes++;
                     boolean jumpGoto = false;
                     boolean jumpLoop = false;
+                    boolean jumpGotoError = false;
+                    boolean jumpLoopError = false;
                     boolean refreshLoop = false;
                     boolean refreshOnly = false;
 
@@ -563,8 +585,8 @@ public class Engine {
                             // Allow Re-Execute Instructions in Previous Blocks
                             //                        if (currentInstruction.getExecuted() == null ||
                             // !currentInstruction.getExecuted()) {
-                            boolean execOperation = false;
-                            boolean checkOperation = false;
+                            boolean execGetOrSet = false;
+                            boolean execCheckValue = false;
                             boolean excelWriteOperation = false;
                             boolean pauseOperation = false;
 
@@ -645,10 +667,23 @@ public class Engine {
                             if (actions[0].equalsIgnoreCase(ABRConstants.GOTO)) {
                                 // <currentId:blockId:blockOrderNumber:bockName>
                                 msgInstruction = performAction.getBlockDetailsById(blocksLoaded, currentInstruction);
-                                if (!mapLoops.containsKey(msgInstruction.getKey())) {
+                                if (msgInstruction == null) {
+                                    msgInstruction = new Pair("GO TO Block \"Unknown\"", "Unknown");
+                                    success = false;
+                                    jumpGotoError = true;
+                                    jumpGoto = true;
+                                } else if (!mapLoops.containsKey(msgInstruction.getKey())) {
+                                    jumpGoto = true;
+                                    jumpGotoError = false;
                                     mapLoops.put(
                                             msgInstruction.getKey(),
                                             Integer.valueOf(msgInstruction.getValue())); // <id:orderId:blockName>
+                                } else if (mapLoops.containsKey(msgInstruction.getKey())) {
+                                    // Updates the msgInstruction
+                                    jumpGoto = true;
+                                    msgInstruction = new Pair<>(
+                                            msgInstruction.getKey(),
+                                            String.valueOf(mapLoops.get(msgInstruction.getKey())));
                                 }
 
                             } else if (actions[0].equalsIgnoreCase(ABRConstants.LOOP)) {
@@ -656,21 +691,50 @@ public class Engine {
                                 msgInstruction = performAction.getInstructionDetailsById(
                                         blocksLoaded.get(currentBlock).getBlockLoopInstructionLoadDTOS(),
                                         currentInstruction);
-                                if (!mapLoops.containsKey(msgInstruction.getKey())) {
+
+                                if (msgInstruction == null) {
+                                    msgInstruction = new Pair("Jump To Parent \"Unknown\"", "Unknown");
+                                    success = false;
+                                } else if (!mapLoops.containsKey(msgInstruction.getKey())) {
+                                    jumpLoopError = false;
                                     mapLoops.put(msgInstruction.getKey(), Integer.valueOf(msgInstruction.getValue()));
+                                } else if (mapLoops.containsKey(msgInstruction.getKey())) {
+                                    // Updates the msgInstruction
+                                    msgInstruction = new Pair<>(
+                                            msgInstruction.getKey(),
+                                            String.valueOf(mapLoops.get(msgInstruction.getKey())));
                                 }
                             } else if (actions[0].equalsIgnoreCase(ABRConstants.REFRESH_LOOP)) {
                                 msgInstruction = performAction.getInstructionDetailsById(
                                         blocksLoaded.get(currentBlock).getBlockLoopInstructionLoadDTOS(),
                                         currentInstruction);
-                                if (!mapLoops.containsKey(msgInstruction.getKey())) {
+                                if (msgInstruction == null) {
+                                    msgInstruction = new Pair("Jump To Parent \"Unknown\"", "Unknown");
+                                    success = false;
+                                } else if (!mapLoops.containsKey(msgInstruction.getKey())) {
+                                    jumpLoopError = false;
                                     String[] parts = msgInstruction.getValue().split(":"); // Split by ':'
                                     mapLoops.put(msgInstruction.getKey(), Integer.valueOf(parts[1])); // Loop Times
                                     mapRefresh.put(msgInstruction.getKey(), Integer.valueOf(parts[0])); // Wait Time
+                                } else if (mapLoops.containsKey(msgInstruction.getKey())) {
+                                    // Updates the msgInstruction
+                                    // Refresh Loop  <5:5> <WAIT:LOOP>
+                                    String updMsg = mapRefresh.get(msgInstruction.getKey()) + ":"
+                                            + mapLoops.get(msgInstruction.getKey());
+                                    msgInstruction = new Pair<>(msgInstruction.getKey(), updMsg);
                                 }
-                            } else {
+                            } else if (actions[0].equalsIgnoreCase(ABRConstants.SET_VALUE)
+                                    || (actions[0].equalsIgnoreCase(ABRConstants.GET_VALUE))) {
                                 msgInstruction = new Pair(
                                         currentInstruction.getName(),
+                                        (currentInstruction.getOperation() != null
+                                                ? "(" + parentId + ")-" + operations[0] + ":" + operations[1]
+                                                : (actions[0].equalsIgnoreCase(ABRConstants.INSERT))
+                                                        ? valueInsert
+                                                        : ""));
+                            } else {
+                                msgInstruction = new Pair(
+                                        "(" + currentInstruction.getId() + ")-" + currentInstruction.getName(),
                                         (currentInstruction.getOperation() != null
                                                 ? currentInstruction.getOperation()
                                                 : (actions[0].equalsIgnoreCase(ABRConstants.INSERT))
@@ -685,7 +749,7 @@ public class Engine {
                             if (actions[0].equalsIgnoreCase(ABRConstants.PAUSE)) {
                                 pauseOperation = true;
 
-                                respModal = performAction.showCustomModalDialog(
+                                respModal = performMessage.showCustomModalDialog(
                                         "PAUSE BOT JOB",
                                         String.format("PAUSE BOT JOB at Block Name:\"%s\"", blockLoad.getName()),
                                         " Please click OK to continue!",
@@ -699,9 +763,13 @@ public class Engine {
                             if (actions[0].equalsIgnoreCase(ABRConstants.LOOP)) {
                                 parentFieldLoop =
                                         performAction.getInstructionParentField(currentInstruction, blockLoad);
-                                if (parentField == null) {
+                                if (parentField == null && parentFieldLoop == null) {
+                                    parentFieldLoop = "Unknown parent";
+                                    parentField = parentFieldLoop;
+                                } else {
                                     parentField = parentFieldLoop;
                                 }
+
                                 parentFieldLoop = currentInstruction.getId() + ":" + parentId + ":" + parentFieldLoop;
 
                                 if (mapLoops.containsKey(parentFieldLoop)) {
@@ -718,8 +786,7 @@ public class Engine {
                                     }
 
                                 } else {
-                                    jumpLoop = true;
-                                    refreshLoop = false;
+                                    jumpLoopError = true;
                                 }
 
                             } else if (actions[0].equalsIgnoreCase(ABRConstants.REFRESH_ONLY)) {
@@ -727,9 +794,13 @@ public class Engine {
                             } else if (actions[0].equalsIgnoreCase(ABRConstants.REFRESH_LOOP)) {
                                 parentFieldLoop =
                                         performAction.getInstructionParentField(currentInstruction, blockLoad);
-                                if (parentField == null) {
+                                if (parentField == null && parentFieldLoop == null) {
+                                    parentFieldLoop = "Unknown parent";
+                                    parentField = parentFieldLoop;
+                                } else {
                                     parentField = parentFieldLoop;
                                 }
+
                                 parentFieldLoop = currentInstruction.getId() + ":" + parentId + ":" + parentFieldLoop;
 
                                 if (mapLoops.containsKey(parentFieldLoop)) {
@@ -746,21 +817,18 @@ public class Engine {
                                     }
 
                                 } else {
-                                    jumpLoop = true;
-                                    refreshLoop = true;
+                                    jumpLoopError = true;
                                 }
-                            } else if (actions[0].equalsIgnoreCase(ABRConstants.GOTO)) {
-                                jumpGoto = true;
                             } else if (actions[0].equalsIgnoreCase(ABRConstants.GET_VALUE)
                                     || actions[0].equalsIgnoreCase(ABRConstants.SET_VALUE)) {
 
-                                execOperation = true;
+                                execGetOrSet = true;
 
                                 xPathOperation = performAction.getXPathInstruction(currentInstruction, blockLoad);
                                 parentField = performAction.getInstructionParentField(currentInstruction, blockLoad);
 
                             } else if (actions[0].equalsIgnoreCase(ABRConstants.CHECK_VALUE)) {
-                                checkOperation = true;
+                                execCheckValue = true;
                                 parentField = performAction.getInstructionParentField(currentInstruction, blockLoad);
                             } else if (actions[0].equalsIgnoreCase(ABRConstants.EXTRACT_FIELD)) {
                                 excelWriteOperation = true;
@@ -774,78 +842,85 @@ public class Engine {
                             try {
                                 if (jumpGoto) {
 
-                                    msgInstruction =
-                                            performAction.getBlockDetailsById(blocksLoaded, currentInstruction);
+                                    if (jumpGotoError) {
+                                        resultActions = "Failed " + resultActions;
 
-                                    if (!loopBlockActive.contains(msgInstruction.getKey())) {
-                                        loopBlockActive.add(msgInstruction.getKey());
-                                        loopBlockLimits.put(
-                                                msgInstruction.getKey(), Integer.valueOf(msgInstruction.getValue()));
-                                    }
-                                    int repeat = mapLoops.get(msgInstruction.getKey()) - 1;
-                                    if (repeat > 0) {
-                                        mapLoops.put(msgInstruction.getKey(), repeat);
-                                        try {
+                                        success = false;
 
-                                            String[] parts =
-                                                    msgInstruction.getKey().split(":");
-                                            int blockOrderNumber = Integer.parseInt(parts[2]);
-
-                                            currentBlock = blockOrderNumber - 1;
-                                            currentInstruction.setExecuted(true);
-
-                                            // Assuming currentInstruction and instructionsExecuted are already defined
-                                            if (currentInstruction != null
-                                                    && instructionsExecuted.stream()
-                                                            .noneMatch(instruction ->
-                                                                    instruction.getInstructionOrderNumber()
-                                                                            == currentInstruction
-                                                                                    .getInstructionOrderNumber())) {
-                                                instructionsExecuted.add(currentInstruction);
-                                            }
-
-                                            executedSuccess.add(currentInstruction.getId());
-                                            success = true;
-
-                                        } catch (Exception ex) {
-                                            resultActions = "Failed " + resultActions;
-
-                                            success = false;
-
-                                            resultActions = performAction.blockGotoFailed(resultActions);
-                                        }
-
-                                        Pair<String, String> currentPair = new Pair(
-                                                msgInstruction.getKey(),
-                                                String.valueOf(mapLoops.get(msgInstruction.getKey())));
-
-                                        // Excel Report and Log
-                                        performAction.logAndReport(
-                                                currentCondition,
-                                                true,
-                                                true,
-                                                currentInstructionStartTime,
-                                                blockReportName,
-                                                success,
-                                                actions,
-                                                currentPair,
-                                                dataExcel,
-                                                writerReport,
-                                                mainMsg,
-                                                resultActions);
-
-                                        if (success) {
-                                            continue blockLoop;
-                                        } else {
-                                            stopAll = true;
-                                            if (stopAll) {
-                                                continue blockLoop;
-                                            }
-                                        }
-
+                                        resultActions = performAction.blockGotoFailed(resultActions);
                                     } else {
-                                        mapLoops.put(msgInstruction.getKey(), repeat);
-                                        continue blockLoop;
+                                        if (!loopBlockActive.contains(msgInstruction.getKey())) {
+                                            loopBlockActive.add(msgInstruction.getKey());
+                                            loopBlockLimits.put(
+                                                    msgInstruction.getKey(),
+                                                    Integer.valueOf(msgInstruction.getValue()));
+                                        }
+                                        int repeat = mapLoops.get(msgInstruction.getKey()) - 1;
+                                        if (repeat > 0) {
+                                            mapLoops.put(msgInstruction.getKey(), repeat);
+                                            try {
+
+                                                String[] parts =
+                                                        msgInstruction.getKey().split(":");
+                                                int blockOrderNumber = Integer.parseInt(parts[2]);
+
+                                                currentBlock = blockOrderNumber - 1;
+                                                currentInstruction.setExecuted(true);
+
+                                                // Assuming currentInstruction and instructionsExecuted are already
+                                                // defined
+                                                if (currentInstruction != null
+                                                        && instructionsExecuted.stream()
+                                                                .noneMatch(instruction ->
+                                                                        instruction.getInstructionOrderNumber()
+                                                                                == currentInstruction
+                                                                                        .getInstructionOrderNumber())) {
+                                                    instructionsExecuted.add(currentInstruction);
+                                                }
+
+                                                executedSuccess.add(currentInstruction.getId());
+                                                success = true;
+
+                                            } catch (Exception ex) {
+                                                resultActions = "Failed " + resultActions;
+
+                                                success = false;
+
+                                                resultActions = performAction.blockGotoFailed(resultActions);
+                                            }
+
+                                            Pair<String, String> currentPair = new Pair(
+                                                    msgInstruction.getKey(),
+                                                    String.valueOf(mapLoops.get(msgInstruction.getKey())));
+
+                                            // Excel Report and Log
+                                            performAction.logAndReport(
+                                                    currentCondition,
+                                                    true,
+                                                    true,
+                                                    currentInstructionStartTime,
+                                                    blockReportName,
+                                                    success,
+                                                    actions,
+                                                    currentPair,
+                                                    dataExcel,
+                                                    writerReport,
+                                                    mainMsg,
+                                                    resultActions);
+
+                                            if (success) {
+                                                continue blockLoop;
+                                            } else {
+                                                stopAll = true;
+                                                if (stopAll) {
+                                                    continue blockLoop;
+                                                }
+                                            }
+
+                                        } else {
+                                            mapLoops.put(msgInstruction.getKey(), repeat);
+                                            continue blockLoop;
+                                        }
                                     }
 
                                 } else if (jumpLoop) {
@@ -970,11 +1045,7 @@ public class Engine {
                                                 "(" + parentId + ")-" + parentField,
                                                 resultActions);
 
-                                        stopAll = true;
                                         success = false;
-                                        if (stopAll) {
-                                            break;
-                                        }
                                     }
 
                                 } else if (refreshOnly) {
@@ -998,8 +1069,10 @@ public class Engine {
                                         success = true;
                                     }
 
-                                } else if (!execOperation
-                                        && !checkOperation
+                                } else if (!jumpGotoError
+                                        && !jumpLoopError
+                                        && !execGetOrSet
+                                        && !execCheckValue
                                         && !excelWriteOperation
                                         && !pauseOperation) {
 
@@ -1070,12 +1143,27 @@ public class Engine {
                                         executedSuccess.add(currentInstruction.getId());
                                     }
 
-                                } else if (execOperation) {
+                                } else if (execGetOrSet) {
                                     // GET && SET Special Operators
 
-                                    if (xPathOperation != null && parentField != null && operations.length == 2) {
-                                        //                                    fieldName = parentField;
+                                    if (parentField != null && parentId != 0) {
                                         parentField = parentId + "-" + parentField;
+                                    }
+                                    // Mandatory for GET_VALUE
+                                    if (xPathOperation == null && actions[0].equalsIgnoreCase(ABRConstants.GET_VALUE)) {
+                                        resultActions = performAction.parentIdWrongBlock(
+                                                currentInstruction, blockLoad, resultActions, currentCondition);
+                                        success = false;
+                                    } else if (parentField == null) {
+                                        resultActions = performAction.parentIdWrongBlock(
+                                                currentInstruction, blockLoad, resultActions, currentCondition);
+                                        success = false;
+                                    } else if (!mapOperators.containsKey(parentField)) {
+                                        resultActions = performAction.getValueIsNotDefined(
+                                                currentInstruction, resultActions, currentCondition);
+
+                                        success = false;
+                                    } else {
 
                                         resultActions = performAction.performOperatorActions(
                                                 byPassNotFound,
@@ -1106,15 +1194,9 @@ public class Engine {
                                             resultActions = "Failed: " + resultActions;
                                             success = false;
                                         }
-
-                                    } else {
-                                        resultActions = performAction.parentIdWrongBlock(
-                                                currentInstruction, blockLoad, resultActions, currentCondition);
-
-                                        success = false;
                                     }
 
-                                } else if (checkOperation) {
+                                } else if (execCheckValue) {
                                     // Check Validation Operator
 
                                     if (parentField != null) {
@@ -1278,18 +1360,16 @@ public class Engine {
                                 String msg2 = "";
 
                                 for (String line : lines) {
-                                    int indexMessage = line.indexOf("Message: ");
-                                    if (indexMessage != -1) {
-                                        msg1 = line.substring(indexMessage + "Message: ".length());
-                                    }
-
-                                    int indexCause = line.indexOf("Cause: ");
-                                    if (indexCause != -1) {
-                                        msg2 = line.substring(indexCause);
+                                    if (Strings.isNullOrEmpty(msg1)) {
+                                        msg1 = line;
+                                    } else if (Strings.isNullOrEmpty(msg2)) {
+                                        msg2 = line;
                                     }
                                 }
 
-                                performAction.errorMessage(resultActions, msg1, msg2, null, null, 260);
+                                String msg3 = resultActions;
+
+                                performMessage.errorMessage(resultActions, msg1, msg2, msg3, null, 260);
                                 //                            throw new RuntimeException(t);
                             }
 
@@ -1297,44 +1377,29 @@ public class Engine {
 
                             // Here mark the Status of a progress Condition Fail or Success at the end of each Kind
                             // of Execution
-                            if (!currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
+                            if (!jumpGotoError
+                                    && !jumpLoopError
+                                    && !currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
                                 progressCondition = performAction.updateProgressSuccess(success, currentCondition);
                                 //                                continue instructionLoop;
-                            }
-
-                            if (byPassFlagLoop) {
-
-                                // Excel Report and Log
-                                performAction.logAndReport(
-                                        currentCondition,
-                                        true,
-                                        true,
-                                        currentInstructionStartTime,
-                                        blockReportName,
-                                        success,
-                                        new String[] {ABRConstants.BY_PASS},
-                                        msgInstruction,
-                                        dataExcel,
-                                        writerReport,
-                                        "By Passing Loop Flag",
-                                        resultActions);
                             } else {
-
-                                // Excel Report and Log
-                                performAction.logAndReport(
-                                        currentCondition,
-                                        true,
-                                        true,
-                                        currentInstructionStartTime,
-                                        blockReportName,
-                                        success,
-                                        actions,
-                                        msgInstruction,
-                                        dataExcel,
-                                        writerReport,
-                                        mainMsg,
-                                        resultActions);
+                                progressCondition = ABRConstants.ConditionStatus.NONE;
                             }
+
+                            // Excel Report and Log
+                            performAction.logAndReport(
+                                    !byPassFlagLoop ? progressCondition : ABRConstants.ConditionStatus.BY_PASS,
+                                    true,
+                                    true,
+                                    currentInstructionStartTime,
+                                    blockReportName,
+                                    success,
+                                    actions,
+                                    msgInstruction,
+                                    dataExcel,
+                                    writerReport,
+                                    mainMsg,
+                                    resultActions);
 
                             if (pauseOperation && respModal.equals(ABRConstants.DialogModal.STOP)) {
 
@@ -1369,6 +1434,12 @@ public class Engine {
                             if (!success
                                     && !byPassFlagLoop
                                     && currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
+                                stopAll = true;
+                                break;
+                            }
+
+                            // It decides Here if ByPass as per Loop or Per IF-ELSEIF-ELSE-ENDIF blocks
+                            if (jumpGotoError || jumpLoopError) {
                                 stopAll = true;
                                 break;
                             }
@@ -1693,7 +1764,7 @@ public class Engine {
 
                 ABRLogger.getInstance(Engine.class).severe("Error Open URL: \n" + msg1 + "\n" + msg2);
 
-                performAction.errorMessage("Error WebDriver Version", msg1, msg2, null, null, 260);
+                performMessage.errorMessage("Error WebDriver Version", msg1, msg2, null, null, 260);
             }
 
             return false;

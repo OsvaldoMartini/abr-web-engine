@@ -4,9 +4,7 @@ import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.ComplexInstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
-import com.allinweb.ch.cryptingAlgorithm.CryptationAlgorithm;
 import com.allinweb.ch.driver.ABRWebDriver;
-import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
@@ -14,17 +12,12 @@ import com.allinweb.ch.util.ABRPriorities;
 import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
 import com.allinweb.ch.util.ABRWebUtil;
+import com.allinweb.ch.util.CryptationAlgorithm;
 import com.allinweb.ch.util.ExcelReportStatusEnum;
 import com.allinweb.ch.util.PriorityTypeEnum;
 import com.allinweb.ch.util.UtilsMethods;
 import com.google.common.base.Strings;
-import com.google.gson.ExclusionStrategy;
-import com.google.gson.FieldAttributes;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.time.Duration;
@@ -45,9 +38,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
 import javafx.util.Pair;
 import javax.swing.*;
 import org.apache.commons.lang3.StringUtils;
@@ -73,9 +64,11 @@ import org.openqa.selenium.support.ui.WebDriverWait;
  */
 public class PerformActions {
 
+    private static final PerformMessage performMessage;
     private static final PerformDataBase performDataBase;
 
     static {
+        performMessage = PerformMessage.getInstance();
         performDataBase = PerformDataBase.getInstance();
     }
 
@@ -350,7 +343,7 @@ public class PerformActions {
                             //                                SwingUtilities.invokeLater(() ->
 
                             if (!byPassNotFound) {
-                                couldNotFindElement(String.valueOf(criteria));
+                                performMessage.couldNotFindElement(String.valueOf(criteria));
                             }
                         }
                     } else if (actionCustomMaxWaitSec != null) {
@@ -363,7 +356,7 @@ public class PerformActions {
                                             "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
                                             targetXPath, criteria, e.getMessage()));
                             if (!byPassNotFound) {
-                                couldNotFindElement(String.valueOf(criteria));
+                                performMessage.couldNotFindElement(String.valueOf(criteria));
                             }
                         }
                     } else {
@@ -376,7 +369,7 @@ public class PerformActions {
                                             targetXPath, criteria, e.getMessage()));
 
                             if (!byPassNotFound) {
-                                couldNotFindElement(String.valueOf(criteria));
+                                performMessage.couldNotFindElement(String.valueOf(criteria));
                             }
                         }
                     }
@@ -393,7 +386,7 @@ public class PerformActions {
     }
 
     private void callErrorMessageNotEnabled(String criteria) {
-        showCustomModalDialog(
+        performMessage.showCustomModalDialog(
                 String.format("The Element \"%s\" is not Enabled", criteria),
                 "1. Consider Fill Up all the Mandatory Fields",
                 null,
@@ -539,7 +532,7 @@ public class PerformActions {
                             //                                executeActionsAtInstructionCoordinates(currentInstruction,
                             // filedData);
                             //                            } catch (Exception e) {
-                            //                                e.printStackTrace();
+                            //                                System.out.println(e.getMessage());
                             //
                         } // System.out.println("coordinates case");
                         case ById -> {} // System.out.println("ById case");
@@ -569,7 +562,7 @@ public class PerformActions {
                         String msg2 = "Restart the APP";
                         String msg3 = "Close all Browser or Restart the APP";
 
-                        errorMessage("Parent Id Error", msg1, msg2, msg3, null, 0);
+                        performMessage.errorMessage("Parent Id Error", msg1, msg2, msg3, null, 0);
 
                         return null;
                     }
@@ -586,7 +579,7 @@ public class PerformActions {
                             //                            try {
                             //                                elementFound = scroolUntilFindElement(criteria);
                             //                            } catch (Exception e) {
-                            //                                e.printStackTrace();
+                            //                                System.out.println(e.getMessage());
                             //                            }
                             //                            if (elementFound != null) {
                             //                                break;
@@ -603,7 +596,7 @@ public class PerformActions {
                                                         instructionPath, criteria, e.getMessage()));
 
                                         //
-                                        // couldNotFindElement(String.valueOf(criteria));
+                                        // performMessage.couldNotFindElement(String.valueOf(criteria));
                                     }
                                 } else if (currentInstruction.getActionCustomMaxWaitSec() != null) {
                                     try {
@@ -620,7 +613,7 @@ public class PerformActions {
                                                         instructionPath, criteria, e.getMessage()));
 
                                         //
-                                        // couldNotFindElement(String.valueOf(criteria));
+                                        // performMessage.couldNotFindElement(String.valueOf(criteria));
                                     }
                                 } else {
                                     try {
@@ -632,7 +625,7 @@ public class PerformActions {
                                                         instructionPath, criteria, e.getMessage()));
 
                                         //
-                                        // couldNotFindElement(String.valueOf(criteria));
+                                        // performMessage.couldNotFindElement(String.valueOf(criteria));
                                     }
                                 }
                                 int k = 0;
@@ -717,7 +710,7 @@ public class PerformActions {
                             fieldName, dataFieldValue, e.getMessage()));
 
             if (!byPassNotFound) {
-                couldNotFindElement(fieldName);
+                performMessage.couldNotFindElement(fieldName);
             }
         }
 
@@ -740,7 +733,7 @@ public class PerformActions {
                             "Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
 
             if (!byPassNotFound) {
-                couldNotFindElement(element.getTagName());
+                performMessage.couldNotFindElement(element.getTagName());
             }
         }
 
@@ -802,7 +795,7 @@ public class PerformActions {
                         .warning(String.format(
                                 "WaitForPage.until(d -> ((JavascriptExecutor) driver) error: %s", ex.getMessage()));
 
-                couldNotFindElement("WaitForPage.until");
+                performMessage.couldNotFindElement("WaitForPage.until");
             }
         } else {
             // Handle the case when driver is null (e.g., throw an exception or initialize the driver)
@@ -822,7 +815,7 @@ public class PerformActions {
                     .severe(String.format(
                             "Failed to Scroll to Element \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
             if (!byPassNotFound) {
-                couldNotFindElement("Failed to Scroll to Element " + element.getTagName());
+                performMessage.couldNotFindElement("Failed to Scroll to Element " + element.getTagName());
             }
             return false;
         }
@@ -832,7 +825,7 @@ public class PerformActions {
         UtilsMethods.exceptionIfNullWebElement(element);
         if (!element.isEnabled()) {
             //        callErrorMessageNotEnabled(element.getTagName());
-            showCustomModalDialog(
+            performMessage.showCustomModalDialog(
                     "BOT JOB STOP",
                     String.format("The Element \"%s\" is not Enabled", element.getTagName()),
                     "Consider Fill Up all the Mandatory Fields!");
@@ -853,7 +846,7 @@ public class PerformActions {
         // e.getMessage()));
         //
         //            if (!byPassNotFound) {
-        //                couldNotFindElement(element.getTagName());
+        //                performMessage.couldNotFindElement(element.getTagName());
         //            }
         //            return false;
         //        }
@@ -876,22 +869,6 @@ public class PerformActions {
         }
     }
 
-    public void couldNotFindElement(String criteria) {
-        showCustomModalDialog(
-                criteria,
-                "1. Verify if you are on the correct web page.",
-                "2. Check if the page layout or content has been updated. (Page Refreshed)",
-                "3. Consider increasing the wait time to ensure the page loads completely.",
-                "4. Consider to Re Scanner or Re Select the Element!",
-                true,
-                null,
-                0);
-    }
-
-    public void errorMessage(String criteria, String msg1, String msg2, String msg3, String msg4, int height) {
-        showCustomModalDialog(criteria, msg1, msg2, msg3, msg4, true, null, height);
-    }
-
     public void refreshPage() {
         abrWebDriver.getDriver().navigate().refresh();
         justCalledRefreshPage = true;
@@ -909,7 +886,7 @@ public class PerformActions {
                     .fine(String.format(
                             "Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
             if (!byPassNotFound) {
-                couldNotFindElement(element.getTagName());
+                performMessage.couldNotFindElement(element.getTagName());
             }
             return false;
         }
@@ -944,7 +921,7 @@ public class PerformActions {
                     .severe(String.format(
                             "Could Not Input Value to \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
 
-            couldNotFindElement("Could Input Values to Element " + element.getTagName());
+            performMessage.couldNotFindElement("Could Input Values to Element " + element.getTagName());
             return false;
         }
 
@@ -991,7 +968,7 @@ public class PerformActions {
                             "Could Not Find Select \"%s\" Value  \"%s\" -> Cause: %s",
                             data.getKey(), data.getValue(), e.getMessage()));
             if (!byPassNotFound) {
-                couldNotFindElement(data.getKey());
+                performMessage.couldNotFindElement(data.getKey());
             }
         }
 
@@ -1009,7 +986,7 @@ public class PerformActions {
                     .severe(String.format(
                             "Could Not Input Value to \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
 
-            couldNotFindElement("Could Input Values to Element " + element.getTagName());
+            performMessage.couldNotFindElement("Could Input Values to Element " + element.getTagName());
 
             return false;
         }
@@ -1034,7 +1011,7 @@ public class PerformActions {
                             String.format("Could Not Find Field Name \"%s\" -> Cause: %s", fieldName, ex.getMessage()));
 
             if (!byPassNotFound) {
-                couldNotFindElement(fieldName);
+                performMessage.couldNotFindElement(fieldName);
             }
             return false;
         }
@@ -1148,7 +1125,7 @@ public class PerformActions {
                                 complexActionParts[2], By.tagName(complexActionParts[2]), e.getMessage()));
 
                 if (!byPassNotFound) {
-                    couldNotFindElement(complexActionParts[2]);
+                    performMessage.couldNotFindElement(complexActionParts[2]);
                 }
             }
 
@@ -1173,7 +1150,7 @@ public class PerformActions {
                                         complexActionParts[2], By.tagName(complexActionParts[2]), e.getMessage()));
 
                         if (!byPassNotFound) {
-                            couldNotFindElement(complexActionParts[2]);
+                            performMessage.couldNotFindElement(complexActionParts[2]);
                         }
                     }
                 }
@@ -1336,7 +1313,8 @@ public class PerformActions {
             String msg2 =
                     "Check the GET for " + currentInstruction.getParentId() + "-" + currentInstruction.getOperation();
 
-            errorMessage("GET is Not Defined for \"" + currentInstruction.getName() + "\"", msg1, msg2, null, null, 0);
+            performMessage.errorMessage(
+                    "GET is Not Defined for \"" + currentInstruction.getName() + "\"", msg1, msg2, null, null, 0);
         }
 
         String conditionalBlock = conditionStatus.equals(ABRConstants.ConditionStatus.IF_PASSED)
@@ -1370,7 +1348,7 @@ public class PerformActions {
         String msg2 = "There is NOT PARENT VALUE defined for: ";
         String msg3 = "Check the PARENT Web field for \"" + parentField + "\"";
 
-        errorMessage("Parent Id Error", msg1, msg2, msg3, null, 0);
+        performMessage.errorMessage("Parent Id Error", msg1, msg2, msg3, null, 0);
 
         return "Failed to Execute Cmd: " + resultActions;
     }
@@ -1390,7 +1368,7 @@ public class PerformActions {
         String msg2 = "There is NOT PARENT VALUE defined for: \"" + instructionName + "\"";
         String msg3 = "Check the PARENT Web field for \"" + parentField + "\"";
 
-        errorMessage("Parent Id Error", msg1, msg2, msg3, null, 0);
+        performMessage.errorMessage("Parent Id Error", msg1, msg2, msg3, null, 0);
 
         return "Failed to Execute Cmd: " + resultActions;
     }
@@ -1456,40 +1434,22 @@ public class PerformActions {
             ABRConstants.ConditionStatus conditionStatus) {
 
         if (conditionStatus.equals(ABRConstants.ConditionStatus.NONE)) {
-            //            showAlert(
-            //                    Alert.AlertType.ERROR,
-            //                    "Parent Id Error",
-            //                    "Check Parent Id",
-            //                    "The Parent Id: \"(" + currentInstruction.getParentId() + ")"
-            //                            + currentInstruction
-            //                                    .getOperation()
-            //                                    .substring(
-            //                                            0, currentInstruction.getOperation().indexOf(":"))
-            //                            + "\""
-            //                            + "\nDoes not belong to the block: \"" + blockLoad.getBlockOrderNumber() + "-"
-            //                            + blockLoad.getName() + "\""
-            //                            + "\nAttempted Operation : \"" + currentInstruction.getActions() + "\" -> \""
-            //                            + currentInstruction.getOperation() + "\""
-            //                            + "\nCheck the Web Field \" ( ID ) <NAME> \" per Block");
+            String operation = currentInstruction.getOperation();
+            int colonIndex = operation.indexOf(":");
+            String parentOperationPart = colonIndex != -1 ? operation.substring(0, colonIndex) : "Unknown Operation";
 
-            String msg1 = "The Parent Id: \"(" + currentInstruction.getParentId() + ")"
-                    + currentInstruction
-                            .getOperation()
-                            .substring(0, currentInstruction.getOperation().indexOf(":"))
-                    + "\"";
-
+            String msg1 = "The Parent Id: \"(" + currentInstruction.getParentId() + ")" + parentOperationPart + "\"";
             String msg2 = "Does not belong to the block: \"" + blockLoad.getBlockOrderNumber() + "-"
                     + blockLoad.getName() + "\"";
-
             String msg3 = "Attempted Operation : \""
                     + (currentInstruction.getActions().equals(ABRConstants.EXTRACT_FIELD)
                             ? "Extract "
                             : currentInstruction.getActions())
-                    + "\" -> \"" + currentInstruction.getOperation() + "\"";
-
+                    + "\" -> \""
+                    + operation + "\"";
             String msg4 = "Check the Web Field \" ( ID ) <NAME> \" per Block";
 
-            errorMessage("Parent Id Error", msg1, msg2, msg3, msg4, 0);
+            performMessage.errorMessage("Parent Id Error", msg1, msg2, msg3, msg4, 0);
         }
 
         String conditionalBlock = conditionStatus.equals(ABRConstants.ConditionStatus.IF_PASSED)
@@ -1503,31 +1463,24 @@ public class PerformActions {
         if (!conditionStatus.equals(ABRConstants.ConditionStatus.NONE)) {
             ABRLogger.getInstance(PerformActions.class)
                     .warning(String.format(
-                            "%sParent Id Error Check Parent Id: %d "
-                                    + "For the \"%s\" Does not belong to this block: "
-                                    + blockLoad.getId() + "-" + blockLoad.getName(),
+                            "%sParent Id Error Check Parent Id: %d For the \"%s\" Does not belong to this block: %d-%s",
                             conditionalBlock,
                             currentInstruction.getParentId(),
-                            currentInstruction.getOperation()));
-
+                            currentInstruction.getOperation(),
+                            blockLoad.getId(),
+                            blockLoad.getName()));
         } else {
             ABRLogger.getInstance(PerformActions.class)
                     .severe(String.format(
-                            "Parent Id Error Check Parent Id: %d "
-                                    + "For the \"%s\" Does not belong to this block: "
-                                    + blockLoad.getId() + "-" + blockLoad.getName(),
+                            "Parent Id Error Check Parent Id: %d For the \"%s\" Does not belong to this block: %d-%s",
                             currentInstruction.getParentId(),
-                            currentInstruction.getOperation()));
+                            currentInstruction.getOperation(),
+                            blockLoad.getId(),
+                            blockLoad.getName()));
         }
-
-        //        return String.format(
-        //                "This ParentId: %d does not belong to this block: %d - %s. Check the Field Names and Fields
-        // Ids",
-        //                currentInstruction.getParentId(), blockLoad.getId(), blockLoad.getName());
 
         if (!conditionStatus.equals(ABRConstants.ConditionStatus.NONE)) {
             return "Failed to Execute Cmd: " + conditionalBlock + " -> " + lastInstructionExecuted;
-
         } else {
             return "Failed to Execute Cmd: " + lastInstructionExecuted;
         }
@@ -1606,7 +1559,7 @@ public class PerformActions {
                     + ")";
             String msg4 = "\nExpected value: " + operations[2] + " Length: (" + operations[2].length() + ")";
 
-            errorMessage("Check Validation Error", msg1, msg2, msg3, msg4, 0);
+            performMessage.errorMessage("Check Validation Error", msg1, msg2, msg3, msg4, 0);
         }
 
         String conditionalBlock = conditionStatus.equals(ABRConstants.ConditionStatus.IF_PASSED)
@@ -1685,7 +1638,7 @@ public class PerformActions {
         String msg2 = "Check Correct Block Existence";
         String msg3 = "CMD: " + resultActions;
 
-        errorMessage("Parent Id Error", msg1, msg2, msg3, null, 0);
+        performMessage.errorMessage("Parent Id Error", msg1, msg2, msg3, null, 0);
 
         ABRLogger.getInstance(PerformActions.class)
                 .severe("Block GO TO Error: -> Check Correct Block Existence! -> CMD: " + resultActions);
@@ -1703,7 +1656,7 @@ public class PerformActions {
         // %s\nWe are Exiting All of processes Now!",
         //                        executionTimes, lastInstructionExecuted));
 
-        errorMessage(
+        performMessage.errorMessage(
                 "Block Execution LIMIT Reached!",
                 String.format("Process Reached BLOCK LIMIT of %d executions", executionTimes),
                 "Exiting All processes Now!",
@@ -1723,238 +1676,6 @@ public class PerformActions {
             return ((RemoteWebDriver) abrWebDriver.getDriver()).getSessionId().toString();
         } else {
             throw new IllegalStateException("Driver is not an instance of RemoteWebDriver");
-        }
-    }
-
-    //    // Creating SAVED BLOCKS FORM BLOCKS DTO
-    //    public static SavedBlocksDTO createSavedBlocksDTOFromBlocksDTO(BlockDTO blockDTO) {
-    //        SavedBlocksDTO savedBlocksDTO = new SavedBlocksDTO();
-    //        savedBlocksDTO.setName(blockDTO.getName());
-    //        savedBlocksDTO.setDescription(blockDTO.getDescription());
-    //        savedBlocksDTO.setTypeId(blockDTO.getTypeId());
-    //
-    //        return savedBlocksDTO;
-    //    }
-    //
-    //    // Creating COMPONENT SAVED INSTRUCTIONS FOR BLOCK INSTRUCTIONS
-    //    public static List<SavedBlockLoopInstructionDTO> createSavedBlockLoopInstructionsFromBlocksDTO(
-    //            BlockDTO blockDTO, SavedBlocksDTO savedBlocksDTO) {
-    //        SavedBlockLoopInstructionDTO savedBlockLoopInstructionDTO;
-    //        List<SavedBlockLoopInstructionDTO> savedBlockLoopInstructionDTOs = new ArrayList<>();
-    //
-    //        List<BlockLoopInstructionDTO> instructionList = ABRSharedResources.getInstance()
-    //                .getEntityList(
-    //                        BlockLoopInstructionDTO.class,
-    //                        instruction -> instruction.getBlock().getId() == blockDTO.getId());
-    //
-    //        List<BlockLoopInstructionDTO> instructionFiltered = filterInstructions(instructionList);
-    //
-    //        for (BlockLoopInstructionDTO blockLoopInstructionDTO : instructionFiltered) {
-    //            savedBlockLoopInstructionDTO = new SavedBlockLoopInstructionDTO();
-    //
-    //
-    // savedBlockLoopInstructionDTO.setActionCustomMaxWaitSec(blockLoopInstructionDTO.getActionCustomMaxWaitSec());
-    //            savedBlockLoopInstructionDTO.setActions(blockLoopInstructionDTO.getActions());
-    //            savedBlockLoopInstructionDTO.setBlock(savedBlocksDTO);
-    //
-    //            savedBlockLoopInstructionDTO.setDefaultValue(blockLoopInstructionDTO.getDefaultValue());
-    //            savedBlockLoopInstructionDTO.setDescription(blockLoopInstructionDTO.getDescription());
-    //            savedBlockLoopInstructionDTO.setCodified(blockLoopInstructionDTO.getCodified());
-    //            savedBlockLoopInstructionDTO.setExportToABR(blockLoopInstructionDTO.getExportToABR());
-    //            savedBlockLoopInstructionDTO.setActive(blockLoopInstructionDTO.getActive());
-    //
-    // savedBlockLoopInstructionDTO.setInstructionOrderNumber(blockLoopInstructionDTO.getInstructionOrderNumber());
-    //            savedBlockLoopInstructionDTO.setName(blockLoopInstructionDTO.getName());
-    //            savedBlockLoopInstructionDTO.setOnHoldSeconds(blockLoopInstructionDTO.getOnHoldSeconds());
-    //            savedBlockLoopInstructionDTO.setOptional(blockLoopInstructionDTO.getOptional());
-    //            savedBlockLoopInstructionDTO.setPath(blockLoopInstructionDTO.getPath());
-    //
-    //            List<SavedInstructionReferenceDTO> referenceDTOList = new ArrayList<>(
-    //                    SavedInstructionReferenceDTO.createSavedReferencesFromInstructionForSavedInstruction(
-    //                            blockLoopInstructionDTO, savedBlockLoopInstructionDTO));
-    //            savedBlockLoopInstructionDTO.setSavedInstructionReferenceDTOList(referenceDTOList);
-    //
-    //            savedBlockLoopInstructionDTOs.add(savedBlockLoopInstructionDTO);
-    //        }
-    //
-    //        return savedBlockLoopInstructionDTOs;
-    //    }
-    //
-    //    // Creating BLOCKS DTO FROM SAVED BLOCKS
-    //    public static BlockLoadDTO createBlocksDTOFromSavedBlocksDTO(SavedBlocksDTO savedBlocksDTO, BotJobDTO
-    // botJobDTO) {
-    //        BlockLoadDTO blocksDTO = new BlockLoadDTO();
-    //        blocksDTO.setName(savedBlocksDTO.getName());
-    //        blocksDTO.setBotJobId(botJobDTO.getId());
-    //        blocksDTO.setDescription(savedBlocksDTO.getDescription());
-    //        blocksDTO.setTypeId(savedBlocksDTO.getTypeId());
-    //        blocksDTO.setExportFile(savedBlocksDTO.getExportFile());
-    //        return blocksDTO;
-    //    }
-    //
-    //    // Creating BLOCK INSTRUCTIONS FROM COMPONENT SAVED INSTRUCTIONS
-    //    public static List<BlockLoopInstructionLoadDTO> createBlockLoopInstructionsFromSavedBlocksDTO(
-    //            SavedBlocksDTO savedBlocksDTO) {
-    //
-    //        BlockLoopInstructionLoadDTO blockLoopInstructionDTO;
-    //
-    //        //        List<BlockLoopInstructionLoadDTO> savedInstructions = ABRSharedResources.getInstance()
-    //        //                .getEntityList(
-    //        //                        SavedBlockLoopInstructionDTO.class,
-    //        //                        saved -> saved.getBlock().getId() == savedBlocksDTO.getId());
-    //
-    //        List<BlockLoopInstructionLoadDTO> savedInstructions = performDataBase.getSavedInstructionsByBlockId(
-    //                savedBlocksDTO.getBotJobDTO().getId(), savedBlocksDTO.getId());
-    //
-    //        //        for (BlockLoopInstructionLoadDTO savedBlockLoopInstructionDTO : savedInstructions) {
-    //        //            blockLoopInstructionDTO = new BlockLoopInstructionLoadDTO();
-    //        //
-    //        //
-    //        //
-    // blockLoopInstructionDTO.setActionCustomMaxWaitSec(savedBlockLoopInstructionDTO.getActionCustomMaxWaitSec());
-    //        //            blockLoopInstructionDTO.setActions(savedBlockLoopInstructionDTO.getActions());
-    //        //
-    //        //            blockLoopInstructionDTO.setBlockId(blockDTO.getId());
-    //        //            blockLoopInstructionDTO.setDefaultValue(savedBlockLoopInstructionDTO.getDefaultValue());
-    //        //            blockLoopInstructionDTO.setDescription(savedBlockLoopInstructionDTO.getDescription());
-    //        //            blockLoopInstructionDTO.setCodified(savedBlockLoopInstructionDTO.getCodified());
-    //        //            blockLoopInstructionDTO.setExportToABR(savedBlockLoopInstructionDTO.getExportToABR());
-    //        //
-    // blockLoopInstructionDTO.setInstructionActive(savedBlockLoopInstructionDTO.getInstructionActive());
-    //        //
-    //        //
-    // blockLoopInstructionDTO.setInstructionOrderNumber(savedBlockLoopInstructionDTO.getInstructionOrderNumber());
-    //        //            blockLoopInstructionDTO.setName(savedBlockLoopInstructionDTO.getName());
-    //        //            blockLoopInstructionDTO.setOnHoldSeconds(savedBlockLoopInstructionDTO.getOnHoldSeconds());
-    //        //            blockLoopInstructionDTO.setOptional(savedBlockLoopInstructionDTO.getOptional());
-    //        //            blockLoopInstructionDTO.setPath(savedBlockLoopInstructionDTO.getPath());
-    //        //
-    //        //            List<InstructionReferenceLoadDTO> referenceDTOList =
-    //        //                    new
-    //        // ArrayList<>(InstructionReferenceDTO.createReferencesFromSavedInstructionForInstruction(
-    //        //                            savedBlockLoopInstructionDTO, blockLoopInstructionDTO));
-    //        //            blockLoopInstructionDTO.setInstructionReferenceDTOList(referenceDTOList);
-    //        //
-    //        //            blockLoopInstructionDTOs.add(blockLoopInstructionDTO);
-    //        //        }
-    //
-    //        return savedInstructions;
-    //    }
-    //
-    //    private int createSavedBlock(BlockDTO blockDTO) {
-    //        // Generate a Unique-ID for the block
-    //        Integer nextId = loadNextIdSavedBlockData() + 1;
-    //        Integer nextBlockOrder =
-    //                loadNextSavedBlockOrderNumber(blockDTO.getBotJobDTO().getId()) + 1;
-    //
-    //        // Build the SQL insert query
-    //        String insertSQL =
-    //                "INSERT INTO saved_blocks(id, block_order_number, description, name, type_id, bot_job_id, active)
-    // VALUES ("
-    //                        + nextId + ", "
-    //                        + nextBlockOrder + ", " // block_order_number
-    //                        + "'" + blockDTO.getDescription() + "', " // description
-    //                        + "'" + blockDTO.getName() + "', " // name
-    //                        + 1 + ", " // type_id
-    //                        + blockDTO.getBotJobDTO().getId() + ", " // bot_job_id, assuming BotJobDTO has an ID
-    //                        + blockDTO.getActive() + ", " // active
-    //                        + ")";
-    //
-    //        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
-    //            stmt.executeUpdate(insertSQL);
-    //            ABRLogger.getInstance(PerformActions.class).info("Block data saved successfully id: " + nextId);
-    //            return nextId;
-    //        } catch (SQLException e) {
-    //            ABRLogger.getInstance(PerformActions.class).severe("saveBlock  \nError: " + e.getMessage());
-    //            return -1;
-    //        }
-    //    }
-    //
-    //    private Integer loadNextSavedBlockOrderNumber(int botJobId) {
-    //        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-    //        String selectSQL = "SELECT MAX(ID) AS max_id FROM saved_blocks where bot_job_id = " + botJobId;
-    //        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
-    //                ResultSet rs = stmt.executeQuery(selectSQL)) {
-    //            while (rs.next()) {
-    //                return rs.getInt("max_id");
-    //            }
-    //        } catch (SQLException e) {
-    //            ABRLogger.getInstance(PerformActions.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
-    //        }
-    //        return null;
-    //    }
-    //
-    //    private Integer loadNextIdSavedInstructionData() {
-    //        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-    //        String selectSQL = "SELECT MAX(ID) AS max_id FROM saved_block_loop_instruction";
-    //        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
-    //                ResultSet rs = stmt.executeQuery(selectSQL)) {
-    //            while (rs.next()) {
-    //                return rs.getInt("max_id");
-    //            }
-    //        } catch (SQLException e) {
-    //            ABRLogger.getInstance(PerformActions.class).severe("loadNextIdBReferenceData  \nError: " +
-    // e.getMessage());
-    //        }
-    //        return null;
-    //    }
-    //
-    //    private Integer loadNextIdSavedBlockData() {
-    //        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-    //        String selectSQL = "SELECT MAX(ID) AS max_id FROM saved_blocks";
-    //        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
-    //                ResultSet rs = stmt.executeQuery(selectSQL)) {
-    //            while (rs.next()) {
-    //                return rs.getInt("max_id");
-    //            }
-    //        } catch (SQLException e) {
-    //            ABRLogger.getInstance(PerformActions.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
-    //        }
-    //        return null;
-    //    }
-
-    public static List<BlockLoopInstructionDTO> filterInstructions(List<BlockLoopInstructionDTO> instructionList) {
-        return instructionList.stream()
-                .filter(instruction -> !ABRConstants.EXTRACT_FIELD.equals(instruction.getActions())
-                        && !ABRConstants.SET_VALUE.equals(instruction.getActions())
-                        && !ABRConstants.GET_VALUE.equals(instruction.getActions())
-                        && !ABRConstants.CHECK_VALUE.equals(instruction.getActions())
-                        && !ABRConstants.GOTO.equals(instruction.getActions())
-                        && !ABRConstants.IF.equals(instruction.getActions())
-                        && !ABRConstants.ELSE.equals(instruction.getActions())
-                        && !ABRConstants.ENDIF.equals(instruction.getActions()))
-                .collect(Collectors.toList());
-    }
-
-    public boolean showCombinedConfirmation(String title, String header, String content, HBox combinedTextContainer) {
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle(title);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.getDialogPane().setContent(combinedTextContainer);
-
-        Optional<ButtonType> result = alert.showAndWait();
-        return result.isPresent() && result.get().equals(ButtonType.OK);
-    }
-
-    public boolean showAlertCombinedVBOX(
-            Alert.AlertType alertType, String title, String header, String content, VBox combinedTextContainer) {
-        Alert alert = new Alert(alertType);
-        alert.setTitle(title);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.getDialogPane().setContent(combinedTextContainer);
-
-        if (alertType.equals(Alert.AlertType.CONFIRMATION)) {
-            alert.getButtonTypes().set(0, ButtonType.YES);
-            alert.getButtonTypes().set(1, ButtonType.NO);
-        }
-        Optional<ButtonType> result = alert.showAndWait();
-
-        if (alertType.equals(Alert.AlertType.CONFIRMATION)) {
-            return result.isPresent() && result.get().equals(ButtonType.YES);
-        } else {
-            return result.isPresent() && result.get().equals(ButtonType.OK);
         }
     }
 
@@ -1986,324 +1707,93 @@ public class PerformActions {
         try {
             Thread.sleep(5000); // 10 minutes in milliseconds
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
 
         // Accept (close) the alert
         alert.accept();
     }
 
-    public static void showCustomDialog(String title, String message) {
-        // Create a JDialog as a custom message dialog
-        JDialog dialog = new JDialog();
-        dialog.setTitle(title);
-        dialog.setSize(300, 150);
-        dialog.setLocationRelativeTo(null); // Center on screen
-        dialog.setUndecorated(true); // Remove the default border
-
-        // Style the dialog's main panel
-        JPanel panel = new JPanel();
-        panel.setBackground(new Color(255, 218, 51)); // Light orange background
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-        panel.setLayout(new BorderLayout());
-
-        // Style the message
-        JLabel messageLabel =
-                new JLabel("<html><span style='color: blue;'>" + message + "</span></html>", SwingConstants.CENTER);
-        messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
-        panel.add(messageLabel, BorderLayout.CENTER);
-
-        // OK button to close the dialog
-        JButton okButton = new JButton("OK");
-        okButton.addActionListener(e -> dialog.dispose());
-        panel.add(okButton, BorderLayout.SOUTH);
-
-        // Add panel to dialog and set properties
-        dialog.getContentPane().add(panel);
-        dialog.setAlwaysOnTop(true);
-        dialog.setVisible(true);
-    }
-
-    public static void showCustomModalDialog(String title, String message, String message2) {
-        // Create a JDialog as a custom modal message dialog
-        JDialog dialog = new JDialog((Frame) null, title, true); // true makes it modal
-        dialog.setSize(300, 200);
-        dialog.setLocationRelativeTo(null); // Center on screen
-        dialog.setUndecorated(true); // Remove the default border
-
-        // Style the dialog's main panel
-        JPanel panel = new JPanel();
-        panel.setBackground(new Color(255, 218, 51)); // Light orange background
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-        panel.setLayout(new BorderLayout());
-
-        // Style the message
-        JLabel messageLabel = new JLabel(
-                "<html><br><span style='color: blue;'>" + message
-                        + "</span><<br>------------------------------<br><span style='color: blue;'>" + message2
-                        + "</span></html>",
-                SwingConstants.CENTER);
-        messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
-        panel.add(messageLabel, BorderLayout.CENTER);
-
-        // OK button to close the dialog
-        JButton okButton = new JButton("OK");
-        okButton.addActionListener(e -> dialog.dispose());
-        panel.add(okButton, BorderLayout.SOUTH);
-
-        // Add panel to dialog and set properties
-        dialog.getContentPane().add(panel);
-        dialog.setAlwaysOnTop(true);
-        dialog.setVisible(true); // This will block other input until the dialog is closed
-    }
-
-    public static ABRConstants.DialogModal showCustomModalDialog(
-            String title,
-            String message,
-            String message2,
-            String message3,
-            String message4,
-            boolean redMsg,
-            String secondButton,
-            int height) {
-        // Create a JDialog as a custom modal message dialog
-        JDialog dialog = new JDialog((Frame) null, title, true); // true makes it modal
-        if (height > 0) {
-            dialog.setSize(350, height);
-        } else if (message2 != null && message3 == null && message4 == null) {
-            dialog.setSize(380, 210);
-        } else if (message2 != null && message3 != null && message4 == null) {
-            dialog.setSize(380, 250);
-        } else if (message2 != null && message3 != null && message4 != null) {
-            dialog.setSize(380, 260);
-        } else {
-            dialog.setSize(380, 150);
-        }
-
-        dialog.setLocationRelativeTo(null); // Center on screen
-        dialog.setUndecorated(true); // Remove the default border
-
-        // Style the dialog's main panel
-        JPanel panel = new JPanel();
-        panel.setBackground(new Color(255, 218, 51)); // Light orange background
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-        panel.setLayout(new BorderLayout());
-
-        // Build the message
-        String titleMessage = "<html><br><span style='color: blue;'>";
-        titleMessage += "<span style='font-size: 14px; font-weight: bold;'>" + title
-                + "</span><br>------------------------------<br>";
-
-        String concatenateMsg = "<span style='color: blue;'>" + message;
-        if (message2 != null) {
-            concatenateMsg +=
-                    "</span><br>------------------------------<br><span style='color: blue;'>" + message2 + "</span>";
-        } else {
-            concatenateMsg += "</span><br>------------------------------<br><br>                            <br>";
-        }
-
-        if (message3 != null && message4 == null) {
-            concatenateMsg +=
-                    "<br>------------------------------<br><span style='color: blue;'>" + message3 + "</span></html>";
-        } else if (message3 != null && message4 != null) {
-            concatenateMsg += "<br>------------------------------<br><span style='color: blue;'>"
-                    + message3 + "</span><br>------------------------------<br><span style='color: blue;'>"
-                    + message4 + "</span><br><br></html>";
-        } else {
-            concatenateMsg += "</html>";
-        }
-
-        // Apply red color to message if redMsg is true
-        if (redMsg) {
-            concatenateMsg = concatenateMsg.replaceAll("blue", "red");
-        }
-        concatenateMsg = titleMessage + concatenateMsg;
-
-        // Create a JLabel to display the formatted message
-        JLabel messageLabel = new JLabel(concatenateMsg, SwingConstants.CENTER);
-        messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
-        panel.add(messageLabel, BorderLayout.CENTER);
-
-        final ABRConstants.DialogModal[] status = {ABRConstants.DialogModal.NONE};
-
-        if (!Strings.isNullOrEmpty(secondButton)) {
-
-            // Create a JPanel for the buttons with horizontal layout
-            JPanel buttonPanel = new JPanel();
-            buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 5, 0)); // Reduced horizontal gap to 5
-            buttonPanel.setBackground(new Color(255, 218, 51)); // Light orange background
-            buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); // Reduced padding to 10
-
-            Dimension buttonSize = new Dimension(150, 20); // Set button width to 120 and height to 20
-
-            // OK button with custom gradient background
-            JButton okButton = new JButton("OK") {
-                @Override
-                protected void paintComponent(Graphics g) {
-                    if (isOpaque()) {
-                        Graphics2D g2 = (Graphics2D) g;
-                        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                        GradientPaint gradient =
-                                new GradientPaint(0, 0, Color.LIGHT_GRAY, getWidth(), getHeight(), Color.WHITE);
-                        g2.setPaint(gradient);
-                        g2.fillRect(0, 0, getWidth(), getHeight());
-                    }
-                    super.paintComponent(g);
-                }
-            };
-            okButton.setPreferredSize(buttonSize);
-            okButton.setFocusPainted(false);
-            buttonPanel.add(okButton);
-
-            // Stop button with custom gradient background
-            JButton stopButton = new JButton(secondButton) {
-                @Override
-                protected void paintComponent(Graphics g) {
-                    if (isOpaque()) {
-                        Graphics2D g2 = (Graphics2D) g;
-                        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                        GradientPaint gradient =
-                                new GradientPaint(0, 0, Color.LIGHT_GRAY, getWidth(), getHeight(), Color.WHITE);
-                        g2.setPaint(gradient);
-                        g2.fillRect(0, 0, getWidth(), getHeight());
-                    }
-                    super.paintComponent(g);
-                }
-            };
-            stopButton.setPreferredSize(buttonSize);
-            stopButton.setFocusPainted(false);
-            buttonPanel.add(stopButton);
-
-            // OK button action listener
-            okButton.addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent e) {
-                    dialog.dispose();
-                    status[0] = ABRConstants.DialogModal.OK;
-                }
-            });
-
-            // Stop button action listener
-            stopButton.addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent e) {
-                    System.out.println("Stop button clicked!");
-                    dialog.dispose();
-                    status[0] = ABRConstants.DialogModal.STOP;
-                }
-            });
-
-            panel.add(buttonPanel, BorderLayout.SOUTH);
-        } else {
-
-            Dimension buttonSize = new Dimension(150, 20); // Set button width to 120 and height to 20
-
-            // OK button with custom gradient background
-            JButton okButton = new JButton("OK") {
-                @Override
-                protected void paintComponent(Graphics g) {
-                    if (isOpaque()) {
-                        Graphics2D g2 = (Graphics2D) g;
-                        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                        GradientPaint gradient =
-                                new GradientPaint(0, 0, Color.LIGHT_GRAY, getWidth(), getHeight(), Color.WHITE);
-                        g2.setPaint(gradient);
-                        g2.fillRect(0, 0, getWidth(), getHeight());
-                    }
-                    super.paintComponent(g);
-                }
-            };
-            okButton.setPreferredSize(buttonSize);
-            okButton.setFocusPainted(false);
-
-            // OK button action listener
-            okButton.addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent e) {
-                    dialog.dispose();
-                    status[0] = ABRConstants.DialogModal.OK;
-                }
-            });
-
-            panel.add(okButton, BorderLayout.SOUTH);
-        }
-
-        // Add panel to dialog and set properties
-        dialog.getContentPane().add(panel);
-        dialog.setAlwaysOnTop(true);
-        dialog.setVisible(true); // This will block other input until the dialog is closed
-
-        return status[0];
-    }
-
-    public String actionResultMessage(String blockJobName, String actions[], Pair<String, String> fieldData) {
+    public String actionResultMessage(String blockJobName, String actions[], Pair<String, String> msgInstruction) {
 
         switch (actions[0]) {
             case ABRConstants.VISUALIZE:
-                return "Visualize action executed for " + fieldData.getKey();
+                return "Visualize action executed for " + msgInstruction.getKey();
             case ABRConstants.OTHER:
-                return "Other Element --> " + fieldData.getKey();
+                return "Other Element --> " + msgInstruction.getKey();
             case ABRConstants.OUTPUT:
-                return "Output Element --> " + fieldData.getKey();
+                return "Output Element --> " + msgInstruction.getKey();
             case ABRConstants.CLICK:
-                return "Click Element --> " + fieldData.getKey();
+                return "Click Element --> " + msgInstruction.getKey();
             case ABRConstants.INSERT:
-                return "Insert action for  -> " + fieldData.getKey() + " = " + fieldData.getValue();
+                return "Insert action for  -> " + msgInstruction.getKey() + " = " + msgInstruction.getValue();
             case ABRConstants.LIST_OPERATION:
-                return "List Operation performed for " + fieldData.getKey();
+                return "List Operation performed for " + msgInstruction.getKey();
             case ABRConstants.HOLD:
-                return "Hold executed ( " + fieldData.getKey() + " )";
+                return "Hold executed ( " + msgInstruction.getKey() + " )";
             case ABRConstants.PAUSE:
                 return "Pause action triggered";
             case ABRConstants.GOTO:
-                String[] parts = fieldData.getKey().split(":");
-                return String.format(
-                        "GO TO Block \"%s\" Limit %s times",
-                        "(" + parts[0] + ")-#" + parts[2] + " " + parts[3], fieldData.getValue());
+                if (msgInstruction.getValue().equals("Unknown")) {
+                    return msgInstruction.getKey();
+                } else {
+                    String[] parts = msgInstruction.getKey().split(":");
+                    return String.format(
+                            "GO TO Block \"%s\" Limit %s times",
+                            "(" + parts[0] + ")-#" + parts[2] + " " + parts[3], msgInstruction.getValue());
+                }
             case ABRConstants.REFRESH_ONLY:
                 return " Refresh Web Page";
             case ABRConstants.REFRESH_HOLD:
-                String[] msgParent = fieldData.getKey().split(":");
-                String[] msgValue = fieldData.getValue().split(":");
+                String[] msgParent = msgInstruction.getKey().split(":");
+                String[] msgValue = msgInstruction.getValue().split(":");
                 return String.format(
                         "Wait for Parent \"%s\" Limit %s seconds",
                         "(" + msgParent[1] + ") " + msgParent[2], msgValue[0]);
             case ABRConstants.LOOP:
-                msgParent = fieldData.getKey().split(":");
-                return String.format(
-                        "Jump To Parent \"%s\" Limit %s times",
-                        msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2], fieldData.getValue());
+                if (msgInstruction.getValue().equals("Unknown")) {
+                    return msgInstruction.getKey();
+                } else {
+                    msgParent = msgInstruction.getKey().split(":");
+                    return String.format(
+                            "Jump To Parent \"%s\" Limit %s times",
+                            msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2], msgInstruction.getValue());
+                }
             case ABRConstants.REFRESH_LOOP:
-                msgParent = fieldData.getKey().split(":");
-                msgValue = fieldData.getValue().split(":");
-                return String.format(
-                        "Refresh in %s seconds Loop %s times Jump To Parent \"%s\" ",
-                        msgValue[0], msgValue[1], msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
+                if (msgInstruction.getValue().equals("Unknown")) {
+                    return msgInstruction.getKey();
+                } else {
+                    msgParent = msgInstruction.getKey().split(":");
+                    msgValue = msgInstruction.getValue().split(":");
+                    return String.format(
+                            "Refresh in %s seconds Loop %s times Jump To Parent \"%s\" ",
+                            msgValue[0], msgValue[1], msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
+                }
             case ABRConstants.QUIT:
                 return "Quit action processed";
             case ABRConstants.SCREEN:
-                return "Screen action executed for " + fieldData.getKey() + " --> " + blockJobName;
+                return "Screen action executed for " + msgInstruction.getKey() + " --> " + blockJobName;
             case ABRConstants.GET_VALUE:
             case ABRConstants.SET_VALUE:
                 return actions[0]
                         + ABRConstants.BLANK_STRING
-                        + fieldData.getKey()
+                        + msgInstruction.getKey()
                         + ABRConstants.BLANK_STRING
-                        + fieldData.getValue();
+                        + msgInstruction.getValue();
             case ABRConstants.CHECK_VALUE:
                 return actions[0]
                         + ABRConstants.BLANK_STRING
-                        + fieldData.getValue()
+                        + msgInstruction.getValue()
                         + ABRConstants.BLANK_STRING
-                        + fieldData.getKey();
+                        + msgInstruction.getKey();
             case ABRConstants.EXTRACT_FIELD:
                 return ABRConstants.BLANK_STRING
-                        + fieldData.getKey() + " Extract "
+                        + msgInstruction.getKey() + " Extract "
                         + ABRConstants.BLANK_STRING
-                        + fieldData.getValue();
+                        + msgInstruction.getValue();
 
             default:
-                return "No Action Detected for " + fieldData.getKey();
+                return "No Action Detected for " + msgInstruction.getKey();
         }
     }
 
@@ -2385,7 +1875,7 @@ public class PerformActions {
 
         if (showMessage) {
             // If no matching condition is found, show an error dialog
-            showCustomModalDialog(
+            performMessage.showCustomModalDialog(
                     "ERROR ON CONDITIONAL BLOCK",
                     String.format(
                             "Cannot find a matching condition for \"%s\" greater than the current index %d",
@@ -2478,105 +1968,13 @@ public class PerformActions {
         }
     }
 
-    public void outputJson(List<BlockLoopInstructionLoadDTO> blockLoopInstructions) {
-        // Get the directory path from ABRPropertyManager
-        String jsonPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
-
-        List<BlockLoopInstructionLoadDTO> updatedList = new ArrayList<>(); // Create a new list for updated instructions
-
-        for (BlockLoopInstructionLoadDTO instruction : blockLoopInstructions) {
-            // Create a new BlockLoopInstructionLoadDTO object to avoid modifying the original
-            BlockLoopInstructionLoadDTO updatedInstruction = new BlockLoopInstructionLoadDTO();
-
-            // Copy original fields and add 1000 where necessary
-            updatedInstruction.setId(instruction.getId() + 1000);
-            updatedInstruction.setBotJobId(instruction.getBotJobId() + 1000);
-            updatedInstruction.setBlockId(instruction.getBlockId() + 1000);
-            updatedInstruction.setBlockOrderNumber(
-                    instruction.getBlockOrderNumber()); // Copy without change (if needed)
-
-            // Add 1000 to parentId if it's greater than 0
-            if (instruction.getParentId() > 0) {
-                updatedInstruction.setParentId(instruction.getParentId() + 1000);
-            } else {
-                updatedInstruction.setParentId(instruction.getParentId()); // Keep original if not greater than 0
-            }
-
-            // Copy other fields as is (no change)
-            updatedInstruction.setBotJobName(instruction.getBotJobName());
-            updatedInstruction.setInstructionOrderNumber(instruction.getInstructionOrderNumber());
-            updatedInstruction.setActions(instruction.getActions());
-            updatedInstruction.setName(instruction.getName());
-            updatedInstruction.setPath(instruction.getPath());
-            updatedInstruction.setDescription(instruction.getDescription());
-            updatedInstruction.setOptional(instruction.getOptional());
-            updatedInstruction.setBlockMarked(instruction.getBlockMarked());
-            updatedInstruction.setDefaultValue(instruction.getDefaultValue());
-            updatedInstruction.setActionCustomMaxWaitSec(instruction.getActionCustomMaxWaitSec());
-            updatedInstruction.setOnHoldSeconds(instruction.getOnHoldSeconds());
-            updatedInstruction.setCodified(instruction.getCodified());
-            updatedInstruction.setExportToABR(instruction.getExportToABR());
-            updatedInstruction.setExportToABR(instruction.getExportToABR());
-            updatedInstruction.setExecuted(instruction.getExecuted());
-            updatedInstruction.setPriority(instruction.getPriority());
-            updatedInstruction.setOperation(instruction.getOperation());
-            updatedInstruction.setExportFile(instruction.getExportFile());
-            updatedInstruction.setBlockName(instruction.getBlockName());
-            updatedInstruction.setBlockActive(instruction.getInstructionActive());
-            updatedInstruction.setBlockWait(instruction.getBlockWait());
-            updatedInstruction.setEditMode(instruction.getEditMode());
-            updatedInstruction.setRefreshLoop(instruction.getRefreshLoop());
-            updatedInstruction.setLoopOnly(instruction.getLoopOnly());
-            updatedInstruction.setInstructionActive(instruction.getInstructionActive());
-
-            // Add the updated instruction to the new list
-            updatedList.add(updatedInstruction);
-        }
-
-        // Define Gson ExclusionStrategy to ignore specific fields
-        ExclusionStrategy strategy = new ExclusionStrategy() {
-            @Override
-            public boolean shouldSkipField(FieldAttributes f) {
-                // Skip fields by name (e.g., 'botJobId', 'botJobName')
-                return f.getName().equals("optional")
-                        || f.getName().equals("blockMarked")
-                        || f.getName().equals("editMode");
-            }
-
-            @Override
-            public boolean shouldSkipClass(Class<?> clazz) {
-                return false;
-            }
-        };
-
-        // Initialize Gson with pretty printing for better readability
-        Gson gson = new GsonBuilder()
-                .setExclusionStrategies(strategy)
-                .setPrettyPrinting()
-                .create();
-
-        // Serialize the list of BlockLoopInstructionLoadDTO to JSON
-        String jsonData = gson.toJson(updatedList);
-
-        // Create the file path
-        String outputFilePath = jsonPath + "/blockLoopInstructions.json";
-
-        // Write the JSON data to the file
-        try (FileWriter writer = new FileWriter(outputFilePath)) {
-            writer.write(jsonData);
-            System.out.println("JSON file saved to: " + outputFilePath);
-        } catch (IOException e) {
-            System.err.println("Error writing JSON to file: " + e.getMessage());
-        }
-    }
-
     // Function to check if the element is visible
     private static boolean isElementVisible(WebElement element, WebDriver driver) {
         // Check if the element is displayed and within the viewport
         try {
             return element.isDisplayed() && isInViewport(element, driver);
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
             return false;
         }
     }

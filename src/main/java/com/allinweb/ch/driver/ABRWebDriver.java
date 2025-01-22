@@ -3,7 +3,7 @@ package com.allinweb.ch.driver;
 import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementScriptFactory;
 import com.allinweb.ch.component.scene.ABRAlertScene;
-import com.allinweb.ch.facade.PerformActions;
+import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
 import com.allinweb.ch.util.ABRPropertyEnum;
@@ -37,10 +37,10 @@ public class ABRWebDriver {
     private static WebDriver driver = null;
     private final WebElementScriptFactory scriptFactory = new WebElementScriptFactory();
 
-    private static final PerformActions performAction;
+    private static final PerformMessage performMessage;
     // Static block to initialize
     static {
-        performAction = PerformActions.getInstance();
+        performMessage = PerformMessage.getInstance();
     }
 
     public static String identifyLineSeparator(String text) {
@@ -158,7 +158,7 @@ public class ABRWebDriver {
 
                     ABRLogger.getInstance(ABRWebDriver.class).severe("Error Open URL: \n" + msg1 + "\n" + msg2);
 
-                    performAction.errorMessage("Error Open URL", msg1, msg2, null, null, 260);
+                    performMessage.errorMessage("Error Open URL", msg1, msg2, null, null, 260);
                 }
 
                 //                String errorMessage = e.getMessage();
@@ -178,7 +178,7 @@ public class ABRWebDriver {
                 //                }
                 //
                 //                // Pass a meaningful message for further actions
-                //                performAction.errorMessage(
+                //                performMessage.errorMessage(
                 //                        "Error Open URL", messageChunks[0], messageChunks[1], messageChunks[2],
                 // messageChunks[3], 0);
                 //
@@ -238,7 +238,7 @@ public class ABRWebDriver {
             }
 
             // Pass a meaningful message for further actions
-            performAction.errorMessage(
+            performMessage.errorMessage(
                     "Error Open URL", messageChunks[0], messageChunks[1], messageChunks[2], messageChunks[3], 0);
 
             // Example: print or log the chunks if needed

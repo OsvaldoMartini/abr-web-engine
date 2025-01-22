@@ -5,9 +5,8 @@ import javax.persistence.*;
 
 @Entity
 @Table(name = "variable")
-@SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "variableSeq", allocationSize = 1)
+// @SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "variableSeq", allocationSize = 1)
 public class VariableDTO extends BaseDTO {
-
     @Column(name = "type")
     private String type;
 

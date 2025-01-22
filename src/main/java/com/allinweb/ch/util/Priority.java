@@ -1,7 +1,11 @@
 package com.allinweb.ch.util;
 
 import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 
+@Data
+@AllArgsConstructor
 public class Priority {
     private List<String> name;
     private String priorityType;

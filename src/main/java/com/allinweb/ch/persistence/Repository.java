@@ -90,10 +90,10 @@ public class Repository {
             parentDTO = retrieveBlockDTOById(blockLoopInstructionDTO.getBlock().getId());
         } else if (childDto instanceof BlockDTO) {
             BlockDTO blockDTO = (BlockDTO) childDto;
-            if (blockDTO.getBotJob() == null) {
+            if (blockDTO.getBotJobDTO() == null) {
                 blockDTO = retrieveBlockDTOById(id);
             }
-            parentDTO = retrieveBotJobDTOById(blockDTO.getBotJob().getId());
+            parentDTO = retrieveBotJobDTOById(blockDTO.getBotJobDTO().getId());
         } else if (childDto instanceof BotJobDTO) {
             BotJobDTO botJobDTO = (BotJobDTO) childDto;
             if (botJobDTO.getHomeBanking() == null) {

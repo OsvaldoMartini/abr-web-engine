@@ -1,11 +1,11 @@
 package com.allinweb.ch.persistence;
 
-import java.util.List;
+import java.util.*;
 import javax.persistence.*;
 
 @Entity
 @Table(name = "block")
-@SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "blockSeq", allocationSize = 1)
+// @SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "blockSeq", allocationSize = 1)
 public class BlockDTO extends BaseDTO {
 
     @Column(name = "block_order_number")
@@ -20,14 +20,23 @@ public class BlockDTO extends BaseDTO {
     @Column(name = "type_id")
     private Integer typeId;
 
+    @Column(name = "export_file")
+    private String exportFile;
+
+    @Column(name = "active")
+    private Boolean active;
+
+    @Column(name = "wait")
+    private Integer wait;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "bot_job_id")
     private BotJobDTO botJobDTO;
 
-    @OneToMany(cascade = CascadeType.ALL)
+    @OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     @OrderBy("instruction_order_number ASC")
     @JoinColumn(name = "block_id")
-    private List<BlockLoopInstructionDTO> blockLoopInstructionDTOS;
+    private List<BlockLoopInstructionDTO> blockLoopInstructionDTOS = new ArrayList<>();
 
     public BlockDTO() {
         super();
@@ -74,7 +83,31 @@ public class BlockDTO extends BaseDTO {
         this.typeId = typeId;
     }
 
-    public BotJobDTO getBotJob() {
+    public String getExportFile() {
+        return exportFile;
+    }
+
+    public void setExportFile(String exportFile) {
+        this.exportFile = exportFile;
+    }
+
+    public Boolean getActive() {
+        return active;
+    }
+
+    public void setActive(Boolean active) {
+        this.active = active;
+    }
+
+    public Integer getWait() {
+        return wait;
+    }
+
+    public void setWait(Integer wait) {
+        this.wait = wait;
+    }
+
+    public BotJobDTO getBotJobDTO() {
         return botJobDTO;
     }
 
@@ -82,11 +115,15 @@ public class BlockDTO extends BaseDTO {
         this.botJobDTO = botJobDTO;
     }
 
-    public List<BlockLoopInstructionDTO> getBlockLoopInstructions() {
+    public void setBotJobDTO(BotJobDTO botJobDTO) {
+        this.botJobDTO = botJobDTO;
+    }
+
+    public List<BlockLoopInstructionDTO> getBlockLoopInstructionDTOS() {
         return blockLoopInstructionDTOS;
     }
 
-    public void setBlockLoopInstructions(List<BlockLoopInstructionDTO> blockLoopInstructionDTOS) {
+    public void setBlockLoopInstructionDTOS(List<BlockLoopInstructionDTO> blockLoopInstructionDTOS) {
         this.blockLoopInstructionDTOS = blockLoopInstructionDTOS;
     }
 }

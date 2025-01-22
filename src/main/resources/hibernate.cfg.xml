@@ -19,7 +19,7 @@
         <mapping class="com.allinweb.ch.persistence.BlockLoopInstructionDTO"/>
         <mapping class="com.allinweb.ch.persistence.ComplexInstructionDTO"/>
         <mapping class="com.allinweb.ch.persistence.InstructionReferenceDTO"/>
-        <mapping class="com.allinweb.ch.persistence.ExcelReportDTO"/>
+<!--        <mapping class="com.allinweb.ch.persistence.ExcelReportDTO"/>-->
 
     </session-factory>
 </hibernate-configuration>

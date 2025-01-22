@@ -13,7 +13,8 @@ public class ABRConstants {
         IF, // ELSE block is active
         ELSEIF,
         ELSE, // ELSE block is active
-        ENDIF
+        ENDIF,
+        BY_PASS
     }
 
     public enum DialogModal {
@@ -177,6 +178,7 @@ public class ABRConstants {
     public static final String NO_VALUE = "NULL";
 
     // ACTION SYNTAX
+    public static final String EXCEL_BLOCK_HEADER = "EXCEL_BLOCK_HEADER";
     public static final String SUBSTITUTE_FIELD_VALUE = "<#value>";
     public static final String PATH_FIELD_SUBSTITUTION = "#";
     public static final String ACTIONS_AND_PATHS_SPLITTER = ";";

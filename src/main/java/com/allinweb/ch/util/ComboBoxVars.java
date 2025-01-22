@@ -5,13 +5,13 @@ public class ComboBoxVars {
     private final String text;
     private final String value;
     private final Integer varId;
-    private final Integer instructionId;
+    private final Integer extraId;
 
-    public ComboBoxVars(String text, String value, Integer varId, Integer instructionId) {
+    public ComboBoxVars(String text, String value, Integer varId, Integer extraId) {
         this.text = text;
         this.value = value;
         this.varId = varId;
-        this.instructionId = instructionId;
+        this.extraId = extraId;
     }
 
     public String getText() {
@@ -26,7 +26,7 @@ public class ComboBoxVars {
         return varId;
     }
 
-    public Integer getInstructionId() {
-        return instructionId;
+    public Integer getExtraId() {
+        return extraId;
     }
 }

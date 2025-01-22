@@ -91,6 +91,10 @@ public class ABRPriorities {
         return priorityList;
     }
 
+    public static List<SearchConfig> getSearchConfigList() {
+        return searchList;
+    }
+
     public Integer getJobId() {
         return jobId;
     }
@@ -130,10 +134,6 @@ public class ABRPriorities {
         priorityList.sort(Comparator.comparingInt(Priority::getPriorityNumber));
     }
 
-    public static boolean isFirstCharacterHash(String str) {
-        return str != null && str.startsWith("#");
-    }
-
     public static void loadSearchElementsConfig(String text) {
         List<SearchConfig> searchConfigs = new ArrayList<>();
 
@@ -167,5 +167,9 @@ public class ABRPriorities {
         searchList = searchConfigs;
 
         searchList.sort(Comparator.comparingInt(SearchConfig::getSearchNumber));
+    }
+
+    public static boolean isFirstCharacterHash(String str) {
+        return str != null && str.startsWith("#");
     }
 }

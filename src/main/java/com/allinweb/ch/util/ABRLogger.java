@@ -52,8 +52,7 @@ public class ABRLogger {
         } catch (IOException e) {
             JOptionPane.showMessageDialog(
                     null,
-                    "An error occurred during the creation of the logger. Message: " + e.getMessage() + " Cause: "
-                            + e.getCause(),
+                    "An error occurred during the creation of the logger -> Cause: " + e.getMessage(),
                     "Error in Logger Creation",
                     JOptionPane.ERROR_MESSAGE);
         }
