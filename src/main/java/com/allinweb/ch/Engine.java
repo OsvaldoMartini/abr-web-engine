@@ -585,6 +585,7 @@ public class Engine {
                             //                        if (currentInstruction.getExecuted() == null ||
                             // !currentInstruction.getExecuted()) {
                             boolean execGetOrSet = false;
+                            boolean getAction = false;
                             boolean execCheckValue = false;
                             boolean excelWriteOperation = false;
                             boolean pauseOperation = false;
@@ -822,6 +823,8 @@ public class Engine {
                                     || actions[0].equalsIgnoreCase(ABRConstants.SET_VALUE)) {
 
                                 execGetOrSet = true;
+
+                                getAction = actions[0].equalsIgnoreCase(ABRConstants.GET_VALUE);
 
                                 xPathOperation = performAction.getXPathInstruction(currentInstruction, blockLoad);
                                 parentField = performAction.getInstructionParentField(currentInstruction, blockLoad);
@@ -1157,7 +1160,7 @@ public class Engine {
                                         resultActions = performAction.parentIdWrongBlock(
                                                 currentInstruction, blockLoad, resultActions, currentCondition);
                                         success = false;
-                                    } else if (!mapOperators.containsKey(parentField)) {
+                                    } else if (!mapOperators.containsKey(parentField) && !getAction) {
                                         resultActions = performAction.getValueIsNotDefined(
                                                 currentInstruction, resultActions, currentCondition);
 

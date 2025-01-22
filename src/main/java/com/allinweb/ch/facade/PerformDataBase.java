@@ -2564,6 +2564,8 @@ public class PerformDataBase {
 
     private ErrorMessage duplicateRelatedTables(Connection conn, int oldBotJobId, int newBotJobId) throws SQLException {
 
+        Map<Integer, Integer> blocksOlderAndNewId = new HashMap<>();
+
         List<BlockLoadDTO> blockList = blocksToDuplicate(conn, oldBotJobId);
         // Duplicate related blocks
         if (blockList.size() > 0) {
@@ -2572,8 +2574,10 @@ public class PerformDataBase {
 
             // Assuming instList is a List<InstructionDTO> and refersList is a List<InstructionReferenceLoadDTO>
             for (BlockLoadDTO block : blockList) {
-                block.setId(currentId++);
+                blocksOlderAndNewId.put(block.getId(), currentId);
+                block.setId(currentId);
                 block.setBotJobId(newBotJobId);
+                currentId++;
             }
 
             // Duplicate Blocks
@@ -2624,8 +2628,8 @@ public class PerformDataBase {
                 currentId++;
             }
             // Duplicate block_loop_instruction
-            ErrorMessage errorMessage =
-                    duplicateBlockLoopInstructions(conn, instList, parentOlderAndNewId, variableOlderAndNewId);
+            ErrorMessage errorMessage = duplicateBlockLoopInstructions(
+                    conn, instList, parentOlderAndNewId, variableOlderAndNewId, blocksOlderAndNewId);
             if (errorMessage != null) {
                 return errorMessage;
             }
@@ -2773,7 +2777,8 @@ public class PerformDataBase {
             Connection conn,
             List<InstructionDTO> instList,
             Map<Integer, Integer> parentOlderAndNewId,
-            Map<Integer, Integer> variableOlderAndNewId)
+            Map<Integer, Integer> variableOlderAndNewId,
+            Map<Integer, Integer> blocksOlderAndNewId)
             throws SQLException {
         String blockLoopInstructionInsertQuery =
                 "INSERT INTO block_loop_instruction (id, action_custom_max_wait_sec, actions, active, block_marked, codified, "
@@ -2783,7 +2788,14 @@ public class PerformDataBase {
         try (PreparedStatement blockLoopStmt = conn.prepareStatement(blockLoopInstructionInsertQuery)) {
             for (InstructionDTO instruction : instList) {
 
-                Integer newParentId = parentOlderAndNewId.get(instruction.getParentId());
+                // GOTO Action Gets the Block Order Number Kept on parentId
+                Integer newParentId = null;
+
+                if (instruction.getActions().equals(ABRConstants.GOTO)) {
+                    newParentId = blocksOlderAndNewId.get(instruction.getParentId());
+                } else {
+                    newParentId = parentOlderAndNewId.get(instruction.getParentId());
+                }
 
                 Integer newVariableId = variableOlderAndNewId.get(instruction.getVariableId());
 
