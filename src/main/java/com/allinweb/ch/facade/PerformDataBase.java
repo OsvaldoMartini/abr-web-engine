@@ -158,8 +158,8 @@ public class PerformDataBase {
                         session = sessionFactory.openSession();
                         //                    cacheEntitiesFromDB();
                     }
-                }catch (Exception error) {
-                    
+                } catch (Exception error) {
+
                 }
             }
         }
