@@ -1,6 +1,6 @@
 package com.allinweb.ch.util;
 
 @FunctionalInterface
-public interface ABRCallback {
+public interface ARCallback {
     void execute();
 }

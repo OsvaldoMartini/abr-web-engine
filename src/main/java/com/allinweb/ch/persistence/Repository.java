@@ -1,21 +1,29 @@
 package com.allinweb.ch.persistence;
 
-import com.allinweb.ch.util.ABRConstants;
-import com.allinweb.ch.util.ABRPropertyEnum;
-import com.allinweb.ch.util.ABRPropertyManager;
+import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARLogger;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
 import java.io.File;
+import java.util.List;
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Root;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
+import org.hibernate.query.Query;
 
 public class Repository {
 
     private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
+    private Session session;
     private SessionFactory sessionFactory = null;
-    private Session session = null;
+    private Transaction transaction = null;
 
     public Repository(SessionFactory sessionFactory) {
         this.sessionFactory = sessionFactory;
@@ -24,10 +32,10 @@ public class Repository {
 
     private void openSession() {
         if (sessionFactory == null) {
-            String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
+            String dbPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
             File dbFolder = new File(dbPath);
             dbFolder.mkdirs();
-            String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+            String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
             sessionFactory = new Configuration()
                     .configure()
                     .setProperty("hibernate.connection.url", dbUrl)
@@ -38,73 +46,51 @@ public class Repository {
         }
     }
 
+    public Repository(Session session) {
+        this.session = session;
+    }
+
     public <T> void write(T obj) {
-        Transaction transaction = null;
+        transaction = session.beginTransaction();
+        session.save(obj);
+        transaction.commit();
+    }
+
+    public <T> void update(T obj) {
+        transaction = session.beginTransaction();
+        session.update(obj);
+        transaction.commit();
+    }
+
+    public <T> void remove(T obj) {
         try {
             transaction = session.beginTransaction();
-            session.save(obj);
+            session.flush();
+            session.clear();
+            session.delete(obj);
+            //            session.remove(obj);
             transaction.commit();
         } catch (Exception e) {
-            if (transaction != null) {
-                transaction.rollback();
-            }
-            throw e;
+            ARLogger.getInstance(ARWebDriver.class).severe("Error Repository Remove -> Cause: " + e.getMessage());
         }
     }
 
-    private void checkIdDtoToRetrieve(int id) throws Exception {
-        if (id == 0) {
-            throw new Exception("ID of DTO to retrieve cannot be 0");
-        }
+    public <T> T findEntityById(Class<T> clazz, int id) {
+        return session.get(clazz, id);
     }
 
-    public HomeBankingDTO retrieveHomeBankingDTOById(int id) throws Exception {
-        checkIdDtoToRetrieve(id);
-        return session.get(HomeBankingDTO.class, id);
+    public <T> List<T> findAllEntities(Class<T> clazz) {
+        CriteriaBuilder criteriaBuilder = session.getCriteriaBuilder();
+        CriteriaQuery<T> criteriaQuery = criteriaBuilder.createQuery(clazz);
+        Root<T> root = criteriaQuery.from(clazz);
+        criteriaQuery.select(root);
+
+        Query<T> query = session.createQuery(criteriaQuery);
+        return query.getResultList();
     }
 
-    public BotJobDTO retrieveBotJobDTOById(int id) throws Exception {
-        checkIdDtoToRetrieve(id);
-        return session.get(BotJobDTO.class, id);
-    }
-
-    public BlockDTO retrieveBlockDTOById(int id) throws Exception {
-        checkIdDtoToRetrieve(id);
-        return session.get(BlockDTO.class, id);
-    }
-
-    public BlockLoopInstructionDTO retrieveBlockLoopInstructionDTOById(int id) throws Exception {
-        checkIdDtoToRetrieve(id);
-        return session.get(BlockLoopInstructionDTO.class, id);
-    }
-
-    public BaseDTO getParentDto(BaseDTO childDto) throws Exception {
-        int id = childDto.getId();
-        BaseDTO parentDTO = null;
-
-        if (childDto instanceof BlockLoopInstructionDTO) {
-            BlockLoopInstructionDTO blockLoopInstructionDTO = (BlockLoopInstructionDTO) childDto;
-            if (blockLoopInstructionDTO.getBlock() == null) {
-                blockLoopInstructionDTO = retrieveBlockLoopInstructionDTOById(id);
-            }
-            parentDTO = retrieveBlockDTOById(blockLoopInstructionDTO.getBlock().getId());
-        } else if (childDto instanceof BlockDTO) {
-            BlockDTO blockDTO = (BlockDTO) childDto;
-            if (blockDTO.getBotJobDTO() == null) {
-                blockDTO = retrieveBlockDTOById(id);
-            }
-            parentDTO = retrieveBotJobDTOById(blockDTO.getBotJobDTO().getId());
-        } else if (childDto instanceof BotJobDTO) {
-            BotJobDTO botJobDTO = (BotJobDTO) childDto;
-            if (botJobDTO.getHomeBanking() == null) {
-                botJobDTO = retrieveBotJobDTOById(id);
-            }
-            parentDTO = retrieveHomeBankingDTOById(botJobDTO.getHomeBanking().getId());
-        } else if (childDto instanceof HomeBankingDTO) {
-            throw new Exception("HomeBanking has no parent");
-        }
-
-        return parentDTO;
+    public <T> void refresh(T entity) {
+        session.refresh(entity);
     }
 
     public void closeSession() {

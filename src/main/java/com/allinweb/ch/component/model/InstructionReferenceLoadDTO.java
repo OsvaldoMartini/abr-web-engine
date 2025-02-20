@@ -10,7 +10,7 @@ public class InstructionReferenceLoadDTO {
     private Integer blockLoopInstructionId;
     private Integer botJobId;
 
-    private BlockLoopInstructionLoadDTO blockLoopInstructionLoadDTO;
+    private InstructionLoadDTO instructionLoadDTO;
 
     @Override
     public String toString() {

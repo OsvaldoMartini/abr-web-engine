@@ -36,7 +36,7 @@ public class BlockDTO extends BaseDTO {
     @OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     @OrderBy("instruction_order_number ASC")
     @JoinColumn(name = "block_id")
-    private List<BlockLoopInstructionDTO> blockLoopInstructionDTOS = new ArrayList<>();
+    private List<InstructionDTO> instructionDTOS = new ArrayList<>();
 
     public BlockDTO() {
         super();
@@ -119,11 +119,11 @@ public class BlockDTO extends BaseDTO {
         this.botJobDTO = botJobDTO;
     }
 
-    public List<BlockLoopInstructionDTO> getBlockLoopInstructionDTOS() {
-        return blockLoopInstructionDTOS;
+    public List<InstructionDTO> getBlockLoopInstructionDTOS() {
+        return instructionDTOS;
     }
 
-    public void setBlockLoopInstructionDTOS(List<BlockLoopInstructionDTO> blockLoopInstructionDTOS) {
-        this.blockLoopInstructionDTOS = blockLoopInstructionDTOS;
+    public void setBlockLoopInstructionDTOS(List<InstructionDTO> instructionDTOS) {
+        this.instructionDTOS = instructionDTOS;
     }
 }

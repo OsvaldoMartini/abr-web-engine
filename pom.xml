@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.example</groupId>
-    <artifactId>ABR_Web_Engine</artifactId>
+    <artifactId>AR_Web_Engine</artifactId>
     <version>release-001</version>
 
     <name>Bancastato_Automation</name>

@@ -10,7 +10,8 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class BlockLoopInstructionLoadDTO {
+public class InstructionLoadDTO {
+    private Integer homeBankingId;
     private Integer id;
     private Integer botJobId;
     private String botJobName;
@@ -18,6 +19,9 @@ public class BlockLoopInstructionLoadDTO {
     private String actions;
     private String name;
     private String path;
+    private String coordinates;
+    private Boolean forceCoordinates;
+    private String iFrameXPath;
     private String description;
     private Boolean optional;
     private Boolean blockMarked;
@@ -46,7 +50,8 @@ public class BlockLoopInstructionLoadDTO {
     private List<InstructionReferenceLoadDTO> instructionReferenceLoadDTOList;
 
     // Custom constructor
-    public BlockLoopInstructionLoadDTO(
+    public InstructionLoadDTO(
+            Integer homeBankingId,
             Integer botJobId,
             String botJobName,
             Integer id,
@@ -63,6 +68,7 @@ public class BlockLoopInstructionLoadDTO {
             Integer parentId,
             String operation,
             String exportFile) {
+        this.homeBankingId = homeBankingId;
         this.botJobId = botJobId;
         this.botJobName = botJobName;
         this.id = id;

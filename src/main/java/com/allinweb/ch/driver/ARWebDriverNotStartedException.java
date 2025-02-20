@@ -1,8 +1,8 @@
 package com.allinweb.ch.driver;
 
-public class ABRWebDriverNotStartedException extends RuntimeException {
+public class ARWebDriverNotStartedException extends RuntimeException {
 
-    public ABRWebDriverNotStartedException() {
+    public ARWebDriverNotStartedException() {
         super("The web driver has not been started. Please start the web driver first.");
     }
 }

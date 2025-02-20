@@ -1,10 +1,10 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
-import com.allinweb.ch.util.ABRConstants;
-import com.allinweb.ch.util.ABRPropertyEnum;
-import com.allinweb.ch.util.ABRPropertyManager;
+import com.allinweb.ch.component.model.InstructionLoadDTO;
+import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
 import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;
@@ -23,6 +23,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
 import javax.swing.*;
 
 /**
@@ -55,12 +56,26 @@ public class PerformMessage {
                 "3. Consider increasing the wait time to ensure the page loads completely.",
                 "4. Consider to Re Scanner or Re Select the Element!",
                 true,
+                "OK",
+                null,
+                0);
+    }
+
+    public void multipleActionsElement(String criteria) {
+        showCustomModalDialog(
+                criteria,
+                "Attention Required!",
+                "This element may require multiple actions.",
+                "It likely needs a click action first � then open the options to type in it.",
+                "For testing, always consider using \"TEST ACTIONS\" first to verify the element.",
+                true,
+                "OK",
                 null,
                 0);
     }
 
     public void errorMessage(String criteria, String msg1, String msg2, String msg3, String msg4, int height) {
-        showCustomModalDialog(criteria, msg1, msg2, msg3, msg4, true, null, height);
+        showCustomModalDialog(criteria, msg1, msg2, msg3, msg4, true, "OK", null, height);
     }
 
     public static void showCustomDialog(String title, String message) {
@@ -127,13 +142,14 @@ public class PerformMessage {
         dialog.setVisible(true); // This will block other input until the dialog is closed
     }
 
-    public static ABRConstants.DialogModal showCustomModalDialog(
+    public static ARConstants.DialogModal showCustomModalDialog(
             String title,
             String message,
             String message2,
             String message3,
             String message4,
             boolean redMsg,
+            String firstButton,
             String secondButton,
             int height) {
         // Create a JDialog as a custom modal message dialog
@@ -145,7 +161,7 @@ public class PerformMessage {
         } else if (message2 != null && message3 != null && message4 == null) {
             dialog.setSize(380, 250);
         } else if (message2 != null && message3 != null && message4 != null) {
-            dialog.setSize(380, 260);
+            dialog.setSize(380, 280);
         } else {
             dialog.setSize(380, 150);
         }
@@ -194,7 +210,7 @@ public class PerformMessage {
         messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
         panel.add(messageLabel, BorderLayout.CENTER);
 
-        final ABRConstants.DialogModal[] status = {ABRConstants.DialogModal.NONE};
+        final ARConstants.DialogModal[] status = {ARConstants.DialogModal.NONE};
 
         if (!Strings.isNullOrEmpty(secondButton)) {
 
@@ -207,7 +223,8 @@ public class PerformMessage {
             Dimension buttonSize = new Dimension(150, 20); // Set button width to 120 and height to 20
 
             // OK button with custom gradient background
-            JButton okButton = new JButton("OK") {
+
+            JButton okButton = new JButton(firstButton) {
                 @Override
                 protected void paintComponent(Graphics g) {
                     if (isOpaque()) {
@@ -249,7 +266,7 @@ public class PerformMessage {
                 @Override
                 public void actionPerformed(ActionEvent e) {
                     dialog.dispose();
-                    status[0] = ABRConstants.DialogModal.OK;
+                    status[0] = ARConstants.DialogModal.OK;
                 }
             });
 
@@ -259,7 +276,7 @@ public class PerformMessage {
                 public void actionPerformed(ActionEvent e) {
                     System.out.println("Stop button clicked!");
                     dialog.dispose();
-                    status[0] = ABRConstants.DialogModal.STOP;
+                    status[0] = ARConstants.DialogModal.STOP;
                 }
             });
 
@@ -269,7 +286,7 @@ public class PerformMessage {
             Dimension buttonSize = new Dimension(150, 20); // Set button width to 120 and height to 20
 
             // OK button with custom gradient background
-            JButton okButton = new JButton("OK") {
+            JButton okButton = new JButton(firstButton) {
                 @Override
                 protected void paintComponent(Graphics g) {
                     if (isOpaque()) {
@@ -291,7 +308,7 @@ public class PerformMessage {
                 @Override
                 public void actionPerformed(ActionEvent e) {
                     dialog.dispose();
-                    status[0] = ABRConstants.DialogModal.OK;
+                    status[0] = ARConstants.DialogModal.OK;
                 }
             });
 
@@ -386,17 +403,18 @@ public class PerformMessage {
         }
     }
 
-    public void outputJson(List<BlockLoopInstructionLoadDTO> blockLoopInstructions) {
-        // Get the directory path from ABRPropertyManager
-        String jsonPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
+    public void outputJson(List<InstructionLoadDTO> blockLoopInstructions) {
+        // Get the directory path from ARPropertyManager
+        String jsonPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
 
-        List<BlockLoopInstructionLoadDTO> updatedList = new ArrayList<>(); // Create a new list for updated instructions
+        List<InstructionLoadDTO> updatedList = new ArrayList<>(); // Create a new list for updated instructions
 
-        for (BlockLoopInstructionLoadDTO instruction : blockLoopInstructions) {
-            // Create a new BlockLoopInstructionLoadDTO object to avoid modifying the original
-            BlockLoopInstructionLoadDTO updatedInstruction = new BlockLoopInstructionLoadDTO();
+        for (InstructionLoadDTO instruction : blockLoopInstructions) {
+            // Create a new InstructionLoadDTO object to avoid modifying the original
+            InstructionLoadDTO updatedInstruction = new InstructionLoadDTO();
 
             // Copy original fields and add 1000 where necessary
+            updatedInstruction.setHomeBankingId(instruction.getHomeBankingId() + 1000);
             updatedInstruction.setId(instruction.getId() + 1000);
             updatedInstruction.setBotJobId(instruction.getBotJobId() + 1000);
             updatedInstruction.setBlockId(instruction.getBlockId() + 1000);
@@ -463,11 +481,11 @@ public class PerformMessage {
                 .setPrettyPrinting()
                 .create();
 
-        // Serialize the list of BlockLoopInstructionLoadDTO to JSON
+        // Serialize the list of InstructionLoadDTO to JSON
         String jsonData = gson.toJson(updatedList);
 
         // Create the file path
-        String outputFilePath = jsonPath + "/blockLoopInstructions.json";
+        String outputFilePath = jsonPath + "/instructions.json";
 
         // Write the JSON data to the file
         try (FileWriter writer = new FileWriter(outputFilePath)) {
@@ -476,5 +494,35 @@ public class PerformMessage {
         } catch (IOException e) {
             System.err.println("Error writing JSON to file: " + e.getMessage());
         }
+    }
+
+    public void generalErrorIFrame(String xpath) {
+        // Styled text elements
+        Text titleText = new Text("Fail Searching IFrame Elements");
+        titleText.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+        Text errorText = new Text("Error: Attempt identify IFrame elements");
+        errorText.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+        Text xpathText = new Text(xpath);
+        xpathText.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+        // Create a container for the message
+        VBox messageContainer = new VBox(5); // Adds spacing of 5px
+
+        // Add relevant elements to the container
+        messageContainer.getChildren().addAll(titleText, errorText);
+
+        if (!Strings.isNullOrEmpty(xpath)) {
+            messageContainer.getChildren().add(xpathText);
+        }
+
+        // Display the alert message
+        showAlertCombinedVBOX(
+                Alert.AlertType.WARNING,
+                "iFrame Web Elements",
+                "Action: Search iFrame Elements!",
+                null,
+                messageContainer);
     }
 }

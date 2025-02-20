@@ -8,8 +8,8 @@ import javax.persistence.*;
 public class ComplexInstructionDTO extends BaseDTO {
 
     @ManyToOne
-    @JoinColumn(name = "block_loop_instruction_id")
-    private BlockLoopInstructionDTO blockLoopInstructionDTO;
+    @JoinColumn(name = "instruction_id")
+    private InstructionDTO instructionDTO;
 
     @Column(name = "order_number")
     private int orderNumber;
@@ -36,12 +36,12 @@ public class ComplexInstructionDTO extends BaseDTO {
         super();
     }
 
-    public BlockLoopInstructionDTO getBlockLoopInstructionDTO() {
-        return blockLoopInstructionDTO;
+    public InstructionDTO getBlockLoopInstructionDTO() {
+        return instructionDTO;
     }
 
-    public void setBlockLoopInstructionDTO(BlockLoopInstructionDTO blockLoopInstructionDTO) {
-        this.blockLoopInstructionDTO = blockLoopInstructionDTO;
+    public void setBlockLoopInstructionDTO(InstructionDTO instructionDTO) {
+        this.instructionDTO = instructionDTO;
     }
 
     public int getOrderNumber() {

@@ -10,15 +10,15 @@ import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 import javax.swing.JOptionPane;
 
-public class ABRLogger {
+public class ARLogger {
     private static final Object lock = new Object();
-    private static volatile ABRLogger instance;
+    private static volatile ARLogger instance;
     private static FileHandler handler;
 
     private Logger logger;
 
-    private ABRLogger() {
-        String logPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_LOG);
+    private ARLogger() {
+        String logPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_LOG);
 
         if (logPath == null || logPath.isBlank()) {
             JOptionPane.showMessageDialog(
@@ -40,11 +40,11 @@ public class ABRLogger {
         }
 
         try {
-            handler = new FileHandler(logPath + ABRConstants.FILE_NAME_ENGINE_RUN_LOG, true);
+            handler = new FileHandler(logPath + ARConstants.FILE_NAME_ENGINE_RUN_LOG, true);
             handler.setFormatter(new SimpleFormatter());
 
             FileOutputStream fileOutputStream =
-                    new FileOutputStream(logPath + ABRConstants.FILE_NAME_ENGINE_OUTPUT_LOG, true);
+                    new FileOutputStream(logPath + ARConstants.FILE_NAME_ENGINE_OUTPUT_LOG, true);
             PrintStream printStream = new PrintStream(fileOutputStream);
             System.setOut(printStream);
             System.setErr(printStream);
@@ -58,11 +58,11 @@ public class ABRLogger {
         }
     }
 
-    public static <T> ABRLogger getInstance(Class<T> forClazz) {
+    public static <T> ARLogger getInstance(Class<T> forClazz) {
         if (instance == null) {
             synchronized (lock) {
                 if (instance == null) {
-                    instance = new ABRLogger();
+                    instance = new ARLogger();
                 }
             }
         }

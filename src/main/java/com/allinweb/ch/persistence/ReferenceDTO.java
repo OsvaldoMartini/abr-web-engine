@@ -3,19 +3,19 @@ package com.allinweb.ch.persistence;
 import javax.persistence.*;
 
 @Entity
-@Table(name = "instruction_reference")
+@Table(name = "reference")
 // @SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "instructionReferenceSeq", allocationSize = 1)
-public class InstructionReferenceDTO extends BaseDTO {
+public class ReferenceDTO extends BaseDTO {
 
     @Column(name = "reference_type")
     private String referenceType;
 
-    @Column(name = "value", length = 1000)
+    @Column(name = "value", length = 10000)
     private String value;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false) // Ensures the foreign key is not null
-    @JoinColumn(name = "block_loop_instruction_id", nullable = false) // Adds non-null constraint on the foreign key
-    private BlockLoopInstructionDTO blockLoopInstructionDTO;
+    @JoinColumn(name = "instruction_id", nullable = false) // Adds non-null constraint on the foreign key
+    private InstructionDTO instructionDTO;
 
     @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "bot_job_id")
@@ -29,16 +29,16 @@ public class InstructionReferenceDTO extends BaseDTO {
         this.botJobDTO = botJobDTO;
     }
 
-    public InstructionReferenceDTO() {
+    public ReferenceDTO() {
         super();
     }
 
-    public InstructionReferenceDTO(int id) {
+    public ReferenceDTO(int id) {
         super(id);
     }
 
-    public InstructionReferenceDTO(BlockLoopInstructionDTO instruction) {
-        blockLoopInstructionDTO = instruction;
+    public ReferenceDTO(InstructionDTO instruction) {
+        instructionDTO = instruction;
     }
 
     public String getReferenceType() {
@@ -57,18 +57,18 @@ public class InstructionReferenceDTO extends BaseDTO {
         this.value = value;
     }
 
-    public BlockLoopInstructionDTO getBlockLoopInstructionDTO() {
-        return blockLoopInstructionDTO;
+    public InstructionDTO getBlockLoopInstructionDTO() {
+        return instructionDTO;
     }
 
-    public void setBlockLoopInstructionDTO(BlockLoopInstructionDTO blockLoopInstructionDTO) {
-        this.blockLoopInstructionDTO = blockLoopInstructionDTO;
+    public void setBlockLoopInstructionDTO(InstructionDTO instructionDTO) {
+        this.instructionDTO = instructionDTO;
     }
 
     //    public static List<InstructionReferenceDTO> createReferencesFromSavedInstructionForInstruction(
     //            SavedBlockLoopInstructionDTO savedInstructionDTO, BlockLoopInstructionLoadDTO blockLoopInstructionDTO)
     // {
-    //        List<SavedInstructionReferenceDTO> referenceList = ABRSharedResources.getInstance()
+    //        List<SavedInstructionReferenceDTO> referenceList = ARSharedResources.getInstance()
     //                .getEntityList(
     //                        SavedInstructionReferenceDTO.class,
     //                        savedReference ->

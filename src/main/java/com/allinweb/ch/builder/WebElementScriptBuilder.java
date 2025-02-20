@@ -1,6 +1,6 @@
 package com.allinweb.ch.builder;
 
-import com.allinweb.ch.util.ABRWebUtil;
+import com.allinweb.ch.util.ARWebUtil;
 import java.util.HashMap;
 import java.util.Map;
 import org.openqa.selenium.WebElement;
@@ -58,7 +58,7 @@ public class WebElementScriptBuilder {
             xPath = elementReferenceMap.get(hashCode);
         }
         if (xPath == null) {
-            String path = ABRWebUtil.extractWebElementXPath(currentElementSelected);
+            String path = ARWebUtil.extractWebElementXPath(currentElementSelected);
             elementReferenceMap.put(hashCode, path);
             xPath = elementReferenceMap.get(hashCode);
         }

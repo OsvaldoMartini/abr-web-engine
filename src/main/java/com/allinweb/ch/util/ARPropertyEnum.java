@@ -1,6 +1,6 @@
 package com.allinweb.ch.util;
 
-public enum ABRPropertyEnum {
+public enum ARPropertyEnum {
     DATABASE_TYPE("data_base"),
     PORT_SOCKET("port_socket"),
     BLOCK_EXEC_LIMIT("block_exec_limit"),
@@ -26,7 +26,7 @@ public enum ABRPropertyEnum {
 
     private String value; // this must not be final even if suggested doing so
 
-    ABRPropertyEnum(String value) {
+    ARPropertyEnum(String value) {
         this.value = value;
     }
 

@@ -11,21 +11,21 @@ import java.util.List;
 import java.util.Properties;
 import javax.swing.*;
 
-public class ABRPriorities {
+public class ARPriorities {
 
     private static String searchConfigTemplate =
             "#numero priorità, categoria, identificativo\n" + "1,ByXPath,//a[@href],a[href]\n"
                     + "2,ByLabels,label,spam,div,p\n"
                     + "3,attribute,martini-id";
     // Static final variable to hold the singleton instance
-    protected static SingletonSupplier<ABRPriorities> instance = () -> new ABRPriorities();
+    protected static SingletonSupplier<ARPriorities> instance = () -> new ARPriorities();
     public static Properties properties;
     public static List<Priority> priorityList;
     public static List<SearchConfig> searchList;
     private Integer jobId;
 
     // Public method to access the singleton instance
-    public static ABRPriorities getInstance() {
+    public static ARPriorities getInstance() {
         return instance.get();
     }
 
@@ -35,24 +35,24 @@ public class ABRPriorities {
     }
 
     // Private constructor to prevent instantiation
-    private ABRPriorities() {
+    private ARPriorities() {
 
         //        loadPriorities();
     }
 
     public void loadPriorities() {
-        String priorityPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_PRIORITY);
+        String priorityPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_PRIORITY);
         if (priorityPath == null || priorityPath.isBlank()) {
             JOptionPane.showMessageDialog(
                     null,
                     "Priority configuration folder is not set. Please set the folder of priority configuration file "
-                            + ABRConstants.FILE_NAME_PRIORITIES,
+                            + ARConstants.FILE_NAME_PRIORITIES,
                     "Priority configuration folder not set",
                     JOptionPane.WARNING_MESSAGE);
-            ABRLogger.getInstance(ABRPriorities.class).warning("Priority configuration folder not set");
+            ARLogger.getInstance(ARPriorities.class).warning("Priority configuration folder not set");
             throw new RuntimeException("Priority configuration not set");
         }
-        String prioritiesFileName = priorityPath + ABRConstants.FILE_NAME_PRIORITIES;
+        String prioritiesFileName = priorityPath + ARConstants.FILE_NAME_PRIORITIES;
         priorityList = new ArrayList<>();
         File prioritiesFile = new File(prioritiesFileName);
         if (!prioritiesFile.exists()) {
@@ -62,7 +62,7 @@ public class ABRPriorities {
                             + "set correctly or create the file: " + prioritiesFileName,
                     "Priority configuration file missing",
                     JOptionPane.WARNING_MESSAGE);
-            ABRLogger.getInstance(ABRPriorities.class)
+            ARLogger.getInstance(ARPriorities.class)
                     .warning("Priority configuration file missing" + prioritiesFileName);
             throw new RuntimeException("Priority configuration file missing");
         }
@@ -70,10 +70,10 @@ public class ABRPriorities {
             properties = new Properties();
             properties.load(priorities);
             if (properties.size() == 0) {
-                ABRLogger.getInstance(ABRPriorities.class).warning("The file " + prioritiesFileName + "is empty");
+                ARLogger.getInstance(ARPriorities.class).warning("The file " + prioritiesFileName + "is empty");
             }
             properties.keySet().forEach(keyObj -> {
-                String[] params = String.valueOf(keyObj).split(ABRConstants.FIELDS_SEPARATOR);
+                String[] params = String.valueOf(keyObj).split(ARConstants.FIELDS_SEPARATOR);
                 Priority priority = new Priority(
                         Integer.parseInt(params[0]),
                         params[1],

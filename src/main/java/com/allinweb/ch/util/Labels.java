@@ -16,8 +16,7 @@ public class Labels {
 
     public static void initializeLabelsInSpecLang(String language) {
         labelsValue = new Properties();
-        String labelsFileName =
-                ABRConstants.LABELS_FILE_NAME_COMMON + language + ABRConstants.PROPERTIES_FILE_EXTENSION;
+        String labelsFileName = ARConstants.LABELS_FILE_NAME_COMMON + language + ARConstants.PROPERTIES_FILE_EXTENSION;
 
         // Read in the LCO Probe properties file
         try (InputStream inputStream =
@@ -26,7 +25,7 @@ public class Labels {
             // load a properties file
             labelsValue.load(inputStream);
         } catch (IOException ex) {
-            ABRLogger.getInstance(Labels.class).severe("Cannot Read Lang Labels: " + ex.getMessage());
+            ARLogger.getInstance(Labels.class).severe("Cannot Read Lang Labels: " + ex.getMessage());
         }
     }
 }

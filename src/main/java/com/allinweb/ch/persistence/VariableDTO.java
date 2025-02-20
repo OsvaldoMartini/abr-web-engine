@@ -1,6 +1,5 @@
 package com.allinweb.ch.persistence;
 
-import java.util.*;
 import javax.persistence.*;
 
 @Entity
@@ -17,19 +16,19 @@ public class VariableDTO extends BaseDTO {
     private String value;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "block_loop_instruction_id")
-    private BlockLoopInstructionDTO blockLoopInstructionDTO;
+    @JoinColumn(name = "instruction_id")
+    private InstructionDTO instructionDTO;
 
     @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "bot_job_id")
     private BotJobDTO botJobDTO;
 
-    public BlockLoopInstructionDTO getBlockLoopInstructionDTO() {
-        return blockLoopInstructionDTO;
+    public InstructionDTO getBlockLoopInstructionDTO() {
+        return instructionDTO;
     }
 
-    public void setBlockLoopInstructionDTO(BlockLoopInstructionDTO blockLoopInstructionDTO) {
-        this.blockLoopInstructionDTO = blockLoopInstructionDTO;
+    public void setBlockLoopInstructionDTO(InstructionDTO instructionDTO) {
+        this.instructionDTO = instructionDTO;
     }
 
     public BotJobDTO getBotJobDTO() {

@@ -1,12 +1,12 @@
 package com.allinweb.ch.supportTypes;
 
 import com.allinweb.ch.builder.WebElementAttributeEnum;
-import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.ComplexInstructionLoadDTO;
+import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.cryptingAlgorithm.CryptationAlgorithm;
-import com.allinweb.ch.driver.ABRWebDriver;
+import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.util.*;
@@ -31,16 +31,16 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 public class WebPage {
 
     // Very important sequence on initiation
-    private static ABRPriorities abrPriorities;
+    private static ARPriorities abrPriorities;
 
     // Static block to initialize
     static {
-        abrPriorities = ABRPriorities.getInstance();
+        abrPriorities = ARPriorities.getInstance();
     }
 
     private List<BotJobLoadDTO> botLoadJobs = new ArrayList<>();
 
-    private ABRWebDriver abrWebDriver;
+    private ARWebDriver arWebDriver;
     private WebDriver driver;
     private static Wait<WebDriver> waitForPage;
     private static Wait<WebDriver> waitForAction;
@@ -56,16 +56,16 @@ public class WebPage {
 
         this.priority = priority;
 
-        abrWebDriver = new ABRWebDriver();
+        arWebDriver = new ARWebDriver();
 
-        this.driver = abrWebDriver.openDriver(url, optionsConfig);
+        this.driver = arWebDriver.openDriver(url, optionsConfig);
 
         //        this.driver = initDriver(driverType);
         if (waitForPage == null) {
             String updateTimeout =
-                    ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
+                    ARPropertyManager.getInstance().getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
             String interactionTimeout =
-                    ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
+                    ARPropertyManager.getInstance().getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
             waitForPage = new WebDriverWait(driver, Duration.ofSeconds(Integer.parseInt(updateTimeout)));
             waitForAction = new WebDriverWait(driver, Duration.ofSeconds(Integer.parseInt(interactionTimeout)));
         }
@@ -76,27 +76,27 @@ public class WebPage {
         return driver;
     }
 
-    public ABRWebDriver getAbrWebDriver() {
-        return abrWebDriver;
+    public ARWebDriver getAbrWebDriver() {
+        return arWebDriver;
     }
 
     public WebDriver initDriver(String driverType) {
-        if (driverType.equalsIgnoreCase(ABRConstants.FIREFOX)) {
+        if (driverType.equalsIgnoreCase(ARConstants.FIREFOX)) {
             FirefoxOptions options = new FirefoxOptions();
-            options.setBinary(ABRConstants.CURRENT_PATH + "\\geckodriver.exe");
+            options.setBinary(ARConstants.CURRENT_PATH + "\\geckodriver.exe");
             driver = new FirefoxDriver(options);
 
-        } else if (driverType.equalsIgnoreCase(ABRConstants.EDGE)) {
-            System.setProperty("webdriver.edge.driver", ABRConstants.CURRENT_PATH + "\\msedgedriver.exe");
+        } else if (driverType.equalsIgnoreCase(ARConstants.EDGE)) {
+            System.setProperty("webdriver.edge.driver", ARConstants.CURRENT_PATH + "\\msedgedriver.exe");
             EdgeOptions options = new EdgeOptions();
             options.setExperimentalOption("useAutomationExtension", false);
             options.setExperimentalOption("excludeSwitches", Collections.singletonList("enable-automation"));
             driver = new EdgeDriver(options);
 
-        } else if (driverType.equalsIgnoreCase(ABRConstants.CHROME)) {
+        } else if (driverType.equalsIgnoreCase(ARConstants.CHROME)) {
 
             ChromeOptions options = new ChromeOptions();
-            options.setBinary(ABRConstants.CURRENT_PATH + "\\chrome\\chrome.exe");
+            options.setBinary(ARConstants.CURRENT_PATH + "\\chrome\\chrome.exe");
             options.setBinary("C:/Program Files (x86)/Google/Chrome/Application/chrome.exe");
             options.setExperimentalOption("useAutomationExtension", false);
             options.setExperimentalOption("excludeSwitches", Collections.singletonList("enable-automation"));
@@ -122,7 +122,7 @@ public class WebPage {
                     .equals("complete"));
 
         } catch (Exception e) {
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ARLogger.getInstance(ARWebDriver.class)
                     .fine("An error has occurred during driver.get(url) Load " + e.getMessage());
             JOptionPane.showMessageDialog(
                     null,
@@ -163,7 +163,7 @@ public class WebPage {
         return xPath;
     }
 
-    private WebElement locateElement(BlockLoopInstructionLoadDTO instruction, int botJobId) {
+    private WebElement locateElement(InstructionLoadDTO instruction, int botJobId) {
 
         String instructionPath = instruction.getPath();
         String tagName = null;
@@ -171,7 +171,7 @@ public class WebPage {
             tagName = removeTrailingSlash(instructionPath);
             tagName = extractTagName(instructionPath);
         } catch (Exception e) {
-            ABRLogger.getInstance(WebPage.class)
+            ARLogger.getInstance(WebPage.class)
                     .fine(String.format(
                             "Error RemoveTrailingSlash for %s   \nxPath  %s\nCause: %s",
                             tagName, instructionPath, e.getMessage()));
@@ -179,7 +179,7 @@ public class WebPage {
         List<InstructionReferenceLoadDTO> instructionReferenceList = instruction.getInstructionReferenceLoadDTOList();
 
         if (instructionReferenceList.size() == 0) {
-            ABRLogger.getInstance(PerformActions.class)
+            ARLogger.getInstance(PerformActions.class)
                     .warning("####    Not XPath to Be Located!   ####"
                             + "\n####    Remove and Re-Scan the Failed Field Again   ####");
             return null;
@@ -247,7 +247,7 @@ public class WebPage {
                             priority.getName(),
                             instructionReference.get().getReferenceType(),
                             instructionReference.get().getValue()));
-                    ABRLogger.getInstance(WebPage.class)
+                    ARLogger.getInstance(WebPage.class)
                             .fine(String.format(
                                     "Search for %s   Type:  %s   Value: %s",
                                     priority.getName(),
@@ -287,7 +287,7 @@ public class WebPage {
 
                         for (By criteria : criterias) {
                             List<WebElement> foundElementList =
-                                    abrWebDriver.getDriver().findElements(criteria);
+                                    arWebDriver.getDriver().findElements(criteria);
 
                             //                            try {
                             //                                elementFound = scroolUntilFindElement(criteria);
@@ -303,7 +303,7 @@ public class WebPage {
                                     try {
                                         waitForPage.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                                     } catch (Exception e) {
-                                        ABRLogger.getInstance(WebPage.class)
+                                        ARLogger.getInstance(WebPage.class)
                                                 .fine(String.format(
                                                         "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
                                                         instructionPath, criteria, e.getMessage()));
@@ -312,11 +312,11 @@ public class WebPage {
                                     try {
 
                                         new WebDriverWait(
-                                                        abrWebDriver.getDriver(),
+                                                        arWebDriver.getDriver(),
                                                         Duration.ofSeconds(instruction.getActionCustomMaxWaitSec()))
                                                 .until(ExpectedConditions.presenceOfElementLocated(criteria));
                                     } catch (Exception e) {
-                                        ABRLogger.getInstance(WebPage.class)
+                                        ARLogger.getInstance(WebPage.class)
                                                 .fine(String.format(
                                                         "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
                                                         instructionPath, criteria, e.getMessage()));
@@ -326,7 +326,7 @@ public class WebPage {
 
                                         waitForAction.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                                     } catch (Exception e) {
-                                        ABRLogger.getInstance(WebPage.class)
+                                        ARLogger.getInstance(WebPage.class)
                                                 .fine(String.format(
                                                         "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
                                                         instructionPath, criteria, e.getMessage()));
@@ -337,7 +337,7 @@ public class WebPage {
                                 // SESSION  SAVED TO GET THE SAME XPATHORELEMENT
                                 if (foundElementList.size() > 1) {
                                     while (elementFound == null && k < foundElementList.size()) {
-                                        String xpath = ABRWebUtil.extractXPath(
+                                        String xpath = ARWebUtil.extractXPath(
                                                 foundElementList.get(k).toString());
 
                                         // Second Verification for XPath Found
@@ -403,10 +403,10 @@ public class WebPage {
         return driver.findElement(criteria);
     }
 
-    private void executeActionsAtInstructionCoordinates(
-            BlockLoopInstructionLoadDTO instruction, Map<String, String> data) throws Exception {
+    private void executeActionsAtInstructionCoordinates(InstructionLoadDTO instruction, Map<String, String> data)
+            throws Exception {
 
-        List<com.allinweb.ch.util.Priority> priorityList = ABRPriorities.getAllPriorityList();
+        List<com.allinweb.ch.util.Priority> priorityList = ARPriorities.getAllPriorityList();
         Optional<com.allinweb.ch.util.Priority> priority = priorityList.stream()
                 .filter(p -> p.getPriorityType() == PriorityTypeEnum.coordinates)
                 .findFirst();
@@ -421,51 +421,51 @@ public class WebPage {
             int xCoord = 0;
             int yCoord = 0;
             if (reference.isPresent()) {
-                String[] coordinates = reference.get().getValue().split(ABRConstants.FIELDS_SEPARATOR);
+                String[] coordinates = reference.get().getValue().split(ARConstants.FIELDS_SEPARATOR);
                 x = Integer.parseInt(coordinates[0]);
                 y = Integer.parseInt(coordinates[1]);
                 int maxHeight =
-                        abrWebDriver.getDriver().manage().window().getSize().getHeight();
+                        arWebDriver.getDriver().manage().window().getSize().getHeight();
                 int maxWidth =
-                        abrWebDriver.getDriver().manage().window().getSize().getWidth();
+                        arWebDriver.getDriver().manage().window().getSize().getWidth();
                 int offsetY = y - maxHeight;
                 int offsetX = x - maxWidth;
                 xCoord = x > maxWidth ? x - offsetX : x;
                 yCoord = y > maxHeight ? y - offsetY : y;
             }
-            String[] actions = instruction.getActions().split(ABRConstants.ACTIONS_AND_PATHS_SPLITTER);
+            String[] actions = instruction.getActions().split(ARConstants.ACTIONS_AND_PATHS_SPLITTER);
             for (String action : actions) {
                 switch (String.valueOf(action.charAt(0))) {
-                    case ABRConstants.VISUALIZE:
+                    case ARConstants.VISUALIZE:
                         scrollToCoordinates(x, y);
                         break;
-                    case ABRConstants.CLICK:
+                    case ARConstants.CLICK:
                         scrollToCoordinates(x, y);
                         onHoldForSeconds(null);
                         clickAtCoordinates(xCoord, yCoord);
                         break;
-                    case ABRConstants.INSERT:
+                    case ARConstants.INSERT:
                         scrollToCoordinates(x, y);
                         onHoldForSeconds(null);
                         clickAtCoordinates(xCoord, yCoord);
                         onHoldForSeconds(null);
                         typeCharacters(instruction, action, data);
                         break;
-                    case ABRConstants.HOLD:
+                    case ARConstants.HOLD:
                         onHoldForSeconds(instruction);
                         break;
-                    case ABRConstants.REFRESH_ONLY:
+                    case ARConstants.REFRESH_ONLY:
                         refreshPage();
                         break;
-                    case ABRConstants.QUIT:
+                    case ARConstants.QUIT:
                         quit(0);
                         break;
-                    case ABRConstants.SCREEN:
+                    case ARConstants.SCREEN:
                         // screenshot();
                         break;
-                    case ABRConstants.EXTRACT_FIELD:
+                    case ARConstants.EXTRACT_FIELD:
                         break;
-                    case ABRConstants.LIST_OPERATION:
+                    case ARConstants.LIST_OPERATION:
                 }
                 onHoldForSeconds(null);
             }
@@ -519,12 +519,12 @@ public class WebPage {
         new Actions(driver).moveToLocation(x, y).click().perform();
     }
 
-    private void typeCharacters(BlockLoopInstructionLoadDTO instruction, String action, Map<String, String> data) {
+    private void typeCharacters(InstructionLoadDTO instruction, String action, Map<String, String> data) {
         String value = null;
         if (data != null) {
-            String[] arr = UtilsMethods.splitIfContains(action, ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
+            String[] arr = UtilsMethods.splitIfContains(action, ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
             if (arr.length > 1) {
-                String dataFieldName = arr[1].split(ABRConstants.PATH_FIELD_SUBSTITUTION)[0];
+                String dataFieldName = arr[1].split(ARConstants.PATH_FIELD_SUBSTITUTION)[0];
                 value = data.get(dataFieldName);
             }
         } else {
@@ -533,56 +533,56 @@ public class WebPage {
         if (instruction.getCodified()) {
             value = CryptationAlgorithm.decrypt(value);
         }
-        new Actions(abrWebDriver.getDriver()).sendKeys(value).perform();
+        new Actions(arWebDriver.getDriver()).sendKeys(value).perform();
     }
 
     public String performActions(
-            Map<String, String> data, BlockLoopInstructionLoadDTO instruction, int botJobId, String blockJobName)
+            Map<String, String> data, InstructionLoadDTO instruction, int botJobId, String blockJobName)
             throws Exception {
         WebElement instructionElement = null;
-        String[] actions = instruction.getActions().split(ABRConstants.ACTIONS_AND_PATHS_SPLITTER);
+        String[] actions = instruction.getActions().split(ARConstants.ACTIONS_AND_PATHS_SPLITTER);
 
         if (!StringUtils.isBlank(instruction.getPath())) {
             instructionElement = locateElement(instruction, botJobId);
         }
         String result = null;
         if (instructionElement != null
-                || actions[0].equals(ABRConstants.HOLD)
-                || actions[0].equals(ABRConstants.QUIT)
-                || actions[0].equals(ABRConstants.SCREEN)) {
+                || actions[0].equals(ARConstants.HOLD)
+                || actions[0].equals(ARConstants.QUIT)
+                || actions[0].equals(ARConstants.SCREEN)) {
 
             for (String action : actions) {
                 switch (String.valueOf(action.charAt(0))) {
-                    case ABRConstants.VISUALIZE:
+                    case ARConstants.VISUALIZE:
                         scrollToElement(instructionElement);
                         break;
-                    case ABRConstants.CLICK:
+                    case ARConstants.CLICK:
                         result = "clickElement --> " + instruction.getName() + " --> "
                                 + clickElement(instructionElement);
                         break;
-                    case ABRConstants.INSERT:
+                    case ARConstants.INSERT:
                         result = insertInElement(instructionElement, data, action, instruction);
                         break;
-                    case ABRConstants.LIST_OPERATION:
+                    case ARConstants.LIST_OPERATION:
                         listOperation(instruction, data);
                         break;
-                    case ABRConstants.HOLD:
+                    case ARConstants.HOLD:
                         //                        executeAlert(instruction);
                         result = onHoldForSeconds(instruction);
                         break;
-                    case ABRConstants.REFRESH_ONLY:
+                    case ARConstants.REFRESH_ONLY:
                         refreshPage();
                         result = "refreshPage";
                         break;
-                    case ABRConstants.QUIT:
+                    case ARConstants.QUIT:
                         result = "Close Browser";
                         quit(0);
                         break;
-                    case ABRConstants.EXTRACT_FIELD:
+                    case ARConstants.EXTRACT_FIELD:
                         result = "insertValueFieldNameInExcel-->"
                                 + insertValueFieldNameInExcel(instructionElement, instruction, action, blockJobName);
                         break;
-                    case ABRConstants.SCREEN:
+                    case ARConstants.SCREEN:
                         result = instruction.getName() + " --> " + blockJobName;
                         break;
                 }
@@ -597,11 +597,7 @@ public class WebPage {
     }
 
     public String performActionOperator(
-            BlockLoopInstructionLoadDTO instruction,
-            String targetXPath,
-            String action,
-            String[] operations,
-            String parentField)
+            InstructionLoadDTO instruction, String targetXPath, String action, String[] operations, String parentField)
             throws Exception {
 
         WebElement instructionElement = null;
@@ -665,7 +661,7 @@ public class WebPage {
             tagName = removeTrailingSlash(targetXPath);
             tagName = extractTagName(targetXPath);
         } catch (Exception e) {
-            ABRLogger.getInstance(WebPage.class)
+            ARLogger.getInstance(WebPage.class)
                     .fine(String.format(
                             "Error RemoveTrailingSlash for %s   \nxPath  %s\nCause: %s",
                             tagName, targetXPath, e.getMessage()));
@@ -680,7 +676,7 @@ public class WebPage {
         if (criterias != null) {
 
             for (By criteria : criterias) {
-                List<WebElement> foundElementList = abrWebDriver.getDriver().findElements(criteria);
+                List<WebElement> foundElementList = arWebDriver.getDriver().findElements(criteria);
 
                 if (foundElementList != null && foundElementList.size() > 0) {
                     if (justCalledRefreshPage) {
@@ -688,7 +684,7 @@ public class WebPage {
                         try {
                             waitForPage.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                         } catch (Exception e) {
-                            ABRLogger.getInstance(WebPage.class)
+                            ARLogger.getInstance(WebPage.class)
                                     .fine(String.format(
                                             "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
                                             targetXPath, criteria, e.getMessage()));
@@ -696,10 +692,10 @@ public class WebPage {
                     } else if (actionCustomMaxWaitSec != null) {
                         try {
 
-                            new WebDriverWait(abrWebDriver.getDriver(), Duration.ofSeconds(actionCustomMaxWaitSec))
+                            new WebDriverWait(arWebDriver.getDriver(), Duration.ofSeconds(actionCustomMaxWaitSec))
                                     .until(ExpectedConditions.presenceOfElementLocated(criteria));
                         } catch (Exception e) {
-                            ABRLogger.getInstance(WebPage.class)
+                            ARLogger.getInstance(WebPage.class)
                                     .fine(String.format(
                                             "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
                                             targetXPath, criteria, e.getMessage()));
@@ -709,7 +705,7 @@ public class WebPage {
 
                             waitForAction.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                         } catch (Exception e) {
-                            ABRLogger.getInstance(WebPage.class)
+                            ARLogger.getInstance(WebPage.class)
                                     .fine(String.format(
                                             "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
                                             targetXPath, criteria, e.getMessage()));
@@ -728,7 +724,7 @@ public class WebPage {
     }
 
     private String insertValueFieldNameInExcel(
-            WebElement element, BlockLoopInstructionLoadDTO instruction, String action, String botJobName) {
+            WebElement element, InstructionLoadDTO instruction, String action, String botJobName) {
         String innerHTMLValue = element.getAttribute(WebElementAttributeEnum.INNER_HTML.getValue());
         if (innerHTMLValue.contains("<div")) {
             int lastIndexOfDiv = innerHTMLValue.lastIndexOf("<div");
@@ -738,16 +734,16 @@ public class WebPage {
             innerHTMLValue = innerHTMLValue.substring(firstIndexOfCloseTag + 1, firstIndexOfOpenTag);
         }
         String fieldName = null;
-        String[] arr = UtilsMethods.splitIfContains(action, ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
+        String[] arr = UtilsMethods.splitIfContains(action, ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
         if (arr.length > 1) {
-            fieldName = arr[1].split(ABRConstants.PATH_FIELD_SUBSTITUTION)[0];
+            fieldName = arr[1].split(ARConstants.PATH_FIELD_SUBSTITUTION)[0];
         }
 
         new ExcelWriter(botJobName, null, false).withPurpose("excel").insertValueFieldName(fieldName, innerHTMLValue);
         return action + " fieldName " + fieldName;
     }
 
-    private void listOperation(BlockLoopInstructionLoadDTO instructionDTO, Map<String, String> data) {
+    private void listOperation(InstructionLoadDTO instructionDTO, Map<String, String> data) {
 
         /*
         TODO: Da rivedere, attualmente non del tutto funzionante
@@ -757,7 +753,7 @@ public class WebPage {
         */
         List<ComplexInstructionLoadDTO> complexInstructionDTOS = instructionDTO.getComplexInstructionLoadDTOList();
         String[] complexActionParts =
-                complexInstructionDTOS.get(0).getInstruction().split(ABRConstants.COMPLEX_INSTRUCTION_SEPARATOR);
+                complexInstructionDTOS.get(0).getInstruction().split(ARConstants.COMPLEX_INSTRUCTION_SEPARATOR);
         List<WebElement> webElementList;
         WebElement forwardButton;
         WebElement backwardButton;
@@ -766,9 +762,9 @@ public class WebPage {
         boolean existNextPage;
         do {
             waitForPage.until(ExpectedConditions.visibilityOfElementLocated(By.tagName(complexActionParts[2])));
-            backwardButton = abrWebDriver.getDriver().findElement(By.xpath(complexActionParts[0]));
-            forwardButton = abrWebDriver.getDriver().findElement(By.xpath(complexActionParts[1]));
-            webElementList = abrWebDriver.getDriver().findElements(By.tagName(complexActionParts[2]));
+            backwardButton = arWebDriver.getDriver().findElement(By.xpath(complexActionParts[0]));
+            forwardButton = arWebDriver.getDriver().findElement(By.xpath(complexActionParts[1]));
+            webElementList = arWebDriver.getDriver().findElements(By.tagName(complexActionParts[2]));
 
             WebElement element;
             WebElement reasonWebElement;
@@ -776,7 +772,7 @@ public class WebPage {
 
                 if (i != 0) {
                     waitForPage.until(ExpectedConditions.visibilityOfElementLocated(By.tagName(complexActionParts[2])));
-                    webElementList = abrWebDriver.getDriver().findElements(By.tagName(complexActionParts[2]));
+                    webElementList = arWebDriver.getDriver().findElements(By.tagName(complexActionParts[2]));
                 }
 
                 element = webElementList.get(i);
@@ -792,21 +788,21 @@ public class WebPage {
                     clickElement(element.findElement(
                             By.xpath(".//button[@test-id='web-banking-payment-core.payment-ctx-action.button']")));
                     clickElement(
-                            abrWebDriver
+                            arWebDriver
                                     .getDriver()
                                     .findElement(
                                             By.xpath(
                                                     ".//button[@test-id='web-banking-payment-core.payment-ctx-action.payment-action-VIEW']")));
 
                     Thread.sleep(1000);
-                    clickElement(abrWebDriver
+                    clickElement(arWebDriver
                             .getDriver()
                             .findElement(By.xpath(
                                     ".//button[@test-id='web-banking-common.export-to-file.single-file-button']")));
 
                     Thread.sleep(1000);
                     clickElement(
-                            abrWebDriver
+                            arWebDriver
                                     .getDriver()
                                     .findElement(
                                             By.xpath(
@@ -828,19 +824,16 @@ public class WebPage {
     }
 
     private String insertInElement(
-            WebElement element,
-            Map<String, String> data,
-            String singleInstruction,
-            BlockLoopInstructionLoadDTO instructionDTO)
+            WebElement element, Map<String, String> data, String singleInstruction, InstructionLoadDTO instructionDTO)
             throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
         waitForAction.until(ExpectedConditions.visibilityOf(element));
         String dataFieldName = "";
         String dataFieldValue = "";
         if (data != null) {
-            String[] arr = UtilsMethods.splitIfContains(singleInstruction, ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
+            String[] arr = UtilsMethods.splitIfContains(singleInstruction, ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
             if (arr.length > 1) {
-                dataFieldName = arr[1].split(ABRConstants.PATH_FIELD_SUBSTITUTION)[0];
+                dataFieldName = arr[1].split(ARConstants.PATH_FIELD_SUBSTITUTION)[0];
 
                 dataFieldValue = data.get(dataFieldName);
                 if (instructionDTO.getCodified()) {
@@ -904,25 +897,24 @@ public class WebPage {
             // throw new TimeoutException();
         }
         waitForAction.until(ExpectedConditions.visibilityOf(element).andThen(e -> {
-            ((JavascriptExecutor) abrWebDriver.getDriver())
-                    .executeScript("arguments[0].scrollIntoView(true);", element);
+            ((JavascriptExecutor) arWebDriver.getDriver()).executeScript("arguments[0].scrollIntoView(true);", element);
             return waitForAction.until(ExpectedConditions.elementToBeClickable(element));
         }));
         try {
             element.click();
             try {
-                return ABRWebUtil.extractXPath(element.toString());
+                return ARWebUtil.extractXPath(element.toString());
             } catch (Exception e) {
                 return "Error: ON ABRWebUtil.extractXPath for " + element.toString();
             }
         } catch (ElementClickInterceptedException e) {
-            JavascriptExecutor jse = (JavascriptExecutor) abrWebDriver.getDriver();
+            JavascriptExecutor jse = (JavascriptExecutor) arWebDriver.getDriver();
             jse.executeScript("arguments[0].click()", element);
-            return "Error: " + ABRWebUtil.extractXPath(element.toString());
+            return "Error: " + ARWebUtil.extractXPath(element.toString());
         }
     }
 
-    public synchronized String onHoldForSeconds(BlockLoopInstructionLoadDTO instruction) throws Exception {
+    public synchronized String onHoldForSeconds(InstructionLoadDTO instruction) throws Exception {
         if (instruction != null) {
             Integer instructionSeconds = instruction.getOnHoldSeconds();
             if (instructionSeconds != null && instructionSeconds > 0) {
@@ -930,7 +922,7 @@ public class WebPage {
                 return "HOLD" + "->" + instructionSeconds + " seconds";
             } else {
                 String stopSeconds =
-                        ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DEFAULT_INSTRUCTION_STOP_SECONDS);
+                        ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DEFAULT_INSTRUCTION_STOP_SECONDS);
                 wait(fromSecondsToMilliseconds(TimeUnit.SECONDS, Integer.parseInt(stopSeconds)));
                 return "HOLD" + "->" + stopSeconds + " seconds";
             }

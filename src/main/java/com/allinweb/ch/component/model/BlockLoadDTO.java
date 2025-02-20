@@ -5,6 +5,8 @@ import lombok.Data;
 
 @Data
 public class BlockLoadDTO {
+    private String homeBankingName;
+    private Integer homeBankingId;
     private Integer id;
     private Integer blockOrderNumber;
     private String name;
@@ -16,5 +18,5 @@ public class BlockLoadDTO {
     private Boolean active;
     private Integer wait;
 
-    private List<BlockLoopInstructionLoadDTO> blockLoopInstructionLoadDTOS;
+    private List<InstructionLoadDTO> instructionLoadDTOS;
 }

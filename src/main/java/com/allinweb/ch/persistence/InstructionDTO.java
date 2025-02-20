@@ -9,21 +9,30 @@ import javax.persistence.*;
  *                                           X -> name of field
  */
 @Entity
-@Table(name = "block_loop_instruction")
+@Table(name = "instruction")
 // @SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "blockLoopInstructionSeq", allocationSize = 1)
-public class BlockLoopInstructionDTO extends BaseDTO {
+public class InstructionDTO extends BaseDTO {
 
     @Column(name = "instruction_order_number")
     private int instructionOrderNumber;
 
-    @Column(name = "actions", length = 1000)
+    @Column(name = "actions", length = 10000)
     private String actions;
 
     @Column(name = "name")
     private String name;
 
-    @Column(name = "path", length = 1000)
+    @Column(name = "path", length = 10000)
     private String path;
+
+    @Column(name = "coordinates", length = 100)
+    private String coordinates;
+
+    @Column(name = "force_coordinates")
+    private Boolean forceCoordinates;
+
+    @Column(name = "iframe_xpath", length = 10000)
+    private String iFrameXPath;
 
     @Column(name = "description")
     private String description;
@@ -85,22 +94,22 @@ public class BlockLoopInstructionDTO extends BaseDTO {
 
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("orderNumber ASC")
-    @JoinColumn(name = "block_loop_instruction_id")
+    @JoinColumn(name = "instruction_id")
     private List<ComplexInstructionDTO> complexInstructionDTOList;
 
     @OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "block_loop_instruction_id")
-    private List<InstructionReferenceDTO> instructionReferenceDTOList;
+    @JoinColumn(name = "instruction_id")
+    private List<ReferenceDTO> referenceDTOList;
 
-    public BlockLoopInstructionDTO() {
+    public InstructionDTO() {
         super();
     }
 
-    public BlockLoopInstructionDTO(int id) {
+    public InstructionDTO(int id) {
         super(id);
     }
 
-    public BlockLoopInstructionDTO(BlockDTO blockDTO) {
+    public InstructionDTO(BlockDTO blockDTO) {
         super();
         this.blockDTO = blockDTO;
     }
@@ -139,6 +148,30 @@ public class BlockLoopInstructionDTO extends BaseDTO {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getIFrameXPath() {
+        return iFrameXPath;
+    }
+
+    public void setIFrameXPath(String iFrameXPath) {
+        this.iFrameXPath = iFrameXPath;
+    }
+
+    public String getCoordinates() {
+        return coordinates;
+    }
+
+    public void setCoordinates(String coordinates) {
+        this.coordinates = coordinates;
+    }
+
+    public Boolean getForceCoordinates() {
+        return forceCoordinates;
+    }
+
+    public void setForceCoordinates(Boolean forceCoordinates) {
+        this.forceCoordinates = forceCoordinates;
     }
 
     public String getPath() {
@@ -233,12 +266,12 @@ public class BlockLoopInstructionDTO extends BaseDTO {
         this.complexInstructionDTOList = complexInstructionDTOList;
     }
 
-    public List<InstructionReferenceDTO> getInstructionReferenceDTOList() {
-        return instructionReferenceDTOList;
+    public List<ReferenceDTO> getInstructionReferenceDTOList() {
+        return referenceDTOList;
     }
 
-    public void setInstructionReferenceDTOList(List<InstructionReferenceDTO> instructionReferenceDTOList) {
-        this.instructionReferenceDTOList = instructionReferenceDTOList;
+    public void setInstructionReferenceDTOList(List<ReferenceDTO> referenceDTOList) {
+        this.referenceDTOList = referenceDTOList;
     }
 
     public String getPriority() {

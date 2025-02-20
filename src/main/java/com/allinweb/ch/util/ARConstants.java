@@ -1,6 +1,6 @@
 package com.allinweb.ch.util;
 
-public class ABRConstants {
+public class ARConstants {
 
     public enum ConditionStatus {
         NONE, // No active condition
@@ -40,9 +40,9 @@ public class ABRConstants {
     public static final String ID = "id";
 
     // DEFAULT VALUES
-    public static final String DEFAULT_NAME_ENGINE = "\\ABR_Web_Engine.jar";
-    public static final String DEFAULT_NAME_SCANNER = "\\ABR_Web_Scanner.jar";
-    public static final String DEFAULT_NAME_LAUNCHER = "\\ABR_Web_Launcher.jar";
+    public static final String DEFAULT_NAME_ENGINE = "\\AR_Web_Engine.jar";
+    public static final String DEFAULT_NAME_SCANNER = "\\AR_Web_Scanner.jar";
+    public static final String DEFAULT_NAME_LAUNCHER = "\\AR_Web_Launcher.jar";
     public static final String DEFAULT_NAME_JAVA_EXECUTABLE = "\\java.exe";
 
     public static final String DEFAULT_PATH_EXCEL = "\\excel";
@@ -52,7 +52,7 @@ public class ABRConstants {
     public static final String DEFAULT_PATH_REPORT = "\\report";
     public static final String DEFAULT_PATH_JAVA_FX = "\\javaFX";
 
-    public static final String DEFAULT_FILENAME_FOR_ABR = "_filtered_for_ABR";
+    public static final String DEFAULT_FILENAME_FOR_AR = "_filtered_for_AR";
 
     public static final String DEFAULT_VALUE_NO_IDENTIFICATION = "No significant identification found";
     public static final String TO_IGNORE = "TO IGNORE";
@@ -69,16 +69,16 @@ public class ABRConstants {
     public static final Double SPACE_XXS = 2.5D;
 
     // IMPORTANT FILE NAMES
-    public static final String FILE_NAME_ENGINE_BASE_LOG = "\\abr_web_engine_base.log";
-    public static final String FILE_NAME_ENGINE_RUN_LOG = "\\abr_web_engine_run.log";
-    public static final String FILE_NAME_ENGINE_OUTPUT_LOG = "\\abr_web_engine_output.log";
+    public static final String FILE_NAME_ENGINE_BASE_LOG = "\\ar_web_engine_base.log";
+    public static final String FILE_NAME_ENGINE_RUN_LOG = "\\ar_web_engine_run.log";
+    public static final String FILE_NAME_ENGINE_OUTPUT_LOG = "\\ar_web_engine_output.log";
     public static final String FILE_NAME_CONFIGURATION = "\\config\\configuration.properties";
     public static final String FILE_NAME_PRIORITIES = "\\priorities.properties";
     public static final String FILE_NAME_DB = "\\database.mdb";
     public static final String CURRENT_PATH = System.getProperty("user.dir");
 
     // ICON FILE NAMES
-    public static final String ICON_APPLICATION = "/ABR_icon.png";
+    public static final String ICON_APPLICATION = "/AR_icon.png";
     public static final String ICON_DIRECTORY = "/directory.png";
     public static final String ICON_REFRESH = "/refresh.png";
     public static final String ICON_REFRESH_ONLY = "/refresh-only.png";
@@ -105,6 +105,8 @@ public class ABRConstants {
     public static final String ICON_HIDDEN = "/hidden-black.png";
     public static final String ICON_INSERT = "/input_field.png";
     public static final String ICON_TEXT = "/text.png";
+    public static final String ICON_iFRAME1 = "/iFrame1.png";
+    public static final String ICON_iFRAME2 = "/iFrame2.png";
     public static final String ICON_UP = "/up.png";
     public static final String ICON_DOWN = "/down.png";
     public static final String ICON_CROSS = "/cross.png";
@@ -143,6 +145,8 @@ public class ABRConstants {
     public static final String TAB = "TAB";
     public static final String SEND_KEYS = "SEND_KEYS";
     public static final String INSERT = "I";
+    public static final String ENTER = "E";
+    public static final String INSERT_ENTER = "I:E";
     public static final String CLICK = "C";
     public static final String FOCUS = "FOCUS";
     public static final String SELECT = "SELECT";
@@ -151,7 +155,10 @@ public class ABRConstants {
     public static final String COORD_VISUALIZA = "COORD_VISUALIZA";
     public static final String COORD_CLICK = "COORD_CLICK";
     public static final String COORD_INSERT = "COORD_INSERT";
+    public static final String COORD_MOVE_CLICK_RED = "COORD_MOVE_CLICK_RED";
     public static final String VISUALIZE = "V";
+    public static final String GET_ELEMENT = "G";
+    public static final String IFRAME = "IFRAME";
     public static final String OUTPUT = "O";
     public static final String HIDDEN = "hidden";
     public static final String OTHER = "W";
@@ -193,8 +200,11 @@ public class ABRConstants {
     public static final String COMPLEX_INSTRUCTION_SEPARATOR = "\\|\\|";
 
     // actions specifications and various
-    public static final String ABSOLUT_XPATH = "ABSOLUT_XPATH"; // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
     public static final String REGULAR_XPATH = "REGULAR_XPATH"; // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
+    public static final String CUSTOM_XPATH = "CUSTOM_XPATH"; // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
+    public static final String ATTRIBUTE_ID = "ATTRIBUTE_ID";
+    public static final String ATTRIBUTE_NAME = "ATTRIBUTE_NAME";
+    public static final String SEARCH_COORD = "SEARCH_COORD";
 
     // FILE FORMATS
     public static final String FILE_FORMAT_EXCEL = ".xlsx";

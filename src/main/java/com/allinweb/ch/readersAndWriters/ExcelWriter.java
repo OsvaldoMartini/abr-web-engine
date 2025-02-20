@@ -49,7 +49,7 @@ public class ExcelWriter {
             managedExcelMap.put("excel", new ManagedExcel(botJobName, "excel", !exist, isFullPath));
             managedExcelMap.put("report", new ManagedExcel(botJobName + " (" + now + ")", "report", true, isFullPath));
         } catch (Exception ex) {
-            ABRLogger.getInstance(ExcelWriter.class)
+            ARLogger.getInstance(ExcelWriter.class)
                     .severe(String.format("Excel Folder maybe not configured. %s\nError", botJobName, ex.getMessage()));
         }
     }
@@ -69,7 +69,7 @@ public class ExcelWriter {
                         .insertValueAfterLastColumnOfRow(value, INSTRUCTION_FIELDS_ROW_INDEX + 1);
                 managedExcel.save();
             } catch (Exception ex) {
-                ABRLogger.getInstance(ExcelWriter.class)
+                ARLogger.getInstance(ExcelWriter.class)
                         .severe(String.format(
                                 "Excel Writer insertValueFieldName.Check if the file exist. File: %s\nError",
                                 botJobName, ex.getMessage()));
@@ -83,7 +83,7 @@ public class ExcelWriter {
                 //                        .insertColumValueOnLastRow(value);
                 managedExcel.save();
             } catch (Exception ex) {
-                ABRLogger.getInstance(ExcelWriter.class)
+                ARLogger.getInstance(ExcelWriter.class)
                         .severe(String.format(
                                 "Excel Writer insertValueFieldName.Check if the file exist. File: %s\nError",
                                 botJobName, ex.getMessage()));
@@ -118,7 +118,7 @@ public class ExcelWriter {
         }
 
         public boolean insertInstructionResult(
-                ABRConstants.ConditionStatus currentCondition,
+                ARConstants.ConditionStatus currentCondition,
                 String blockName,
                 String[] actions,
                 Pair<String, String> msgLoop,
@@ -128,11 +128,11 @@ public class ExcelWriter {
             try {
 
                 //                String[] splittedAction = UtilsMethods.splitIfContains(
-                //                        instruction.getActions(), ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
+                //                        instruction.getActions(), ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
                 //                String[] operations = new String[0];
                 //                if (instruction.getOperation() != null) {
                 //                    operations = UtilsMethods.splitIfContains(
-                //                            instruction.getOperation(), ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
+                //                            instruction.getOperation(), ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
                 //                }
 
                 String[] operations = !Strings.isNullOrEmpty(msgLoop.getValue())
@@ -141,47 +141,50 @@ public class ExcelWriter {
 
                 String action =
                         switch (actions[0]) {
-                            case ABRConstants.OTHER -> "OTHER";
-                            case ABRConstants.OUTPUT -> "OUTPUT";
-                            case ABRConstants.CLICK -> "CLICK";
-                            case ABRConstants.INSERT -> "INSERT";
-                            case ABRConstants.EXTRACT_FIELD -> "EXTRACT";
-                            case ABRConstants.QUIT -> "QUIT";
-                            case ABRConstants.HOLD -> "HOLD";
-                            case ABRConstants.REFRESH_ONLY -> "REFRESH";
-                            case ABRConstants.REFRESH_HOLD -> "WAIT (REFRESH LOOP)";
-                            case ABRConstants.REFRESH_LOOP -> "JUMP (REFRESH LOOP)";
-                            case ABRConstants.LOOP -> "JUMP TO";
-                            case ABRConstants.VISUALIZE -> "VISUALIZE";
-                            case ABRConstants.SEARCH -> "SEARCH";
-                            case ABRConstants.SET_VALUE -> "SET VALUE";
-                            case ABRConstants.GET_VALUE -> "GET VALUE";
-                            case ABRConstants.CHECK_VALUE -> "CHECK VALUE";
-                            case ABRConstants.GOTO -> "GO TO";
-                            case ABRConstants.IF -> "IF";
-                            case ABRConstants.ELSE -> "ELSE";
-                            case ABRConstants.ENDIF -> "ENDIF";
-                            case ABRConstants.SCREEN -> "SCREENSHOT";
-                            case ABRConstants.PAUSE -> "PAUSE";
-                            case ABRConstants.IGNORE -> "IGNORE";
-                            case ABRConstants.EXIT -> "EXIT";
-                            case ABRConstants.BY_PASS -> "BY_PASS";
-                            case ABRConstants.EXCEL_BLOCK_HEADER -> "EXCEL_BLOCK_HEADER";
+                            case ARConstants.OTHER -> "OTHER";
+                            case ARConstants.OUTPUT -> "OUTPUT";
+                            case ARConstants.CLICK -> "CLICK";
+                            case ARConstants.INSERT -> "INSERT";
+                            case ARConstants.EXTRACT_FIELD -> "EXTRACT";
+                            case ARConstants.QUIT -> "QUIT";
+                            case ARConstants.HOLD -> "HOLD";
+                            case ARConstants.REFRESH_ONLY -> "REFRESH";
+                            case ARConstants.REFRESH_HOLD -> "WAIT (REFRESH LOOP)";
+                            case ARConstants.REFRESH_LOOP -> "JUMP (REFRESH LOOP)";
+                            case ARConstants.LOOP -> "JUMP TO";
+                            case ARConstants.VISUALIZE -> "VISUALIZE";
+                            case ARConstants.SEARCH -> "SEARCH";
+                            case ARConstants.SET_VALUE -> "SET VALUE";
+                            case ARConstants.GET_VALUE -> "GET VALUE";
+                            case ARConstants.CHECK_VALUE -> "CHECK VALUE";
+                            case ARConstants.GOTO -> "GO TO";
+                            case ARConstants.IF -> "IF";
+                            case ARConstants.ELSE -> "ELSE";
+                            case ARConstants.ENDIF -> "ENDIF";
+                            case ARConstants.SCREEN -> "SCREENSHOT";
+                            case ARConstants.PAUSE -> "PAUSE";
+                            case ARConstants.IGNORE -> "IGNORE";
+                            case ARConstants.EXIT -> "EXIT";
+                            case ARConstants.BY_PASS -> "BY_PASS";
+                            case ARConstants.EXCEL_BLOCK_HEADER -> "EXCEL_BLOCK_HEADER";
                             default -> "Unsupported action";
                         };
                 String value = "";
                 String keyAction = msgLoop.getKey();
 
-                if (actions.length > 1) {
+                if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
+                    String reference = actions[2];
+                    value = data.get(reference);
+                } else if (actions[0].equals(ARConstants.INSERT)) {
                     String reference = actions[1];
                     value = data.get(reference);
                 }
 
-                if (actions.length == 2 && actions[0].equalsIgnoreCase(ABRConstants.OUTPUT)) {
+                if (actions.length == 2 && actions[0].equalsIgnoreCase(ARConstants.OUTPUT)) {
                     value = msgLoop.getValue();
                 }
 
-                if (actions[0].equalsIgnoreCase(ABRConstants.GOTO)) {
+                if (actions[0].equalsIgnoreCase(ARConstants.GOTO)) {
                     if (msgLoop.getValue().equals("Unknown")) {
                         keyAction = msgLoop.getKey();
                         value = msgLoop.getValue();
@@ -197,7 +200,7 @@ public class ExcelWriter {
                         }
                         value = String.format("GO TO Remains %s times", msgLoop.getValue());
                     }
-                } else if (actions[0].equalsIgnoreCase(ABRConstants.LOOP)) {
+                } else if (actions[0].equalsIgnoreCase(ARConstants.LOOP)) {
                     if (msgLoop.getValue().equals("Unknown")) {
                         keyAction = msgLoop.getKey();
                         value = msgLoop.getValue();
@@ -207,7 +210,7 @@ public class ExcelWriter {
                                 "Jump To Parent \"%s\"", msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
                         value = String.format("Loop Remains %s times", msgLoop.getValue());
                     }
-                } else if (actions[0].equalsIgnoreCase(ABRConstants.REFRESH_ONLY)) {
+                } else if (actions[0].equalsIgnoreCase(ARConstants.REFRESH_ONLY)) {
                     String[] msgParent = msgLoop.getKey().split(":");
                     if (msgParent.length == 1) {
                         keyAction = "Refresh for Web Page";
@@ -217,13 +220,13 @@ public class ExcelWriter {
                                 "Refresh for \"%s\"", msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
                     }
 
-                } else if (actions[0].equalsIgnoreCase(ABRConstants.REFRESH_HOLD)) {
+                } else if (actions[0].equalsIgnoreCase(ARConstants.REFRESH_HOLD)) {
                     String[] msgParent = msgLoop.getKey().split(":");
                     String[] msgValue = msgLoop.getValue().split(":");
                     keyAction =
                             String.format("Wait for \"%s\"", msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
                     value = String.format("Wait %s seconds", msgValue[0]);
-                } else if (actions[0].equalsIgnoreCase(ABRConstants.REFRESH_LOOP)) {
+                } else if (actions[0].equalsIgnoreCase(ARConstants.REFRESH_LOOP)) {
                     if (msgLoop.getValue().equals("Unknown")) {
                         keyAction = msgLoop.getKey();
                         value = msgLoop.getValue();
@@ -233,27 +236,27 @@ public class ExcelWriter {
                                 "Jump To \"%s\"", msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
                         value = String.format("Loop Remains %s times", msgLoop.getValue());
                     }
-                } else if (actions[0].equalsIgnoreCase(ABRConstants.HOLD)) {
+                } else if (actions[0].equalsIgnoreCase(ARConstants.HOLD)) {
                     value = "";
                 } else if (operations.length == 2
-                        && (actions[0].equalsIgnoreCase(ABRConstants.SET_VALUE)
-                                || actions[0].equalsIgnoreCase(ABRConstants.GET_VALUE))) {
+                        && (actions[0].equalsIgnoreCase(ARConstants.SET_VALUE)
+                                || actions[0].equalsIgnoreCase(ARConstants.GET_VALUE))) {
                     keyAction = operations[0];
                     value = operations[1];
                 } else if (operations.length == 3) {
                     value = operations[1] + " " + operations[2];
                 }
 
-                boolean byPassError = currentCondition.equals(ABRConstants.ConditionStatus.IF_FAILED)
-                        || currentCondition.equals(ABRConstants.ConditionStatus.ELSEIF_FAILED)
-                        || currentCondition.equals(ABRConstants.ConditionStatus.ELSE_FAILED)
-                        || currentCondition.equals(ABRConstants.ConditionStatus.BY_PASS);
+                boolean byPassError = currentCondition.equals(ARConstants.ConditionStatus.IF_FAILED)
+                        || currentCondition.equals(ARConstants.ConditionStatus.ELSEIF_FAILED)
+                        || currentCondition.equals(ARConstants.ConditionStatus.ELSE_FAILED)
+                        || currentCondition.equals(ARConstants.ConditionStatus.BY_PASS);
 
-                String blockCondition = currentCondition.equals(ABRConstants.ConditionStatus.IF_FAILED)
+                String blockCondition = currentCondition.equals(ARConstants.ConditionStatus.IF_FAILED)
                         ? "{IF}"
-                        : currentCondition.equals(ABRConstants.ConditionStatus.ELSEIF_FAILED)
+                        : currentCondition.equals(ARConstants.ConditionStatus.ELSEIF_FAILED)
                                 ? "{ELSEIF}"
-                                : currentCondition.equals(ABRConstants.ConditionStatus.ELSE_FAILED) ? "{ELSE}" : "";
+                                : currentCondition.equals(ARConstants.ConditionStatus.ELSE_FAILED) ? "{ELSE}" : "";
 
                 if (action.equals("EXCEL_BLOCK_HEADER")) {
                     ManagedExcelAction act = managedExcel
@@ -312,7 +315,7 @@ public class ExcelWriter {
                 managedExcel.save();
                 return true;
             } catch (Exception ex) {
-                ABRLogger.getInstance(ExcelWriter.class)
+                ARLogger.getInstance(ExcelWriter.class)
                         .severe(String.format(
                                 "InsertInstructionResult ( %s ) Error: %s ", msgLoop.getKey(), ex.getMessage()));
                 return false;
@@ -345,7 +348,7 @@ public class ExcelWriter {
         public static boolean checkIfExcelExist(String fileName, String purpose, boolean isFullPath) {
             if (!isFullPath) {
                 String fullPath = System.getProperty("user.dir") + "\\" + purpose + "\\" + fileName
-                        + ABRConstants.FILE_FORMAT_EXCEL;
+                        + ARConstants.FILE_FORMAT_EXCEL;
                 return new FileManager(fullPath).getFile().exists();
             } else {
                 return new FileManager(fileName).getFile().exists();
@@ -353,19 +356,19 @@ public class ExcelWriter {
         }
 
         public ManagedExcel(String fileName, String purpose, boolean create, boolean isFullPath) {
-            ABRPropertyEnum property =
+            ARPropertyEnum property =
                     switch (purpose) {
-                        case "report" -> ABRPropertyEnum.FOLDER_PATH_REPORT;
-                        case "excel" -> ABRPropertyEnum.FOLDER_PATH_EXCEL;
-                        case "export" -> ABRPropertyEnum.FOLDER_PATH_EXPORT;
+                        case "report" -> ARPropertyEnum.FOLDER_PATH_REPORT;
+                        case "excel" -> ARPropertyEnum.FOLDER_PATH_EXCEL;
+                        case "export" -> ARPropertyEnum.FOLDER_PATH_EXPORT;
                         default -> throw new UnsupportedOperationException("Purpose: " + purpose + " not supported");
                     };
             String fileNamePath = "";
             String fullPath = "";
 
             if (!isFullPath) {
-                fileNamePath = "\\" + fileName + ABRConstants.FILE_FORMAT_EXCEL;
-                fullPath = ABRPropertyManager.getInstance().getProperty(property) + fileNamePath;
+                fileNamePath = "\\" + fileName + ARConstants.FILE_FORMAT_EXCEL;
+                fullPath = ARPropertyManager.getInstance().getProperty(property) + fileNamePath;
             } else {
                 fullPath = fileName;
             }
@@ -506,7 +509,7 @@ public class ExcelWriter {
                 // Save the Excel after modification
 
             } catch (Exception ex) {
-                ABRLogger.getInstance(ExcelWriter.class)
+                ARLogger.getInstance(ExcelWriter.class)
                         .severe(String.format(
                                 "Excel Writer insertFieldNameAndValueLastColumn: \nError", ex.getMessage()));
             }

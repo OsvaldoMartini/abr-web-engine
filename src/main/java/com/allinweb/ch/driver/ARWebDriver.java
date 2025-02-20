@@ -2,12 +2,12 @@ package com.allinweb.ch.driver;
 
 import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementScriptFactory;
-import com.allinweb.ch.component.scene.ABRAlertScene;
+import com.allinweb.ch.component.scene.ARAlertScene;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.util.ABRConstants;
-import com.allinweb.ch.util.ABRLogger;
-import com.allinweb.ch.util.ABRPropertyEnum;
-import com.allinweb.ch.util.ABRPropertyManager;
+import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARLogger;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
 import java.io.File;
 import java.time.Duration;
@@ -17,7 +17,6 @@ import java.util.logging.Level;
 import java.util.stream.Collectors;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
-import javax.swing.*;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.WebDriver;
@@ -32,7 +31,7 @@ import org.openqa.selenium.logging.LogType;
 import org.openqa.selenium.logging.LoggingPreferences;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
-public class ABRWebDriver {
+public class ARWebDriver {
 
     private static WebDriver driver = null;
     private final WebElementScriptFactory scriptFactory = new WebElementScriptFactory();
@@ -64,16 +63,16 @@ public class ABRWebDriver {
 
             optionsConfigLines = optionsConfig.split(lineSeparator);
         } catch (Exception ex) {
-            ABRLogger.getInstance(ABRWebDriver.class).severe("Error WebDriver config Options : \n" + ex.getMessage());
+            ARLogger.getInstance(ARWebDriver.class).severe("Error WebDriver config Options : \n" + ex.getMessage());
         }
 
-        ABRLogger.getInstance(ABRWebDriver.class).fine("Going to call WebDriver for \n" + url);
+        ARLogger.getInstance(ARWebDriver.class).fine("Going to call WebDriver for \n" + url);
 
-        ABRPropertyManager managerProps = ABRPropertyManager.getInstance();
-        String webDriverPath = managerProps.getProperty(ABRPropertyEnum.PATH_WEBDRIVER);
+        ARPropertyManager managerProps = ARPropertyManager.getInstance();
+        String webDriverPath = managerProps.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
 
         if (Strings.isNullOrEmpty(webDriverPath)) {
-            ABRLogger.getInstance(ABRWebDriver.class).fine("URL IS EMPTY");
+            ARLogger.getInstance(ARWebDriver.class).fine("URL IS EMPTY");
             //            JOptionPane.showMessageDialog(
             //                    null,
             //                    "An error has occurred PATH_WEBDRIVER is NULL",
@@ -82,14 +81,14 @@ public class ABRWebDriver {
         }
 
         if (driver == null) {
-            String browser = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.BROWSER);
-            String logFolder = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_LOG);
+            String browser = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.BROWSER);
+            String logFolder = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_LOG);
             try {
                 switch (browser) {
-                    case ABRConstants.CHROME -> {
+                    case ARConstants.CHROME -> {
                         //                        String driverPath = webDriverPath + "\\chrome.exe";
                         if (!(new File(webDriverPath)).exists()) {
-                            ABRLogger.getInstance(ABRWebDriver.class).fine("Web Driver NOT EXIST \n" + webDriverPath);
+                            ARLogger.getInstance(ARWebDriver.class).fine("Web Driver NOT EXIST \n" + webDriverPath);
                         }
 
                         // "\\_chrome_browser.log");
@@ -104,11 +103,11 @@ public class ABRWebDriver {
                             driver = new ChromeDriver();
                         }
                     }
-                    case ABRConstants.EDGE -> {
+                    case ARConstants.EDGE -> {
                         //                        String driverPath = webDriverPath + "\\msedgedriver.exe";
                         if (!(new File(webDriverPath)).exists()) {
-                            ABRLogger.getInstance(ABRWebDriver.class).fine("Web Driver NOT EXIST \n" + webDriverPath);
-                            new ABRAlertScene(
+                            ARLogger.getInstance(ARWebDriver.class).fine("Web Driver NOT EXIST \n" + webDriverPath);
+                            new ARAlertScene(
                                     Alert.AlertType.WARNING,
                                     "Missing file excel",
                                     "Please generate and compile the data of the file excel first before launching the bot job",
@@ -126,10 +125,10 @@ public class ABRWebDriver {
                             driver = new EdgeDriver();
                         }
                     }
-                    case ABRConstants.FIREFOX -> {
+                    case ARConstants.FIREFOX -> {
                         //                        String driverPath = webDriverPath + "\\geckodriver.exe";
                         if (!(new File(webDriverPath)).exists()) {
-                            ABRLogger.getInstance(ABRWebDriver.class).fine("Web Driver NOT EXIST \n" + webDriverPath);
+                            ARLogger.getInstance(ARWebDriver.class).fine("Web Driver NOT EXIST \n" + webDriverPath);
                         }
                         System.setProperty("webdriver.gecko.driver", webDriverPath);
                         FirefoxOptions options = new FirefoxOptions();
@@ -156,13 +155,13 @@ public class ABRWebDriver {
                         }
                     }
 
-                    ABRLogger.getInstance(ABRWebDriver.class).severe("Error Open URL: \n" + msg1 + "\n" + msg2);
+                    ARLogger.getInstance(ARWebDriver.class).severe("Error Open URL: \n" + msg1 + "\n" + msg2);
 
                     performMessage.errorMessage("Error Open URL", msg1, msg2, null, null, 260);
                 }
 
                 //                String errorMessage = e.getMessage();
-                //                ABRLogger.getInstance(ABRWebDriver.class)
+                //                ABRLogger.getInstance(ARWebDriver.class)
                 //                        .fine("An error has occurred during driver.get(url) Load " + errorMessage);
                 //
                 //                // Split the message into chunks of 100 characters
@@ -184,10 +183,10 @@ public class ABRWebDriver {
                 //
                 //                // Example: print or log the chunks if needed
                 //                for (String chunk : messageChunks) {
-                //                    ABRLogger.getInstance(ABRWebDriver.class).fine("Error chunk: " + chunk);
+                //                    ABRLogger.getInstance(ARWebDriver.class).fine("Error chunk: " + chunk);
                 //                }
 
-                //                ABRLogger.getInstance(ABRWebDriver.class)
+                //                ABRLogger.getInstance(ARWebDriver.class)
                 //                        .severe("An error has occurred during WebDriver Load " + e.getMessage());
                 //                JOptionPane.showMessageDialog(
                 //                        null,
@@ -202,7 +201,7 @@ public class ABRWebDriver {
         }
         driver.manage().window().maximize();
         if (Strings.isNullOrEmpty(url)) {
-            ABRLogger.getInstance(ABRWebDriver.class).fine("URL IS EMPTY");
+            ARLogger.getInstance(ARWebDriver.class).fine("URL IS EMPTY");
             //            JOptionPane.showMessageDialog(
             //                    null,
             //                    "An error has occurred during WebDriver Load: \nError:  URL IE NULL",
@@ -222,7 +221,7 @@ public class ABRWebDriver {
 
         } catch (Exception e) {
             String errorMessage = e.getMessage();
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ARLogger.getInstance(ARWebDriver.class)
                     .fine("An error has occurred during driver.get(url) Load " + errorMessage);
 
             // Split the message into chunks of 100 characters
@@ -243,7 +242,7 @@ public class ABRWebDriver {
 
             // Example: print or log the chunks if needed
             for (String chunk : messageChunks) {
-                ABRLogger.getInstance(ABRWebDriver.class).fine("Error chunk: " + chunk);
+                ARLogger.getInstance(ARWebDriver.class).fine("Error chunk: " + chunk);
             }
 
             return null;
@@ -263,11 +262,11 @@ public class ABRWebDriver {
         // Options Config
         for (String line : optionsConfigLines) {
             if (line.startsWith("#")) {
-                ABRLogger.getInstance(ABRWebDriver.class).fine("COMMENTED OPTIONS: " + line);
+                ARLogger.getInstance(ARWebDriver.class).fine("COMMENTED OPTIONS: " + line);
                 continue;
             }
 
-            ABRLogger.getInstance(ABRWebDriver.class).fine("WebDriver config: \n" + line);
+            ARLogger.getInstance(ARWebDriver.class).fine("WebDriver config: \n" + line);
             String[] config = line.split(":");
             if (config.length > 1) {
                 if (config[0].equalsIgnoreCase("proxy")) {
@@ -285,8 +284,7 @@ public class ABRWebDriver {
 
                         optionsEdge.setProxy(proxy);
                     } else {
-                        ABRLogger.getInstance(ABRWebDriver.class)
-                                .severe("Error Check Options Config for Proxy is wrong");
+                        ARLogger.getInstance(ARWebDriver.class).severe("Error Check Options Config for Proxy is wrong");
                     }
                 } else if (config[0].equalsIgnoreCase("browser_log")) {
 
@@ -321,11 +319,11 @@ public class ABRWebDriver {
         // Options Config
         for (String line : optionsConfigLines) {
             if (line.startsWith("#")) {
-                ABRLogger.getInstance(ABRWebDriver.class).fine("COMMENTED OPTIONS: " + line);
+                ARLogger.getInstance(ARWebDriver.class).fine("COMMENTED OPTIONS: " + line);
                 continue;
             }
 
-            ABRLogger.getInstance(ABRWebDriver.class).fine("WebDriver config: \n" + line);
+            ARLogger.getInstance(ARWebDriver.class).fine("WebDriver config: \n" + line);
             String[] config = line.split(":");
             if (config.length > 1) {
                 if (config[0].equalsIgnoreCase("proxy")) {
@@ -343,8 +341,7 @@ public class ABRWebDriver {
 
                         optionsChrome.setProxy(proxy);
                     } else {
-                        ABRLogger.getInstance(ABRWebDriver.class)
-                                .severe("Error Check Options Config for Proxy is wrong");
+                        ARLogger.getInstance(ARWebDriver.class).severe("Error Check Options Config for Proxy is wrong");
                     }
                 } else if (config[0].equalsIgnoreCase("browser_log")) {
 
@@ -407,7 +404,7 @@ public class ABRWebDriver {
 
     private <T> T runScript(String script) {
         if (driver == null) {
-            throw new ABRWebDriverNotStartedException();
+            throw new ARWebDriverNotStartedException();
         }
         JavascriptExecutor executor = (JavascriptExecutor) driver;
         return (T) executor.executeScript(script);

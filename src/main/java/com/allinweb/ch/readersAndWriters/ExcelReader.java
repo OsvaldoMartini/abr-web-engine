@@ -1,8 +1,8 @@
 package com.allinweb.ch.readersAndWriters;
 
-import com.allinweb.ch.util.ABRConstants;
-import com.allinweb.ch.util.ABRPropertyEnum;
-import com.allinweb.ch.util.ABRPropertyManager;
+import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ExtractedData;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
@@ -50,11 +49,25 @@ public class ExcelReader {
             }
 
             // Extract block fields from actions
-            Set<String> blockFields = allActions.stream()
-                    .filter(action -> action.contains(ABRConstants.INSERT)
-                            && action.contains(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER))
-                    .map(action -> action.split(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER)[1])
-                    .collect(Collectors.toSet());
+            // Initialize a Set to hold block fields
+            Set<String> blockFields = new HashSet<>();
+
+            // Iterate over each action in allActions
+            for (String action : allActions) {
+                // Check if action contains ARConstants.INSERT and ARConstants.ACTION_SPECIFICATIONS_SPLITTER
+                if (action.contains(ARConstants.INSERT)
+                        && action.contains(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)) {
+
+                    String[] parts = action.split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
+                    if (parts.length == 3
+                            && parts[0].equals(ARConstants.INSERT)
+                            && parts[1].equals(ARConstants.ENTER)) {
+                        blockFields.add(parts[2]);
+                    } else if (parts.length == 2 && parts[0].equals(ARConstants.INSERT)) {
+                        blockFields.add(parts[1]);
+                    }
+                }
+            }
 
             // Cache field names and values from extractedData
             for (int i = fieldNamesRow.getFirstCellNum(); i < fieldNamesRow.getLastCellNum(); i++) {
@@ -144,8 +157,8 @@ public class ExcelReader {
         String paymentsFileName = paymentsFile.getName();
         int lastPeriodPos = paymentsFileName.lastIndexOf('.');
         paymentsFileName = paymentsFileName.substring(0, lastPeriodPos);
-        String logDirectory = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_LOG);
-        String logFilePath = logDirectory + "\\" + paymentsFileName + ABRConstants.FILE_FORMAT_LOG;
+        String logDirectory = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_LOG);
+        String logFilePath = logDirectory + "\\" + paymentsFileName + ARConstants.FILE_FORMAT_LOG;
 
         File logFile = null;
         try {
