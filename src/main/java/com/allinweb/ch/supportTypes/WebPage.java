@@ -165,7 +165,7 @@ public class WebPage {
 
     private WebElement locateElement(InstructionLoadDTO instruction, int botJobId) {
 
-        String instructionPath = instruction.getPath();
+        String instructionPath = instruction.getXpath();
         String tagName = null;
         try {
             tagName = removeTrailingSlash(instructionPath);
@@ -542,7 +542,7 @@ public class WebPage {
         WebElement instructionElement = null;
         String[] actions = instruction.getActions().split(ARConstants.ACTIONS_AND_PATHS_SPLITTER);
 
-        if (!StringUtils.isBlank(instruction.getPath())) {
+        if (!StringUtils.isBlank(instruction.getXpath())) {
             instructionElement = locateElement(instruction, botJobId);
         }
         String result = null;
