@@ -5,17 +5,11 @@ import lombok.Data;
 @Data
 public class InstructionReferenceLoadDTO {
     private Integer id;
+    private Integer homeBankingId;
+    private Integer botJobId;
     private String referenceType;
     private String value;
     private Integer blockLoopInstructionId;
-    private Integer botJobId;
 
     private InstructionLoadDTO instructionLoadDTO;
-
-    @Override
-    public String toString() {
-        return "InstructionReferenceLoadDTO{" + "referenceType='"
-                + referenceType + '\'' + ", value='"
-                + value + '\'' + '}';
-    }
 }

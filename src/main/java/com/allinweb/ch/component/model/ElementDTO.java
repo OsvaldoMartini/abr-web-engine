@@ -11,7 +11,7 @@ public class ElementDTO {
     private String typeElement;
     private String tagName;
     private String xPath;
-    private String text;
+    private String someText;
     private String attribId;
     private String attribName;
     private String coords;
@@ -27,7 +27,7 @@ public class ElementDTO {
         this.typeElement = other.typeElement;
         this.tagName = other.tagName;
         this.xPath = other.xPath;
-        this.text = other.text;
+        this.someText = other.someText;
         this.attribId = other.attribId;
         this.attribName = other.attribName;
         this.coords = other.coords;

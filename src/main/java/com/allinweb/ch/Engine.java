@@ -185,7 +185,7 @@ public class Engine {
             return false;
         }
 
-        botLoadJobs = performDataBase.loadBotJobComplete(botJobId);
+        botLoadJobs = performDataBase.loadCompleteJobs(botJobId);
 
         if (botLoadJobs.size() < 1) {
             ARLogger.getInstance(Engine.class).severe("Cannot find Bot Jobs with this Id:" + botJobId);
@@ -1701,27 +1701,12 @@ public class Engine {
             totalExecutionTime = performAction.getTotalExecutionTime();
 
             if (totalExecutionTime == 0) {
-                //                report.setDuration(0);
                 writerReport.insertTotalExecutionTimes(botJobStartTime, botJobStartTime);
-                //                try {
-                //                    repository.write(report);
-                //                } catch (Exception ex) {
-                //                    ABRLogger.getInstance(Engine.class).warning("Repository.write(report) Error:\n" +
-                // ex.getMessage());
-                //                }
             }
 
             // PRINT END BASE LOG//
             if (success) {
-                //                report.setStatus((short) ExcelReportStatusEnum.SUCCESS.ordinal());
-                //                report.setDuration(totalExecutionTime / 100);
                 writerReport.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
-                //                try {
-                //                    repository.write(report);
-                //                } catch (Exception ex) {
-                //                    ABRLogger.getInstance(Engine.class).warning("Repository.write(report) Error:\n" +
-                // ex.getMessage());
-                //                }
                 baseLogString = botLoadJobs.get(0).getName()
                         + ARConstants.FIELDS_SEPARATOR
                         + labelsValue.getProperty(Labels.END)
@@ -1737,17 +1722,26 @@ public class Engine {
                         + ARConstants.FIELDS_SEPARATOR
                         + labelsValue.getProperty(Labels.KO)
                         + resultActions;
-                //                report.setStatus(status);
-                //                report.setDuration(totalExecutionTime / 100);
                 writerReport.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
-                //                try {
-                //                    repository.write(report);
-                //                } catch (Exception ex) {
-                //                    ABRLogger.getInstance(Engine.class).warning("Repository.write(report) Error:\n" +
-                // ex.getMessage());
-                //                }
+                performMessage.errorMessage(
+                        "Error Trying to find an Web Element",
+                        "I ran 10 Attempts to find the Element",
+                        "Change the Action to \"Force Coordinates\"",
+                        "Last Execution",
+                        resultActions,
+                        260);
 
                 System.out.println(String.format("Failed: %s Last Execution: %s", botJobName, resultActions));
+                System.out.println("Failed to locate the element after 10 attempts");
+
+                //                performMessage.errorMessage(
+                //                        "Failed to locate the element after 10 attempts.",
+                //                        "Try rescanning the element,",
+                //                        "or change the action to \"Force Coordinates\".",
+                //                        "Last Execution:",
+                //                        resultActions,
+                //                        260);
+
             }
             printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
 

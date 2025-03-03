@@ -2,7 +2,6 @@ package com.allinweb.ch.driver;
 
 import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementScriptFactory;
-import com.allinweb.ch.component.scene.ARAlertScene;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
@@ -15,8 +14,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
+import javax.swing.*;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.WebDriver;
@@ -54,6 +52,14 @@ public class ARWebDriver {
     }
 
     public WebDriver openDriver(String url, String optionsConfig) {
+
+        if (Strings.isNullOrEmpty(url.trim())) {
+            ARLogger.getInstance(ARWebDriver.class).fine("URL IS EMPTY");
+
+            performMessage.errorMessage("URL IS EMPTY", "URL Web Browser is Empty", null, null, null, 0);
+
+            return null;
+        }
 
         String lineSeparator = identifyLineSeparator(optionsConfig);
 
@@ -107,11 +113,12 @@ public class ARWebDriver {
                         //                        String driverPath = webDriverPath + "\\msedgedriver.exe";
                         if (!(new File(webDriverPath)).exists()) {
                             ARLogger.getInstance(ARWebDriver.class).fine("Web Driver NOT EXIST \n" + webDriverPath);
-                            new ARAlertScene(
-                                    Alert.AlertType.WARNING,
-                                    "Missing file excel",
-                                    "Please generate and compile the data of the file excel first before launching the bot job",
-                                    new ButtonType[] {ButtonType.OK});
+                            //                            new ARAlertScene(
+                            //                                    Alert.AlertType.WARNING,
+                            //                                    "Missing file excel",
+                            //                                    "Please generate and compile the data of the file
+                            // excel first before launching the bot job",
+                            //                                    new ButtonType[] {ButtonType.OK});
                         }
                         // Set path to Edge WebDriver executable
                         System.setProperty("webdriver.edge.driver", webDriverPath);
@@ -136,80 +143,15 @@ public class ARWebDriver {
                         driver = new FirefoxDriver(options);
                     }
                 }
-            } catch (Exception e) {
-                if (!e.getMessage().contains("Current browser version")) {
-                    String[] lines = e.getMessage().split("\n");
-
-                    String msg1 = "";
-                    String msg2 = "";
-
-                    for (String line : lines) {
-                        int indexMessage = line.indexOf("Message: ");
-                        if (indexMessage != -1) {
-                            msg1 = line.substring(indexMessage + "Message: ".length());
-                        }
-
-                        int indexBrowserVersion = line.indexOf("Current browser version");
-                        if (indexBrowserVersion != -1) {
-                            msg2 = line.substring(indexBrowserVersion);
-                        }
-                    }
-
-                    ARLogger.getInstance(ARWebDriver.class).severe("Error Open URL: \n" + msg1 + "\n" + msg2);
-
-                    performMessage.errorMessage("Error Open URL", msg1, msg2, null, null, 260);
-                }
-
-                //                String errorMessage = e.getMessage();
-                //                ABRLogger.getInstance(ARWebDriver.class)
-                //                        .fine("An error has occurred during driver.get(url) Load " + errorMessage);
-                //
-                //                // Split the message into chunks of 100 characters
-                //                int maxLength = 100;
-                //                int messageLength = errorMessage.length();
-                //                int parts = (int) Math.ceil((double) messageLength / maxLength);
-                //                String[] messageChunks = new String[parts];
-                //
-                //                for (int i = 0; i < parts; i++) {
-                //                    int startIndex = i * maxLength;
-                //                    int endIndex = Math.min(startIndex + maxLength, messageLength);
-                //                    messageChunks[i] = errorMessage.substring(startIndex, endIndex);
-                //                }
-                //
-                //                // Pass a meaningful message for further actions
-                //                performMessage.errorMessage(
-                //                        "Error Open URL", messageChunks[0], messageChunks[1], messageChunks[2],
-                // messageChunks[3], 0);
-                //
-                //                // Example: print or log the chunks if needed
-                //                for (String chunk : messageChunks) {
-                //                    ABRLogger.getInstance(ARWebDriver.class).fine("Error chunk: " + chunk);
-                //                }
-
-                //                ABRLogger.getInstance(ARWebDriver.class)
-                //                        .severe("An error has occurred during WebDriver Load " + e.getMessage());
-                //                JOptionPane.showMessageDialog(
-                //                        null,
-                //                        "An error has occurred during WebDriver Load: \nError:" + e.getMessage() +
-                // "\nCause: "
-                //                                + e.getCause(),
-                //                        "Error in WebDriver Load",
-                //                        JOptionPane.ERROR_MESSAGE);
-
-                throw new UnsupportedOperationException(e.getMessage());
+            } catch (Exception error) {
+                throw new UnsupportedOperationException(error.getMessage());
             }
         }
+
         driver.manage().window().maximize();
-        if (Strings.isNullOrEmpty(url)) {
-            ARLogger.getInstance(ARWebDriver.class).fine("URL IS EMPTY");
-            //            JOptionPane.showMessageDialog(
-            //                    null,
-            //                    "An error has occurred during WebDriver Load: \nError:  URL IE NULL",
-            //                    "Error in WebDriver Load",
-            //                    JOptionPane.ERROR_MESSAGE);
-        }
 
         try {
+
             driver.get(url);
 
             // Wait for the page to finish loading
@@ -220,6 +162,7 @@ public class ARWebDriver {
                     .equals("complete"));
 
         } catch (Exception e) {
+
             String errorMessage = e.getMessage();
             ARLogger.getInstance(ARWebDriver.class)
                     .fine("An error has occurred during driver.get(url) Load " + errorMessage);
@@ -244,7 +187,6 @@ public class ARWebDriver {
             for (String chunk : messageChunks) {
                 ARLogger.getInstance(ARWebDriver.class).fine("Error chunk: " + chunk);
             }
-
             return null;
 
             //            JOptionPane.showMessageDialog(
@@ -298,7 +240,7 @@ public class ARWebDriver {
                     optionsEdge.setCapability(
                             "ms:edgeOptions",
                             "{verbose: true, loggingPrefs: {" + "\"browser\": \"ALL\", \"driver\": \"ALL\"}}");
-                } else if (config[0].equalsIgnoreCase("argument")) {
+                } else if (config[0].startsWith("arg")) {
                     optionsEdge.addArguments(config[1]);
                     //                        options.addArguments("--disable-infobars");
                     //                        options.addArguments("--disable-dev-shm-usage");

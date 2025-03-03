@@ -16,6 +16,7 @@ public class BlockDetailsDTO {
     private Integer botJobId;
     private Boolean forceOrder;
     private String exportFile;
-    private List<InstructionDTO> updatedInstructions; // For originalBlock
-    private List<InstructionDTO> instructions; // For newBlock
+    private String sessionId;
+    private List<InstructionLoadDTO> updatedInstructions; // For originalBlock
+    private List<InstructionLoadDTO> instructions; // For newBlock
 }

@@ -9,5 +9,7 @@ public class RollBackBlocksDTO {
     private Integer botJobId;
     private Integer blockId;
     private String blockName;
-    private List<InstructionDTO> instructions;
+    private Integer homeBankingId;
+    private String sessionId;
+    private List<InstructionLoadDTO> instructions;
 }

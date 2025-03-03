@@ -18,7 +18,7 @@ public class InstructionLoadDTO {
     private Integer instructionOrderNumber;
     private String actions;
     private String name;
-    private String path;
+    private String xpath;
     private String coordinates;
     private Boolean forceCoordinates;
     private String iFrameXPath;
@@ -45,6 +45,10 @@ public class InstructionLoadDTO {
     private Boolean refreshLoop;
     private Boolean loopOnly;
     private Integer variableId;
+    private String type;
+    private Integer instructionId;
+    private String instructionName;
+    private String sessionId;
 
     private List<ComplexInstructionLoadDTO> complexInstructionLoadDTOList;
     private List<InstructionReferenceLoadDTO> instructionReferenceLoadDTOList;
