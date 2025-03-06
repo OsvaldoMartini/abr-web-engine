@@ -874,14 +874,20 @@ public class PerformActions {
 
                             if (foundElementList != null && foundElementList.size() > 0 && iframeElement == null) {
                                 // Wait for element visibility and process
-                                try {
-                                    waitForAction.until(ExpectedConditions.visibilityOfAllElementsLocatedBy(criteria));
-                                } catch (Exception e) {
-                                    ARLogger.getInstance(PerformActions.class)
-                                            .fine(String.format(
-                                                    "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
-                                                    instructionPath, criteria, e.getMessage()));
-                                }
+                                //                                try {
+                                //
+                                // waitForAction.until(ExpectedConditions.visibilityOfAllElementsLocatedBy(criteria));
+                                //
+                                // waitForPage.until(ExpectedConditions.visibilityOfElementLocated(criteria));
+                                //                                    scrollToElement(currentInstruction.getXpath());
+                                //                                } catch (Exception e) {
+                                //                                    ARLogger.getInstance(PerformActions.class)
+                                //                                            .fine(String.format(
+                                //                                                    "Could Not Find xPath \"%s\"
+                                // Criteria \"%s\" -> Cause: %s",
+                                //                                                    instructionPath, criteria,
+                                // e.getMessage()));
+                                //                                }
 
                                 // If multiple elements found, verify each
                                 if (foundElementList.size() > 1) {
@@ -1159,17 +1165,18 @@ public class PerformActions {
             throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
 
-        try {
-            waitForAction.until(ExpectedConditions.visibilityOf(element));
-        } catch (Exception e) {
-            ARLogger.getInstance(PerformActions.class)
-                    .fine(String.format(
-                            "Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
-            if (!byPassNotFound) {
-                performMessage.couldNotFindElement(element.getTagName());
-            }
-            return false;
-        }
+        //        try {
+        //            waitForAction.until(ExpectedConditions.visibilityOf(element));
+        //        } catch (Exception e) {
+        //            ARLogger.getInstance(PerformActions.class)
+        //                    .fine(String.format(
+        //                            "Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(),
+        // e.getMessage()));
+        //            if (!byPassNotFound) {
+        //                performMessage.couldNotFindElement(element.getTagName());
+        //            }
+        //            return false;
+        //        }
 
         try {
 
@@ -2443,6 +2450,25 @@ public class PerformActions {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    private void scrollToElement(String spath) {
+        WebDriver driver = arWebDriver.getDriver();
+        WebElement element = new WebDriverWait(driver, Duration.ofSeconds(10))
+                .until(ExpectedConditions.presenceOfElementLocated(By.xpath(spath)));
+
+        String script = "function getScrollableParent(element) {"
+                + "    let value = window.getComputedStyle(element).overflowY;"
+                + "    if(value !== 'scroll' && value !== 'auto') {"
+                + "        return getScrollableParent(element.parentNode);"
+                + "    }"
+                + "    return element;"
+                + "}"
+                + "let el = arguments[0];"
+                + "getScrollableParent(el).scrollTo({ top: el.offsetTop, behavior: 'smooth' });"
+                + "return true;";
+
+        ((JavascriptExecutor) driver).executeScript(script, element);
     }
 
     private void scrollToCoordinates(int x, int y) {
