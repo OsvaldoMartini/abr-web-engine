@@ -62,6 +62,7 @@ public class Engine {
     private static final PerformDataBase performDataBase;
     private static final PerformActions performAction;
     private static ARPriorities abrPriorities;
+    private static ARWebDriver arWebDriver;
 
     // Static block to initialize
     static {
@@ -229,7 +230,7 @@ public class Engine {
             //                    homeBankingDTO.getOptionsConfig(),
             //                    mapOperators);
 
-            ARWebDriver arWebDriver = new ARWebDriver();
+            arWebDriver = new ARWebDriver();
             arWebDriver.openDriver(homeBankingLoad.getUrl(), homeBankingLoad.getOptionsConfig());
 
             // Ensure botJob and abrPriorities are not null before accessing their methods
@@ -1697,6 +1698,8 @@ public class Engine {
                     }
                 }
             }
+
+            arWebDriver.getDriver().quit();
 
             totalExecutionTime = performAction.getTotalExecutionTime();
 
