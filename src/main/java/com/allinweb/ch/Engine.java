@@ -748,7 +748,7 @@ public class Engine {
                             if (actions[0].equalsIgnoreCase(ARConstants.PAUSE)) {
                                 pauseOperation = true;
 
-                                respModal = performMessage.showCustomModalDialog(
+                                respModal = performMessage.showCustomModalDialogDrag(
                                         "PAUSE BOT JOB",
                                         String.format("PAUSE BOT JOB at Block Name:\"%s\"", blockLoad.getName()),
                                         " Please click OK to continue!",
@@ -1699,7 +1699,7 @@ public class Engine {
                 }
             }
 
-            arWebDriver.getDriver().quit();
+            //            arWebDriver.getDriver().quit();
 
             totalExecutionTime = performAction.getTotalExecutionTime();
 
@@ -1727,10 +1727,10 @@ public class Engine {
                         + resultActions;
                 writerReport.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
                 performMessage.errorMessage(
-                        "Error Trying to find an Web Element",
-                        "I ran 10 Attempts to find the Element",
-                        "Change the Action to \"Force Coordinates\"",
-                        "Last Execution",
+                        "Failed to locate the element after 10 attempts.",
+                        "Try rescanning the element,",
+                        "or change the action to \"Force Coordinates\".",
+                        "Last Execution:",
                         resultActions,
                         260);
 

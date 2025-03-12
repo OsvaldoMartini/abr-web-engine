@@ -404,7 +404,7 @@ public class PerformActions {
     }
 
     //    private void callErrorMessageNotEnabled(String criteria) {
-    //        performMessage.showCustomModalDialog(
+    //        performMessage.showCustomModalDialogDrag(
     //                String.format("The Element \"%s\" is not Enabled", criteria),
     //                "1. Consider Fill Up all the Mandatory Fields",
     //                null,
@@ -1106,7 +1106,7 @@ public class PerformActions {
         UtilsMethods.exceptionIfNullWebElement(element);
         if (!element.isEnabled()) {
             //        callErrorMessageNotEnabled(element.getTagName());
-            performMessage.showCustomModalDialog(
+            performMessage.showCustomModalDialogDrag(
                     "BOT JOB STOP",
                     String.format("The Element \"%s\" is not Enabled", element.getTagName()),
                     "Consider Fill Up all the Mandatory Fields!");
@@ -2194,7 +2194,7 @@ public class PerformActions {
 
         if (showMessage) {
             // If no matching condition is found, show an error dialog
-            performMessage.showCustomModalDialog(
+            performMessage.showCustomModalDialogDrag(
                     "ERROR ON CONDITIONAL BLOCK",
                     String.format(
                             "Cannot find a matching condition for \"%s\" greater than the current index %d",
