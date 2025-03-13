@@ -73,7 +73,6 @@ public class Engine {
     }
 
     public static void main(String[] args) {
-
         System.out.println("ENGINE STARTED");
         for (int i = 0; i < args.length; i++) {
             System.out.println("PARAM " + i + ">> " + args[i]);
@@ -748,7 +747,7 @@ public class Engine {
                             if (actions[0].equalsIgnoreCase(ARConstants.PAUSE)) {
                                 pauseOperation = true;
 
-                                respModal = performMessage.showCustomModalDialogDrag(
+                                respModal = performMessage.showCustomModalDialogDragWin11(
                                         "PAUSE BOT JOB",
                                         String.format("PAUSE BOT JOB at Block Name:\"%s\"", blockLoad.getName()),
                                         " Please click OK to continue!",
@@ -1699,17 +1698,16 @@ public class Engine {
                 }
             }
 
-            //            arWebDriver.getDriver().quit();
-
             totalExecutionTime = performAction.getTotalExecutionTime();
 
             if (totalExecutionTime == 0) {
                 writerReport.insertTotalExecutionTimes(botJobStartTime, botJobStartTime);
+            } else {
+                writerReport.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
             }
 
             // PRINT END BASE LOG//
             if (success) {
-                writerReport.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
                 baseLogString = botLoadJobs.get(0).getName()
                         + ARConstants.FIELDS_SEPARATOR
                         + labelsValue.getProperty(Labels.END)
@@ -1718,6 +1716,20 @@ public class Engine {
 
                 System.out.println(String.format("Success: %s Last Execution: %s", botJobName, resultActions));
 
+                respModal = performMessage.showCustomModalDialogDragWin11(
+                        "Bot-Job Finished - successfully",
+                        botJobName,
+                        "Last Execution:",
+                        resultActions,
+                        null,
+                        false,
+                        "OK",
+                        "Close Browser",
+                        260);
+                if (respModal.equals(ARConstants.DialogModal.STOP)) {
+                    arWebDriver.getDriver().quit();
+                }
+
             } else {
                 baseLogString = botLoadJobs.get(0).getName()
                         + ARConstants.FIELDS_SEPARATOR
@@ -1725,7 +1737,7 @@ public class Engine {
                         + ARConstants.FIELDS_SEPARATOR
                         + labelsValue.getProperty(Labels.KO)
                         + resultActions;
-                writerReport.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
+
                 performMessage.errorMessage(
                         "Failed to locate the element after 10 attempts.",
                         "Try rescanning the element,",

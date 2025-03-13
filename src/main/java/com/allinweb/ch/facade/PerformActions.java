@@ -353,7 +353,7 @@ public class PerformActions {
                         } catch (Exception e) {
                             ARLogger.getInstance(PerformActions.class)
                                     .fine(String.format(
-                                            "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
+                                            "Could Not Find the element by xPath \"%s\" Criteria \"%s\" -> Cause: %s",
                                             targetXPath, criteria, e.getMessage()));
 
                             showNotFoundElement(targetXPath, criteria);
@@ -361,7 +361,9 @@ public class PerformActions {
                             //                                SwingUtilities.invokeLater(() ->
 
                             if (!byPassNotFound) {
-                                performMessage.couldNotFindElement(String.valueOf(criteria));
+                                //
+                                // performMessage.couldNotFindElement(String.valueOf(criteria));
+                                performMessage.couldNotInputBotJobVeryFast("Could Not Find the element by xPath");
                             }
                         }
                     } else if (actionCustomMaxWaitSec != null) {
@@ -371,10 +373,12 @@ public class PerformActions {
                         } catch (Exception e) {
                             ARLogger.getInstance(PerformActions.class)
                                     .fine(String.format(
-                                            "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
+                                            "Could Not Find the element by xPath \"%s\" Criteria \"%s\" -> Cause: %s",
                                             targetXPath, criteria, e.getMessage()));
                             if (!byPassNotFound) {
-                                performMessage.couldNotFindElement(String.valueOf(criteria));
+                                //
+                                // performMessage.couldNotFindElement(String.valueOf(criteria));
+                                performMessage.couldNotInputBotJobVeryFast("Could Not Find the element by xPath");
                             }
                         }
                     } else {
@@ -383,11 +387,13 @@ public class PerformActions {
                         } catch (Exception e) {
                             ARLogger.getInstance(PerformActions.class)
                                     .fine(String.format(
-                                            "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
+                                            "Could Not Find hte element by xPath \"%s\" Criteria \"%s\" -> Cause: %s",
                                             targetXPath, criteria, e.getMessage()));
 
                             if (!byPassNotFound) {
-                                performMessage.couldNotFindElement(String.valueOf(criteria));
+                                //
+                                // performMessage.couldNotFindElement(String.valueOf(criteria));
+                                performMessage.couldNotInputBotJobVeryFast("Could Not Find the element by xPath");
                             }
                         }
                     }
@@ -404,7 +410,7 @@ public class PerformActions {
     }
 
     //    private void callErrorMessageNotEnabled(String criteria) {
-    //        performMessage.showCustomModalDialogDrag(
+    //        performMessage.showCustomModalDialogDragWin11(
     //                String.format("The Element \"%s\" is not Enabled", criteria),
     //                "1. Consider Fill Up all the Mandatory Fields",
     //                null,
@@ -992,7 +998,8 @@ public class PerformActions {
                             fieldName, dataFieldValue, e.getMessage()));
 
             if (!byPassNotFound) {
-                performMessage.couldNotFindElement(fieldName);
+                //                performMessage.couldNotFindElement(fieldName);
+                performMessage.couldNotInputBotJobVeryFast("Could Not Find TagName " + element.getTagName());
             }
         }
 
@@ -1015,7 +1022,8 @@ public class PerformActions {
                             "Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
 
             if (!byPassNotFound) {
-                performMessage.couldNotFindElement(element.getTagName());
+                //                performMessage.couldNotFindElement(element.getTagName());
+                performMessage.couldNotInputBotJobVeryFast("Could Not Find TagName " + element.getTagName());
             }
         }
 
@@ -1077,7 +1085,8 @@ public class PerformActions {
                         .warning(String.format(
                                 "WaitForPage.until(d -> ((JavascriptExecutor) driver) error: %s", ex.getMessage()));
 
-                performMessage.couldNotFindElement("WaitForPage.until");
+                //                performMessage.couldNotFindElement("WaitForPage.until");
+                performMessage.couldNotInputBotJobVeryFast("WaitForPage.until ");
             }
         } else {
             // Handle the case when driver is null (e.g., throw an exception or initialize the driver)
@@ -1096,7 +1105,9 @@ public class PerformActions {
                     .severe(String.format(
                             "Failed to Scroll to Element \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
             if (!byPassNotFound) {
-                performMessage.couldNotFindElement("Failed to Scroll to Element " + element.getTagName());
+                //                performMessage.couldNotFindElement("Failed to Scroll to Element " +
+                // element.getTagName());
+                performMessage.couldNotInputBotJobVeryFast("Failed to Scroll to Element " + element.getTagName());
             }
             return false;
         }
@@ -1106,7 +1117,7 @@ public class PerformActions {
         UtilsMethods.exceptionIfNullWebElement(element);
         if (!element.isEnabled()) {
             //        callErrorMessageNotEnabled(element.getTagName());
-            performMessage.showCustomModalDialogDrag(
+            performMessage.showCustomModalDialogDragWin11(
                     "BOT JOB STOP",
                     String.format("The Element \"%s\" is not Enabled", element.getTagName()),
                     "Consider Fill Up all the Mandatory Fields!");
@@ -1165,18 +1176,17 @@ public class PerformActions {
             throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
 
-        //        try {
-        //            waitForAction.until(ExpectedConditions.visibilityOf(element));
-        //        } catch (Exception e) {
-        //            ARLogger.getInstance(PerformActions.class)
-        //                    .fine(String.format(
-        //                            "Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(),
-        // e.getMessage()));
-        //            if (!byPassNotFound) {
-        //                performMessage.couldNotFindElement(element.getTagName());
-        //            }
-        //            return false;
-        //        }
+        try {
+            waitForAction.until(ExpectedConditions.visibilityOf(element));
+        } catch (Exception e) {
+            ARLogger.getInstance(PerformActions.class)
+                    .fine(String.format(
+                            "Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
+            //                    if (!byPassNotFound) {
+            //                        performMessage.couldNotFindElement(element.getTagName());
+            //                    }
+            //                    return false;
+        }
 
         try {
 
@@ -1226,7 +1236,8 @@ public class PerformActions {
                     .severe(String.format(
                             "Could Not Input Value to \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
 
-            //            performMessage.couldNotFindElement("Could Input Values to Element " + element.getTagName());
+            //                        performMessage.couldNotInputBotJobVeryFast("Could Input Values to Element " +
+            // element.getTagName());
             return false;
         }
 
@@ -1283,9 +1294,9 @@ public class PerformActions {
                     .fine(String.format(
                             "Could Not Find Select \"%s\" Value  \"%s\" -> Cause: %s",
                             data.getKey(), data.getValue(), e.getMessage()));
-            if (!byPassNotFound) {
-                performMessage.couldNotFindElement(data.getKey());
-            }
+            //            if (!byPassNotFound) {
+            //                performMessage.couldNotFindElement(data.getKey());
+            //            }
         }
 
         try {
@@ -1302,7 +1313,9 @@ public class PerformActions {
                     .severe(String.format(
                             "Could Not Input Value to \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
 
-            performMessage.couldNotFindElement("Could Input Values to Element " + element.getTagName());
+            //            performMessage.couldNotFindElement("Could Input Values to Element " + element.getTagName());
+
+            performMessage.couldNotInputBotJobVeryFast("Could Input Values to Element " + element.getTagName());
 
             return false;
         }
@@ -1327,7 +1340,8 @@ public class PerformActions {
                             String.format("Could Not Find Field Name \"%s\" -> Cause: %s", fieldName, ex.getMessage()));
 
             if (!byPassNotFound) {
-                performMessage.couldNotFindElement(fieldName);
+                //                performMessage.couldNotFindElement(fieldName);
+                performMessage.couldNotInputBotJobVeryFast("Could Not Find Field Name " + fieldName);
             }
             return false;
         }
@@ -1442,7 +1456,8 @@ public class PerformActions {
                                 complexActionParts[2], By.tagName(complexActionParts[2]), e.getMessage()));
 
                 if (!byPassNotFound) {
-                    performMessage.couldNotFindElement(complexActionParts[2]);
+                    //                    performMessage.couldNotFindElement(complexActionParts[2]);
+                    performMessage.couldNotInputBotJobVeryFast("Could Not Find TagName " + complexActionParts[2]);
                 }
             }
 
@@ -1467,7 +1482,9 @@ public class PerformActions {
                                         complexActionParts[2], By.tagName(complexActionParts[2]), e.getMessage()));
 
                         if (!byPassNotFound) {
-                            performMessage.couldNotFindElement(complexActionParts[2]);
+                            //                            performMessage.couldNotFindElement(complexActionParts[2]);
+                            performMessage.couldNotInputBotJobVeryFast(
+                                    "Could Not Find TagName " + complexActionParts[2]);
                         }
                     }
                 }
@@ -2194,7 +2211,7 @@ public class PerformActions {
 
         if (showMessage) {
             // If no matching condition is found, show an error dialog
-            performMessage.showCustomModalDialogDrag(
+            performMessage.showCustomModalDialogDragWin11(
                     "ERROR ON CONDITIONAL BLOCK",
                     String.format(
                             "Cannot find a matching condition for \"%s\" greater than the current index %d",

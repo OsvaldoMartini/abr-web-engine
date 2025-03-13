@@ -13,6 +13,7 @@ import com.google.gson.GsonBuilder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.HierarchyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
@@ -52,7 +53,7 @@ public class PerformMessage {
     public void initializePerformMessages() {}
 
     public void couldNotFindElement(String criteria) {
-        showCustomModalDialog(
+        showCustomModalDialogDragWin11(
                 criteria,
                 "1. Verify if you are on the correct web page.",
                 "2. Check if the page layout or content has been updated. (Page Refreshed)",
@@ -64,8 +65,21 @@ public class PerformMessage {
                 0);
     }
 
+    public void couldNotInputBotJobVeryFast(String criteria) {
+        showCustomModalDialogDragWin11(
+                criteria,
+                "If fields are written to previous fields, it means they depend on parent data.",
+                "Data loading delays may require waiting time.",
+                "Our AI report analysis can precisely determine the necessary wait times.",
+                "Schedule a consultation with our Commercial Advisor to get your free AI report",
+                true,
+                "OK",
+                null,
+                0);
+    }
+
     public void multipleActionsElement(String criteria) {
-        showCustomModalDialog(
+        showCustomModalDialogDragWin11(
                 criteria,
                 "Attention Required!",
                 "This element may require multiple actions.",
@@ -78,7 +92,7 @@ public class PerformMessage {
     }
 
     public void errorMessage(String criteria, String msg1, String msg2, String msg3, String msg4, int height) {
-        showCustomModalDialogDrag(criteria, msg1, msg2, msg3, msg4, true, "OK", null, height);
+        showCustomModalDialogDragWin11(criteria, msg1, msg2, msg3, msg4, true, "OK", null, height);
     }
 
     public static void showCustomDialog(String title, String message) {
@@ -379,7 +393,7 @@ public class PerformMessage {
 
         // Set dialog size dynamically
         if (height > 0) {
-            dialog.setSize(350, height);
+            dialog.setSize(380, height);
         } else if (message2 != null && message3 == null && message4 == null) {
             dialog.setSize(380, 210);
         } else if (message2 != null && message3 != null && message4 == null) {
@@ -476,6 +490,125 @@ public class PerformMessage {
         return status[0];
     }
 
+    /**
+     * Creates a styled button with Windows 11 theme
+     */
+    public static ARConstants.DialogModal showCustomModalDialogDragWin11(
+            String title,
+            String message,
+            String message2,
+            String message3,
+            String message4,
+            boolean redMsg,
+            String firstButton,
+            String secondButton,
+            int height) {
+
+        // Create a JDialog as a custom modal message dialog
+        JDialog dialog = new JDialog((Frame) null, title, true); // Modal dialog
+        dialog.setUndecorated(true); // Remove the default border
+
+        // Set dialog size dynamically
+        if (height > 0) {
+            dialog.setSize(380, height);
+        } else if (message2 != null && message3 == null && message4 == null) {
+            dialog.setSize(380, 210);
+        } else if (message2 != null && message3 != null && message4 == null) {
+            dialog.setSize(380, 250);
+        } else if (message2 != null && message3 != null && message4 != null) {
+            dialog.setSize(380, 280);
+        } else {
+            dialog.setSize(380, 150);
+        }
+
+        dialog.setLocationRelativeTo(null); // Center on screen
+
+        // Main panel
+        JPanel panel = new JPanel();
+        panel.setBackground(new Color(243, 243, 243)); // Windows 11 Light Gray
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(200, 200, 200)), // Border color
+                BorderFactory.createEmptyBorder(20, 20, 20, 20))); // Padding
+        panel.setLayout(new BorderLayout());
+
+        // Build the message
+        String titleMessage = "<html><br><span style='color: blue;'>"
+                + "<span  style='font-size: 14px; font-weight: bold;'>" + title
+                + "</span><br>------------------------------<br>";
+
+        String concatenateMsg = "<span style='color: blue;'>" + message;
+        if (message2 != null) {
+            concatenateMsg +=
+                    "</span><br>------------------------------<br><span style='color: blue;'>" + message2 + "</span>";
+        } else {
+            concatenateMsg += "</span><br>------------------------------<br><br>                            <br>";
+        }
+
+        if (message3 != null && message4 == null) {
+            concatenateMsg +=
+                    "<br>------------------------------<br><span style='color: blue;'>" + message3 + "</span></html>";
+        } else if (message3 != null && message4 != null) {
+            concatenateMsg += "<br>------------------------------<br><span style='color: blue;'>"
+                    + message3 + "</span><br>------------------------------<br><span style='color: blue;'>"
+                    + message4 + "</span><br><br></html>";
+        } else {
+            concatenateMsg += "</html>";
+        }
+
+        // Apply red color if redMsg is true
+        if (redMsg) {
+            concatenateMsg = concatenateMsg.replaceAll("blue", "#D32F2F");
+        }
+        concatenateMsg = titleMessage + concatenateMsg;
+
+        // Create a JLabel to display the formatted message
+        JLabel messageLabel = new JLabel(concatenateMsg, SwingConstants.CENTER);
+        messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+        panel.add(messageLabel, BorderLayout.CENTER);
+
+        final ARConstants.DialogModal[] status = {ARConstants.DialogModal.NONE};
+
+        // Create button panel if second button exists
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 0));
+        buttonPanel.setBackground(new Color(243, 243, 243)); // Windows 11 Light Gray
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        Dimension buttonSize = new Dimension(150, 20);
+
+        // OK button
+        JButton okButton = createStyledButtonWin11(firstButton);
+        okButton.setPreferredSize(buttonSize);
+        okButton.addActionListener(e -> {
+            dialog.dispose();
+            status[0] = ARConstants.DialogModal.OK;
+        });
+        buttonPanel.add(okButton);
+
+        // Stop button if provided
+        if (!Strings.isNullOrEmpty(secondButton)) {
+            JButton stopButton = createStyledButtonWin11(secondButton);
+            stopButton.setPreferredSize(buttonSize);
+            stopButton.addActionListener(e -> {
+                System.out.println("Stop button clicked!");
+                dialog.dispose();
+                status[0] = ARConstants.DialogModal.STOP;
+            });
+            buttonPanel.add(stopButton);
+        }
+
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+
+        // Add drag support
+        addDragSupport(dialog, panel);
+
+        // Add panel to dialog
+        dialog.getContentPane().add(panel);
+        dialog.setAlwaysOnTop(true);
+        dialog.setVisible(true); // This blocks other input until the dialog is closed
+
+        return status[0];
+    }
+
     // Helper method to create styled buttons
     private static JButton createStyledButton(String text) {
         return new JButton(text) {
@@ -492,6 +625,53 @@ public class PerformMessage {
                 super.paintComponent(g);
             }
         };
+    }
+
+    /**
+     * Creates a styled button with Windows 11 theme
+     */
+    private static JButton createStyledButtonWin11(String text) {
+        JButton button = new JButton(text);
+
+        // Windows 11 Theme Styling
+        button.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        button.setForeground(Color.WHITE);
+        button.setBackground(new Color(0, 120, 212)); // Windows 11 blue
+        button.setFocusPainted(false);
+        button.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12)); // Adjust padding
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        // Ensure UI updates properly
+        button.setOpaque(true);
+        button.setContentAreaFilled(true);
+        button.setBorderPainted(false);
+        button.putClientProperty("JComponent.outline", null); // Prevents UI interference
+
+        // Hover Effect
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                button.setBackground(new Color(0, 102, 180)); // Darker blue on hover
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                button.setBackground(new Color(0, 120, 212)); // Reset color
+            }
+        });
+
+        // Ensure color is reset each time it's used
+        button.addHierarchyListener(e -> {
+            if ((e.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0 && button.isShowing()) {
+                button.setBackground(new Color(0, 120, 212)); // Restore original color
+            }
+        });
+
+        // Force UI update
+        button.revalidate();
+        button.repaint();
+
+        return button;
     }
 
     // Method to add drag-and-drop support
