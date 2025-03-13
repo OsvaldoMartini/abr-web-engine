@@ -1120,7 +1120,14 @@ public class PerformActions {
             performMessage.showCustomModalDialogDragWin11(
                     "BOT JOB STOP",
                     String.format("The Element \"%s\" is not Enabled", element.getTagName()),
-                    "Consider Fill Up all the Mandatory Fields!");
+                    "Consider Fill Up all the Mandatory Fields!",
+                    null,
+                    null,
+                    true,
+                    "OK",
+                    null,
+                    0);
+
             // throw new TimeoutException();
             return false;
         }
