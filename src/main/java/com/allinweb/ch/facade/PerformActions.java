@@ -177,6 +177,7 @@ public class PerformActions {
                 boolean passed = true;
                 switch (actions[0]) {
                     case ARConstants.VISUALIZE:
+                        scrollIntoView(instructionElement);
                         passed = scrollToElement(byPassNotFound, instructionElement);
 
                         if (!passed) {
@@ -761,7 +762,7 @@ public class PerformActions {
         }
 
         int attempts = 0;
-        while (elementFound == null && attempts < 10) {
+        while (elementFound == null && attempts < 5) {
 
             for (com.allinweb.ch.util.Priority priority : arPriorities.getAllPriorityList()) {
                 if (elementFound != null) {
@@ -990,6 +991,7 @@ public class PerformActions {
             boolean byPassNotFound, WebElement element, String fieldName, String dataFieldValue) throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
         try {
+            scrollIntoView(element);
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception e) {
             ARLogger.getInstance(PerformActions.class)
@@ -1015,6 +1017,7 @@ public class PerformActions {
     private String getValueInElement(boolean byPassNotFound, WebElement element) throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
         try {
+            scrollIntoView(element);
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception e) {
             ARLogger.getInstance(PerformActions.class)
@@ -1104,11 +1107,12 @@ public class PerformActions {
             ARLogger.getInstance(PerformActions.class)
                     .severe(String.format(
                             "Failed to Scroll to Element \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
-            if (!byPassNotFound) {
-                //                performMessage.couldNotFindElement("Failed to Scroll to Element " +
-                // element.getTagName());
-                performMessage.couldNotInputBotJobVeryFast("Failed to Scroll to Element " + element.getTagName());
-            }
+            //            if (!byPassNotFound) {
+            //                //                performMessage.couldNotFindElement("Failed to Scroll to Element " +
+            //                // element.getTagName());
+            //                performMessage.couldNotInputBotJobVeryFast("Failed to Scroll to Element " +
+            // element.getTagName());
+            //            }
             return false;
         }
     }
@@ -1132,23 +1136,24 @@ public class PerformActions {
             return false;
         }
 
-        //        try {
-        //            waitForAction.until(ExpectedConditions.visibilityOf(element).andThen(e -> {
-        //                ((JavascriptExecutor) arWebDriver.getDriver())
-        //                        .executeScript("arguments[0].scrollIntoView(true);", element);
-        //                return waitForAction.until(ExpectedConditions.elementToBeClickable(element));
-        //            }));
-        //        } catch (Exception e) {
-        //            ARLogger.getInstance(PerformActions.class)
-        //                    .fine(String.format(
-        //                            "Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(),
-        // e.getMessage()));
-        //
-        //            if (!byPassNotFound) {
-        //                performMessage.couldNotFindElement(element.getTagName());
-        //            }
-        //            return false;
-        //        }
+        try {
+            //            scrollIntoView(element);
+            //            waitForAction.until(ExpectedConditions.visibilityOf(element));
+            waitForAction.until(ExpectedConditions.visibilityOf(element).andThen(e -> {
+                ((JavascriptExecutor) arWebDriver.getDriver())
+                        .executeScript("arguments[0].scrollIntoView(true);", element);
+                return waitForAction.until(ExpectedConditions.elementToBeClickable(element));
+            }));
+        } catch (Exception e) {
+            ARLogger.getInstance(PerformActions.class)
+                    .fine(String.format(
+                            "Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
+
+            //                    if (!byPassNotFound) {
+            //                        performMessage.couldNotFindElement(element.getTagName());
+            //                    }
+            //                    return false;
+        }
 
         try {
             element.click();
@@ -1184,6 +1189,7 @@ public class PerformActions {
         UtilsMethods.exceptionIfNullWebElement(element);
 
         try {
+            scrollIntoView(element);
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception e) {
             ARLogger.getInstance(PerformActions.class)
@@ -1216,7 +1222,7 @@ public class PerformActions {
                 } else {
                     element.sendKeys(UtilsMethods.generateRandomID(10));
                     // Waits component reaction
-                    onHoldInSeconds(1);
+                    onHoldInSeconds(2);
                     if (!pressEnterAfter) {
                         element.sendKeys(Keys.TAB);
                     } else {
@@ -1231,7 +1237,7 @@ public class PerformActions {
                 }
                 element.sendKeys(dataFieldValue);
                 // Waits component reaction
-                onHoldInSeconds(1);
+                onHoldInSeconds(2);
                 if (!pressEnterAfter) {
                     element.sendKeys(Keys.TAB);
                 } else {
@@ -1249,6 +1255,14 @@ public class PerformActions {
         }
 
         return true;
+    }
+
+    private void scrollIntoView(WebElement element) {
+        try {
+            ((JavascriptExecutor) arWebDriver.getDriver()).executeScript("arguments[0].scrollIntoView(true);", element);
+        } catch (Exception ignore) {
+
+        }
     }
 
     /**
@@ -1295,6 +1309,7 @@ public class PerformActions {
             throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
         try {
+            scrollIntoView(element);
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception e) {
             ARLogger.getInstance(PerformActions.class)
@@ -1322,7 +1337,8 @@ public class PerformActions {
 
             //            performMessage.couldNotFindElement("Could Input Values to Element " + element.getTagName());
 
-            performMessage.couldNotInputBotJobVeryFast("Could Input Values to Element " + element.getTagName());
+            //            performMessage.couldNotInputBotJobVeryFast("Could Input Values to Element " +
+            // element.getTagName());
 
             return false;
         }
@@ -1340,6 +1356,7 @@ public class PerformActions {
         UtilsMethods.exceptionIfNullWebElement(element);
 
         try {
+            scrollIntoView(element);
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception ex) {
             ARLogger.getInstance(PerformActions.class)
@@ -2073,7 +2090,7 @@ public class PerformActions {
             case ARConstants.LIST_OPERATION:
                 return "List Operation performed for " + msgInstruction.getKey();
             case ARConstants.HOLD:
-                return "Hold executed ( " + msgInstruction.getKey() + " )";
+                return "Hold executed: " + msgInstruction.getKey();
             case ARConstants.PAUSE:
                 return "Pause action triggered";
             case ARConstants.GOTO:
@@ -2621,6 +2638,11 @@ public class PerformActions {
                 message = "Select(element)";
                 Select selectCountry = new Select(element);
                 selectCountry.selectByVisibleText(fieldData.getValue());
+                if (!pressEnterAfter) {
+                    element.sendKeys(Keys.TAB);
+                } else {
+                    element.sendKeys(Keys.ENTER);
+                }
             } else if (typeCommand.equals(ARConstants.CLEAR)) {
                 message = "clear()";
                 element.clear();
@@ -2630,6 +2652,11 @@ public class PerformActions {
             } else if (typeCommand.equals(ARConstants.INSERT)) {
                 message = "sendKeys(\"" + fieldData.getValue() + "\")";
                 element.sendKeys(fieldData.getValue());
+                if (!pressEnterAfter) {
+                    element.sendKeys(Keys.TAB);
+                } else {
+                    element.sendKeys(Keys.ENTER);
+                }
             } else if (typeCommand.equals(ARConstants.TAB)) {
                 message = "(Keys.TAB)";
                 element.sendKeys(Keys.TAB);
