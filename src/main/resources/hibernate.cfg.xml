@@ -20,6 +20,9 @@
         <mapping class="com.allinweb.ch.persistence.BlockDTO"/>
         <mapping class="com.allinweb.ch.persistence.InstructionDTO"/>
         <mapping class="com.allinweb.ch.persistence.ReferenceDTO"/>
-        <mapping class="com.allinweb.ch.persistence.ComplexInstructionDTO"/>
+        <mapping class="com.allinweb.ch.persistence.ComponentBlockDTO"/>
+        <mapping class="com.allinweb.ch.persistence.ComponentInstructionDTO"/>
+        <mapping class="com.allinweb.ch.persistence.ComponentReferenceDTO"/>
+        <mapping class="com.allinweb.ch.persistence.ComponentVariableDTO"/>
     </session-factory>
 </hibernate-configuration>
