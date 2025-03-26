@@ -178,6 +178,7 @@ public class ARWebDriver {
                     System.setProperty("webdriver.chrome.driver", webDriverPath);
 
                     ChromeOptions optionsChrome = buildOptionsChrome(optionsConfigLines, logFolder);
+                    optionsChrome.addArguments("data:,"); // This is the key to opening a blank page
 
                     if (optionsChrome != null) {
                         this.currentDriver = getDriverChrome(optionsChrome);
@@ -199,6 +200,7 @@ public class ARWebDriver {
                     // Configure EdgeOptions
                     EdgeOptions optionsEdge = new EdgeOptions();
                     optionsEdge.addArguments("--user-data-dir=" + userDataDir);
+                    optionsEdge.addArguments("data:,"); // This is the key to opening a blank page
 
                     optionsEdge.addArguments("--remote-allow-origins=*"); // Required for some Edge versions
                     optionsEdge.addArguments("--start-maximized"); // Opens browser in full-screen

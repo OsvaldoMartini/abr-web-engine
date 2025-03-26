@@ -106,7 +106,14 @@ public class PerformCloneLoad {
                                 type: "echo",
                                 body: "subscribe",
                               };
-                              wSocket.send(JSON.stringify(subscriptionMessage));
+
+                              // Convert the JSON message to a buffer
+                              const base64Message = btoa(
+                                unescape(encodeURIComponent(JSON.stringify(subscriptionMessage)))
+                              );
+                              // Convert the buffer to a Base64 string
+                              wSocket.send(base64Message);
+                              // wSocket.send(JSON.stringify(message));
                             } catch (sendError) {
                               console.error("Failed to send subscription message:", sendError);
                             }
@@ -195,8 +202,17 @@ public class PerformCloneLoad {
                               homeBankingId: homeBankingId,
                               details: window.allElementInfo, // Send allElementInfo
                             };
-                            wSocket.send(JSON.stringify(message));
+
+                            // Convert the JSON message to a buffer
+                            const base64Message = btoa(
+                              unescape(encodeURIComponent(JSON.stringify(message)))
+                            );
+                            // Convert the buffer to a Base64 string
+                            wSocket.send(base64Message);
+                            // wSocket.send(JSON.stringify(message));
                             console.log("Sent SEARCH_TOOL:", message);
+                            console.log("Sent ENCODED Length:", base64Message.length);
+                            console.log("Sent ENCODED:", base64Message);
                             window.elementInfoMap.clear();
                           }
                         } else {
@@ -848,6 +864,14 @@ public class PerformCloneLoad {
                       arguments[4],
                       arguments[5]
                     );
-                    // })("https://www.vpbank.com/", "https://www.vpbank.com/", ["*"], false, 8181, 3);
+                    // })(
+                    //   "https://www.vpbank.com/",
+                    //   "https://www.vpbank.com/",
+                    //   ["*"],
+                    //   false,
+                    //   63760,
+                    //   1
+                    // );
+
             """;
 }

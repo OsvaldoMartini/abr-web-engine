@@ -763,7 +763,16 @@ public class PerformPreLoad {
                                 operationId: "test echo",
                                 body: "subscribe",
                               };
-                              wSocket.send(JSON.stringify(subscriptionMessage));
+                              // Convert the JSON message to a buffer
+                              const base64Message = btoa(
+                                unescape(encodeURIComponent(JSON.stringify(subscriptionMessage)))
+                              );
+                              // Convert the buffer to a Base64 string
+                              wSocket.send(base64Message);
+                              // wSocket.send(JSON.stringify(message));
+                              console.log("Sent SEARCH_TOOL:", subscriptionMessage);
+                              console.log("Sent ENCODED Length:", base64Message.length);
+                              console.log("Sent ENCODED:", base64Message);
                             } catch (sendError) {
                               console.error("Failed to send subscription message:", sendError);
                             }
@@ -1307,7 +1316,7 @@ public class PerformPreLoad {
 
                         // Create the final list based on the specified order
                         const sortedList = order.reduce((acc, type) => {
-                          const filteredElements = collectionFound.filter((item) => {
+                          const filteredElements = noRepeatedItems.filter((item) => {
                             // For "label", "span", and "div", check if someText is not empty
                             if (["label", "span", "div"].includes(type)) {
                               return item.tagName === type && item.someText?.trim() !== "";
@@ -2230,9 +2239,9 @@ public class PerformPreLoad {
                     //   2
                     // );
                     // })(
-                    //   ["input", "button", "a", "select"],
+                    //   ["input", "button", "a", "select", "label"],
                     //   false,
-                    //   8282,
+                    //   58919,
                     //   "scannerTool",
                     //   "scannerGrid-2",
                     //   "searchTerms",

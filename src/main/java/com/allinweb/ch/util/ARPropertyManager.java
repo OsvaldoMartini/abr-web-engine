@@ -4,19 +4,24 @@ import java.io.*;
 import java.util.Properties;
 import java.util.logging.Level;
 import javax.swing.*;
+import lombok.Getter;
+import lombok.Setter;
 
 public class ARPropertyManager {
 
     private static final String lock = "locked";
-    private static String configurationFileName = ARConstants.CURRENT_PATH + ARConstants.FILE_NAME_CONFIGURATION;
 
     private static volatile ARPropertyManager instance;
 
+    @Getter
+    @Setter
     private Properties properties = new Properties();
 
-    private ARPropertyManager() {
-        loadProperties();
-    }
+    @Getter
+    @Setter
+    private static String configurationFileName;
+
+    private ARPropertyManager() {}
 
     /***
      * This method both manages the retrieving of the ARPropertyManager instance and
@@ -36,12 +41,7 @@ public class ARPropertyManager {
         return instance;
     }
 
-    /***
-     * This method loads the file in memory and sets the properties read by the file into the
-     * properties variable, making all the properties defined in the file available in the
-     * application.
-     */
-    private void loadProperties() {
+    public void loadProperties() {
         File configurationFile = new File(configurationFileName);
         try (FileInputStream conf = new FileInputStream(configurationFile)) {
             this.properties.load(conf);
@@ -119,7 +119,8 @@ public class ARPropertyManager {
     public void setProperty(String propertyName, String value) {
         this.properties.setProperty(propertyName, value);
         try (FileOutputStream output = new FileOutputStream(configurationFileName)) {
-            this.properties.store(output, "added property: " + propertyName + " with value: " + value);
+            //            this.properties.store(output, "added property: " + propertyName + " with value: " + value);
+            this.properties.store(output, null);
         } catch (FileNotFoundException e) {
             JOptionPane.showMessageDialog(
                     null,
@@ -134,13 +135,5 @@ public class ARPropertyManager {
                     "Configuration file cannot be read\nError:\n" + e.getMessage(),
                     JOptionPane.ERROR_MESSAGE);
         }
-    }
-
-    public static void setConfigurationFileName(String configurationPath) {
-        ARPropertyManager.configurationFileName = configurationPath;
-    }
-
-    public static String getConfigurationFileName() {
-        return ARPropertyManager.configurationFileName;
     }
 }
