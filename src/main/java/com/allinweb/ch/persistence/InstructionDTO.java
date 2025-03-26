@@ -32,6 +32,18 @@ public class InstructionDTO extends BaseDTO {
     @Column(name = "iframe_xpath", columnDefinition = "TEXT")
     private String iFrameXPath;
 
+    @Column(name = "tag_name", columnDefinition = "TEXT")
+    private String tagName;
+
+    @Column(name = "shadow_host", columnDefinition = "TEXT")
+    private String shadowHost;
+
+    @Column(name = "shadow_root", columnDefinition = "TEXT")
+    private String shadowRoot;
+
+    @Column(name = "css_selector", columnDefinition = "TEXT")
+    private String cssSelector;
+
     @Column(name = "description")
     private String description;
 

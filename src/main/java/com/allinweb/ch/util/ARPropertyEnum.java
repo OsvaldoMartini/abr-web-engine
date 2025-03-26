@@ -3,7 +3,6 @@ package com.allinweb.ch.util;
 public enum ARPropertyEnum {
     DATABASE_TYPE("data_base"),
     PORT_SOCKET("port_socket"),
-    BLOCK_EXEC_LIMIT("block_exec_limit"),
     FOLDER_PATH_EXCEL("path_excel"),
     FOLDER_PATH_EXPORT("path_export"),
     //    FILE_NAME_EXPORT("file_name_export"),
@@ -17,7 +16,6 @@ public enum ARPropertyEnum {
     PATH_WEBDRIVER("path_web_driver"),
     LOG_LEVEL("log_level"),
     MAX_LOG_SIZE("max_log_size"),
-    REDUCE_SEARCH_CRITERIA("reduce_search_criteria"),
     BROWSER("browser"),
     WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC("page_update_timeout_sec"),
     WEBDRIVER_INTERACTION_TIMEOUT_SEC("interaction_timeout_sec"),

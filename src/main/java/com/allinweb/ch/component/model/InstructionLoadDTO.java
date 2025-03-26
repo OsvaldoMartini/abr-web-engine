@@ -22,6 +22,10 @@ public class InstructionLoadDTO {
     private String coordinates;
     private Boolean forceCoordinates;
     private String iFrameXPath;
+    private String tagName;
+    private String shadowHost;
+    private String shadowRoot;
+    private String cssSelector;
     private String description;
     private Boolean optional;
     private Boolean blockMarked;
@@ -71,7 +75,8 @@ public class InstructionLoadDTO {
             String actions,
             Integer parentId,
             String operation,
-            String exportFile) {
+            String exportFile,
+            String tagName) {
         this.homeBankingId = homeBankingId;
         this.botJobId = botJobId;
         this.botJobName = botJobName;
@@ -89,5 +94,6 @@ public class InstructionLoadDTO {
         this.parentId = parentId;
         this.operation = operation;
         this.exportFile = exportFile;
+        this.tagName = tagName;
     }
 }

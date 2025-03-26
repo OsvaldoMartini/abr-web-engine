@@ -72,8 +72,7 @@ public class ARPropertyManager {
                         ARPropertyEnum.FOLDER_PATH_JAVA_FX.getValue(),
                         ARConstants.CURRENT_PATH + ARConstants.DEFAULT_PATH_JAVA_FX);
                 setProperty(ARPropertyEnum.DATABASE_TYPE.getValue(), "Access");
-                setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), "8080");
-                setProperty(ARPropertyEnum.BLOCK_EXEC_LIMIT.getValue(), "20");
+                setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), "54525");
                 setProperty(ARPropertyEnum.FOLDER_PATH_DB.getValue(), "");
                 setProperty(ARPropertyEnum.FOLDER_PATH_REPORT.getValue(), "");
                 setProperty(ARPropertyEnum.PATH_ENGINE.getValue(), ARConstants.CURRENT_PATH);

@@ -95,7 +95,7 @@ public class PerformMessage {
         showCustomModalDialogDragWin11(criteria, msg1, msg2, msg3, msg4, true, "OK", null, height);
     }
 
-    public static void showCustomDialog(String title, String message) {
+    public void showCustomDialog(String title, String message) {
         // Create a JDialog as a custom message dialog
         JDialog dialog = new JDialog();
         dialog.setTitle(title);
@@ -126,7 +126,7 @@ public class PerformMessage {
         dialog.setVisible(true);
     }
 
-    public static void showCustomModalDialog(String title, String message, String message2) {
+    public void showCustomModalDialog(String title, String message, String message2) {
         // Create a JDialog as a custom modal message dialog
         JDialog dialog = new JDialog((Frame) null, title, true); // true makes it modal
         dialog.setSize(300, 200);
@@ -159,7 +159,7 @@ public class PerformMessage {
         dialog.setVisible(true); // This will block other input until the dialog is closed
     }
 
-    public static void showCustomModalDialogDrag(String title, String message, String message2) {
+    public void showCustomModalDialogDrag(String title, String message, String message2) {
         // Create a JDialog as a custom modal message dialog
         JDialog dialog = new JDialog((Frame) null, title, true); // true makes it modal
         dialog.setSize(300, 200);
@@ -195,7 +195,7 @@ public class PerformMessage {
         dialog.setVisible(true); // This will block other input until the dialog is closed
     }
 
-    public static ARConstants.DialogModal showCustomModalDialog(
+    public ARConstants.DialogModal showCustomModalDialog(
             String title,
             String message,
             String message2,
@@ -376,7 +376,7 @@ public class PerformMessage {
         return status[0];
     }
 
-    public static ARConstants.DialogModal showCustomModalDialogDrag(
+    public ARConstants.DialogModal showCustomModalDialogDrag(
             String title,
             String message,
             String message2,
@@ -395,13 +395,13 @@ public class PerformMessage {
         if (height > 0) {
             dialog.setSize(380, height);
         } else if (message2 != null && message3 == null && message4 == null) {
-            dialog.setSize(380, 210);
+            dialog.setSize(380, 240);
         } else if (message2 != null && message3 != null && message4 == null) {
-            dialog.setSize(380, 250);
-        } else if (message2 != null && message3 != null && message4 != null) {
             dialog.setSize(380, 280);
+        } else if (message2 != null && message3 != null && message4 != null) {
+            dialog.setSize(380, 320);
         } else {
-            dialog.setSize(380, 150);
+            dialog.setSize(380, 200);
         }
 
         dialog.setLocationRelativeTo(null); // Center on screen
@@ -493,7 +493,7 @@ public class PerformMessage {
     /**
      * Creates a styled button with Windows 11 theme
      */
-    public static ARConstants.DialogModal showCustomModalDialogDragWin11(
+    public ARConstants.DialogModal showCustomModalDialogDragWin11(
             String title,
             String message,
             String message2,
@@ -512,13 +512,13 @@ public class PerformMessage {
         if (height > 0) {
             dialog.setSize(380, height);
         } else if (message2 != null && message3 == null && message4 == null) {
-            dialog.setSize(380, 210);
+            dialog.setSize(380, 270);
         } else if (message2 != null && message3 != null && message4 == null) {
-            dialog.setSize(380, 250);
+            dialog.setSize(380, 310);
         } else if (message2 != null && message3 != null && message4 != null) {
-            dialog.setSize(380, 280);
+            dialog.setSize(380, 380);
         } else {
-            dialog.setSize(380, 150);
+            dialog.setSize(380, 210);
         }
 
         dialog.setLocationRelativeTo(null); // Center on screen

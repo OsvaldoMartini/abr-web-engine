@@ -205,7 +205,7 @@ public class ARConstants {
     public static final String ATTRIBUTE_ID = "ATTRIBUTE_ID";
     public static final String ATTRIBUTE_NAME = "ATTRIBUTE_NAME";
     public static final String SEARCH_COORD = "SEARCH_COORD";
-
+    public static final String SHADOW_DOM = "SHADOW_DOM";
     // FILE FORMATS
     public static final String FILE_FORMAT_EXCEL = ".xlsx";
     public static final String FILE_FORMAT_CSV = ".csv";

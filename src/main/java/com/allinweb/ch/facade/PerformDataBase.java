@@ -123,6 +123,7 @@ public class PerformDataBase {
         if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
             POSTGRES_DB = true;
 
+            createTableOpenAIVector();
             if (!doesInstructionTableExist()) {
                 initializeMainDatabasePostgres();
             }
@@ -213,9 +214,13 @@ public class PerformDataBase {
                 if (!POSTGRES_DB) {
                     String dbPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
                     String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+                    ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + dbUrl);
                     conn = DriverManager.getConnection(dbUrl);
                 } else {
                     String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
+                    String userDB = USERNAME + " - " + PASSWORD;
+                    ARLogger.getInstance(PerformDataBase.class).info("POSTGRES connection URL: " + dbUrl);
+                    ARLogger.getInstance(PerformDataBase.class).info("User Details: " + userDB);
                     conn = DriverManager.getConnection(dbUrl, USERNAME, PASSWORD);
                 }
             }
@@ -1319,6 +1324,7 @@ public class PerformDataBase {
                 + " b.description AS block_description, b.type_id, "
                 + " bli.id AS instruction_id, bli.instruction_order_number, "
                 + " bli.actions, bli.name AS instruction_name, bli.xpath, bli.coordinates,  bli.iframe_xpath, "
+                + " bli.tag_name, bli.shadow_host, bli.shadow_root, bli.css_selector, "
                 + " bli.description AS instruction_description, bli.force_coordinates, "
                 + " bli.optional, bli.block_marked, bli.default_value, bli.action_custom_max_wait_sec, "
                 + " bli.on_hold_seconds, bli.codified, bli.export_to_abr, "
@@ -1391,6 +1397,12 @@ public class PerformDataBase {
                     instruction.setCoordinates(rs.getString("coordinates"));
                     instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
                     instruction.setIFrameXPath(rs.getString("iframe_xpath"));
+
+                    instruction.setTagName(rs.getString("tag_name"));
+                    instruction.setShadowHost(rs.getString("shadow_host"));
+                    instruction.setShadowRoot(rs.getString("shadow_root"));
+                    instruction.setCssSelector(rs.getString("css_selector"));
+
                     instruction.setDescription(rs.getString("instruction_description"));
                     instruction.setOptional(rs.getBoolean("optional"));
                     instruction.setBlockMarked(rs.getBoolean("block_marked"));
@@ -1446,6 +1458,10 @@ public class PerformDataBase {
                 + "    bli.xpath, \n"
                 + "    bli.coordinates, \n"
                 + "    bli.iframe_xpath, \n"
+                + "    bli.tag_name, \n"
+                + "    bli.shadow_host, \n"
+                + "    bli.shadow_root, \n"
+                + "    bli.css_selector, \n"
                 + "    bli.description AS instruction_description, \n"
                 + "    bli.force_coordinates, \n"
                 + "    bli.optional, \n"
@@ -1525,6 +1541,12 @@ public class PerformDataBase {
                     instruction.setCoordinates(rs.getString("coordinates"));
                     instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
                     instruction.setIFrameXPath(rs.getString("iframe_xpath"));
+
+                    instruction.setTagName(rs.getString("tag_name"));
+                    instruction.setShadowHost(rs.getString("shadow_host"));
+                    instruction.setShadowRoot(rs.getString("shadow_root"));
+                    instruction.setCssSelector(rs.getString("css_selector"));
+
                     instruction.setDescription(rs.getString("instruction_description"));
                     instruction.setOptional(rs.getBoolean("optional"));
                     instruction.setBlockMarked(rs.getBoolean("block_marked"));
@@ -1636,6 +1658,12 @@ public class PerformDataBase {
     //                    instruction.setCoordinates(rs.getString("coordinates"));
     //                    instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
     //                    instruction.setIFrameXPath(rs.getString("iframe_xpath"));
+
+    //                    instruction.setTagName(rs.getString("tag_name"));
+    //                    instruction.setShadowHost(rs.getString("shadow_host"));
+    //                    instruction.setShadowRoot(rs.getString("shadow_root"));
+    //                    instruction.setCssSelector(rs.getString("css_selector"));
+
     //                    instruction.setDescription(rs.getString("instruction_description"));
     //                    instruction.setOptional(rs.getBoolean("optional"));
     //                    instruction.setBlockMarked(rs.getBoolean("block_marked"));
@@ -2001,6 +2029,12 @@ public class PerformDataBase {
                 instruction.setCoordinates(rs.getString("coordinates"));
                 instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
                 instruction.setIFrameXPath(rs.getString("iframe_xpath"));
+
+                instruction.setTagName(rs.getString("tag_name"));
+                instruction.setShadowHost(rs.getString("shadow_host"));
+                instruction.setShadowRoot(rs.getString("shadow_root"));
+                instruction.setCssSelector(rs.getString("css_selector"));
+
                 instruction.setDescription(rs.getString("description"));
                 instruction.setOptional(rs.getBoolean("optional"));
                 instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
@@ -2054,6 +2088,12 @@ public class PerformDataBase {
                 instruction.setCoordinates(rs.getString("coordinates"));
                 instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
                 instruction.setIFrameXPath(rs.getString("iframe_xpath"));
+
+                instruction.setTagName(rs.getString("tag_name"));
+                instruction.setShadowHost(rs.getString("shadow_host"));
+                instruction.setShadowRoot(rs.getString("shadow_root"));
+                instruction.setCssSelector(rs.getString("css_selector"));
+
                 instruction.setDescription(rs.getString("description"));
                 instruction.setOptional(rs.getBoolean("optional"));
                 instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
@@ -2631,6 +2671,10 @@ public class PerformDataBase {
             // Add non-boolean fields
             addColumnValue.accept("coordinates", InstructionLoadDTO.getCoordinates());
             addColumnValue.accept("iframe_xpath", InstructionLoadDTO.getIFrameXPath());
+            addColumnValue.accept("tag_name", InstructionLoadDTO.getTagName());
+            addColumnValue.accept("shadow_host", InstructionLoadDTO.getShadowHost());
+            addColumnValue.accept("shadow_root", InstructionLoadDTO.getShadowRoot());
+            addColumnValue.accept("css_selector", InstructionLoadDTO.getCssSelector());
             addColumnValue.accept("xpath", InstructionLoadDTO.getXpath());
             addColumnValue.accept("action_custom_max_wait_sec", InstructionLoadDTO.getActionCustomMaxWaitSec());
             addColumnValue.accept("actions", InstructionLoadDTO.getActions());
@@ -3313,10 +3357,11 @@ public class PerformDataBase {
     }
 
     public List<VariableLoadDTO> instVariablesToDuplicateNEW(
-            Connection conn, int oldBotJobId, int oldBlockId, String targetTable) throws SQLException {
+            Connection conn, int homeBankingId, int oldBotJobId, int oldBlockId, String targetTable)
+            throws SQLException {
 
         // Determine if we need to use home_banking_id instead of bot_job_id
-        String idColumn = targetTable.equalsIgnoreCase("component_variable") ? "home_banking_id" : "bot_job_id";
+        String idColumn = targetTable.equals("component_variable") ? "home_banking_id" : "bot_job_id";
 
         // Build the base query
         String query = "SELECT var.id, var.name, var.type, var.value, var.instruction_id, var." + idColumn;
@@ -3339,10 +3384,19 @@ public class PerformDataBase {
 
             // Set parameters based on the existence of oldBlockId
             if (oldBlockId > -1) {
-                stmt.setInt(1, oldBotJobId);
-                stmt.setInt(2, oldBlockId);
+                if (targetTable.equals("component_variable")) {
+                    stmt.setInt(1, homeBankingId);
+                    stmt.setInt(2, oldBlockId);
+                } else if (targetTable.equals("variable")) {
+                    stmt.setInt(1, oldBotJobId);
+                    stmt.setInt(2, oldBlockId);
+                }
             } else {
-                stmt.setInt(1, oldBotJobId);
+                if (targetTable.equals("component_variable")) {
+                    stmt.setInt(1, homeBankingId);
+                } else if (targetTable.equals("variable")) {
+                    stmt.setInt(1, oldBotJobId);
+                }
             }
 
             // Execute the query and process results
@@ -3396,7 +3450,8 @@ public class PerformDataBase {
     }
 
     public List<InstructionReferenceLoadDTO> instReferenceToDuplicateNew(
-            Connection conn, int oldBotJobId, int oldBlockId, String table1, String table2) throws SQLException {
+            Connection conn, int homeBankingId, int oldBotJobId, int oldBlockId, String table1, String table2)
+            throws SQLException {
 
         // Determine the column to use for filtering based on table1
         String idColumn = table1.equalsIgnoreCase("component_reference") ? "home_banking_id" : "bot_job_id";
@@ -3423,10 +3478,19 @@ public class PerformDataBase {
 
             // Set the parameters based on oldBlockId presence
             if (oldBlockId > -1) {
-                stmt.setInt(1, oldBotJobId);
-                stmt.setInt(2, oldBlockId);
+                if (table1.equals("component_reference")) {
+                    stmt.setInt(1, homeBankingId);
+                    stmt.setInt(2, oldBlockId);
+                } else if (table1.equals("reference")) {
+                    stmt.setInt(1, oldBotJobId);
+                    stmt.setInt(2, oldBlockId);
+                }
             } else {
-                stmt.setInt(1, oldBotJobId);
+                if (table1.equals("component_reference")) {
+                    stmt.setInt(1, homeBankingId);
+                } else if (table1.equals("reference")) {
+                    stmt.setInt(1, oldBotJobId);
+                }
             }
 
             // Execute the query and process the results
@@ -3511,7 +3575,8 @@ public class PerformDataBase {
         String query = "SELECT bli.id, bli.action_custom_max_wait_sec, bli.actions, bli.active, bli.block_marked, "
                 + "bli.codified, bli.default_value, bli.description, bli.export_to_abr, bli.instruction_order_number, "
                 + "bli.name, bli.on_hold_seconds, bli.operation, bli.optional, bli.parent_id, bli.xpath, bli.coordinates, "
-                + "bli.iframe_xpath, bli.force_coordinates, bli.variable_id, bli.block_id, blk.block_order_number, bli."
+                + "bli.iframe_xpath,  bli.tag_name, bli.shadow_host, bli.shadow_root, bli.css_selector, bli.force_coordinates, "
+                + "bli.variable_id, bli.block_id, blk.block_order_number, bli."
                 + idColumn;
 
         query += " FROM " + table1 + " bli "
@@ -3532,7 +3597,19 @@ public class PerformDataBase {
             }
 
             if (oldBlockId > -1) {
-                stmt.setInt(2, oldBlockId);
+                if (table1.equals("component_instruction")) {
+                    stmt.setInt(1, homeBankingId);
+                    stmt.setInt(2, oldBlockId);
+                } else if (table1.equals("instruction")) {
+                    stmt.setInt(1, oldBotJobId);
+                    stmt.setInt(2, oldBlockId);
+                }
+            } else {
+                if (table1.equals("component_instruction")) {
+                    stmt.setInt(1, homeBankingId);
+                } else if (table1.equals("instruction")) {
+                    stmt.setInt(1, oldBotJobId);
+                }
             }
 
             ResultSet rs = stmt.executeQuery();
@@ -3557,6 +3634,12 @@ public class PerformDataBase {
                 InstructionLoadDTO.setCoordinates(rs.getString("coordinates"));
                 InstructionLoadDTO.setForceCoordinates(rs.getBoolean("force_coordinates"));
                 InstructionLoadDTO.setIFrameXPath(rs.getString("iframe_xpath"));
+
+                InstructionLoadDTO.setTagName(rs.getString("tag_name"));
+                InstructionLoadDTO.setShadowHost(rs.getString("shadow_host"));
+                InstructionLoadDTO.setShadowRoot(rs.getString("shadow_root"));
+                InstructionLoadDTO.setCssSelector(rs.getString("css_selector"));
+
                 InstructionLoadDTO.setVariableId(rs.getInt("variable_id"));
                 InstructionLoadDTO.setBlockId(rs.getInt("block_id"));
                 InstructionLoadDTO.setBlockOrderNumber(rs.getInt("block_order_number"));
@@ -3829,7 +3912,7 @@ public class PerformDataBase {
 
         // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
         List<VariableLoadDTO> varsList =
-                instVariablesToDuplicateNEW(conn, newBotJobId, oldBlockId, arrayTables[6]); // variable
+                instVariablesToDuplicateNEW(conn, homeBankId, newBotJobId, oldBlockId, arrayTables[6]); // variable
 
         // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
         // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
@@ -3923,7 +4006,7 @@ public class PerformDataBase {
             // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
             // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
             List<InstructionReferenceLoadDTO> refersList = instReferenceToDuplicateNew(
-                    conn, newBotJobId, oldBlockId, arrayTables[4], arrayTables[2]); // reference
+                    conn, homeBankId, newBotJobId, oldBlockId, arrayTables[4], arrayTables[2]); // reference
             if (refersList.size() > 0) {
 
                 currentId = getMaxId(conn, arrayTables[5]) + 1; // component_reference vs reference
@@ -4032,7 +4115,7 @@ public class PerformDataBase {
         List<InstructionLoadDTO> instList = instructionsToDuplicate(
                 conn, homeBankId, oldBotJobId, -1, arrayTables[1], arrayTables[0]); // instruction
 
-        List<VariableLoadDTO> varsList = instVariablesToDuplicateNEW(conn, oldBotJobId, -1, arrayTables[4]);
+        List<VariableLoadDTO> varsList = instVariablesToDuplicateNEW(conn, homeBankId, oldBotJobId, -1, arrayTables[4]);
 
         // arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
         int currentVarId = getMaxId(conn, arrayTables[4]) + 1;
@@ -4108,7 +4191,7 @@ public class PerformDataBase {
 
             // arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
             List<InstructionReferenceLoadDTO> refersList =
-                    instReferenceToDuplicateNew(conn, oldBotJobId, -1, arrayTables[2], arrayTables[1]);
+                    instReferenceToDuplicateNew(conn, homeBankId, oldBotJobId, -1, arrayTables[2], arrayTables[1]);
             if (refersList.size() > 0) {
 
                 currentId = getMaxId(conn, arrayTables[2]) + 1;
@@ -4314,7 +4397,7 @@ public class PerformDataBase {
         String blockLoopInstructionInsertQuery = "INSERT INTO " + targetTable
                 + " (id, action_custom_max_wait_sec, actions, active, block_marked, codified, "
                 + "default_value, description, export_to_abr, instruction_order_number, name, on_hold_seconds, operation, optional, "
-                + "parent_id, xpath, coordinates, force_coordinates, iframe_xpath, variable_id, block_id";
+                + "parent_id, xpath, coordinates, force_coordinates, iframe_xpath, variable_id, block_id, tag_name, shadow_host, shadow_root, css_selector";
 
         if (targetTable.equalsIgnoreCase("instruction")) {
             blockLoopInstructionInsertQuery += ", bot_job_id";
@@ -4322,7 +4405,8 @@ public class PerformDataBase {
             blockLoopInstructionInsertQuery += ", home_banking_id";
         }
 
-        blockLoopInstructionInsertQuery += ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?";
+        blockLoopInstructionInsertQuery +=
+                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?";
 
         if (targetTable.equalsIgnoreCase("instruction") || targetTable.equalsIgnoreCase("component_instruction")) {
             blockLoopInstructionInsertQuery += ", ?";
@@ -4399,7 +4483,12 @@ public class PerformDataBase {
 
                 blockLoopStmt.setInt(21, instruction.getBlockId());
 
-                int paramIndex = 22;
+                blockLoopStmt.setString(22, instruction.getTagName());
+                blockLoopStmt.setString(23, instruction.getShadowHost());
+                blockLoopStmt.setString(24, instruction.getShadowRoot());
+                blockLoopStmt.setString(25, instruction.getCssSelector());
+
+                int paramIndex = 26;
                 if (targetTable.equalsIgnoreCase("instruction")) {
                     blockLoopStmt.setInt(paramIndex, instruction.getBotJobId());
                 } else if (targetTable.equalsIgnoreCase("component_instruction")) {
@@ -4599,7 +4688,8 @@ public class PerformDataBase {
                                 loopInstLoad.getActions(),
                                 loopInstLoad.getParentId(),
                                 loopInstLoad.getOperation(),
-                                itemBlock.getExportFile())))
+                                itemBlock.getExportFile(),
+                                loopInstLoad.getTagName())))
                 .collect(Collectors.toList());
 
         // Step 1: Filter rows where actions = "REFRESH_LOOP" and collect their parent IDs
@@ -4902,6 +4992,10 @@ public class PerformDataBase {
                         + "coordinates TEXT, "
                         + "force_coordinates YESNO, "
                         + "iframe_xpath MEMO, "
+                        + "tag_name TEXT, "
+                        + "shadow_host MEMO, "
+                        + "shadow_root MEMO, "
+                        + "css_selector MEMO, "
                         + "description TEXT, "
                         + "operation TEXT, "
                         + "optional YESNO, "
@@ -5012,6 +5106,10 @@ public class PerformDataBase {
                         + "coordinates TEXT, "
                         + "force_coordinates YESNO, "
                         + "iframe_xpath MEMO, "
+                        + "tag_name TEXT, "
+                        + "shadow_host MEMO, "
+                        + "shadow_root MEMO, "
+                        + "css_selector MEMO, "
                         + "description TEXT, "
                         + "operation TEXT, "
                         + "optional YESNO, "
@@ -5092,6 +5190,28 @@ public class PerformDataBase {
         return false; // Default return if an exception occurs or the table does not exist
     }
 
+    public static void createTableOpenAIVector() {
+
+        try (Connection conn = getConnection()) {
+            try (Statement stmt = conn.createStatement()) {
+
+                String createTableVectorOpenAI =
+                        """
+                        CREATE TABLE web_elements (
+                          id SERIAL PRIMARY KEY,
+                          element_name TEXT,
+                          element_type TEXT,
+                          embedding VECTOR(1536) -- size of OpenAI embedding vector
+                        );
+                        """;
+                stmt.executeUpdate(createTableVectorOpenAI);
+            }
+            System.out.println("Database %s has been created!");
+        } catch (SQLException error) {
+            System.out.println("initializeDatabase\nError: " + error.getMessage());
+        }
+    }
+
     public static void initializeMainDatabasePostgres() {
 
         try (Connection conn = getConnection()) {
@@ -5144,6 +5264,10 @@ public class PerformDataBase {
                         + "coordinates TEXT, "
                         + "force_coordinates INTEGER, "
                         + "iframe_xpath TEXT, "
+                        + "tag_name TEXT, "
+                        + "shadow_host TEXT, "
+                        + "shadow_root TEXT, "
+                        + "css_selector TEXT, "
                         + "description TEXT, "
                         + "operation TEXT, "
                         + "optional INTEGER, "
@@ -5219,6 +5343,10 @@ public class PerformDataBase {
                         + "coordinates TEXT, "
                         + "force_coordinates INTEGER, "
                         + "iframe_xpath TEXT, "
+                        + "tag_name TEXT, "
+                        + "shadow_host TEXT, "
+                        + "shadow_root TEXT, "
+                        + "css_selector TEXT, "
                         + "description TEXT, "
                         + "operation TEXT, "
                         + "optional INTEGER, "

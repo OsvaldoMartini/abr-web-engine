@@ -12,7 +12,6 @@ import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.Repository;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
-import com.allinweb.ch.supportTypes.WebPage;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import io.opentelemetry.api.internal.StringUtils;
@@ -58,6 +57,7 @@ public class Engine {
     static List<Integer> executedSuccess = new ArrayList<>();
     Map<String, WebElement> mapAdvanced = new HashMap<>();
 
+    private static final ARPropertyManager managerProps;
     private static final PerformMessage performMessage;
     private static final PerformDataBase performDataBase;
     private static final PerformActions performAction;
@@ -66,6 +66,7 @@ public class Engine {
 
     // Static block to initialize
     static {
+        managerProps = ARPropertyManager.getInstance();
         performMessage = PerformMessage.getInstance();
         performDataBase = PerformDataBase.getInstance();
         performAction = PerformActions.getInstance();
@@ -95,7 +96,7 @@ public class Engine {
             baseLogFile = new File(ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_LOG)
                     + ARConstants.FILE_NAME_ENGINE_BASE_LOG);
         } catch (Exception e) {
-            ARLogger.getInstance(WebPage.class).severe("baseLogFile Error: " + e.getMessage());
+            ARLogger.getInstance(Engine.class).severe("baseLogFile Error: " + e.getMessage());
         }
 
         if (args.length == 0) {
@@ -113,7 +114,7 @@ public class Engine {
         try {
             startParametersInterpreter(args);
         } catch (Exception e) {
-            ARLogger.getInstance(WebPage.class).severe("Main class Start Error: " + e.getMessage());
+            ARLogger.getInstance(Engine.class).severe("Main class Start Error: " + e.getMessage());
         }
 
         repository.closeSession();
@@ -178,9 +179,9 @@ public class Engine {
             System.out.println("Running All Blocks");
         }
 
-        HomeBankingLoadDTO homeBankingLoad = performDataBase.loadHomeBanking(homeBankingId);
+        HomeBankingLoadDTO homeBanking = performDataBase.loadHomeBanking(homeBankingId);
 
-        if (homeBankingLoad == null || StringUtils.isNullOrEmpty(homeBankingLoad.getUrl())) {
+        if (homeBanking == null || StringUtils.isNullOrEmpty(homeBanking.getUrl())) {
             ARLogger.getInstance(Engine.class).severe("Cannot find Home Banking Environment Id:" + homeBankingId);
             return false;
         }
@@ -230,7 +231,12 @@ public class Engine {
             //                    mapOperators);
 
             arWebDriver = new ARWebDriver();
-            arWebDriver.openDriver(homeBankingLoad.getUrl(), homeBankingLoad.getOptionsConfig());
+
+            String browserType = managerProps.getProperty(ARPropertyEnum.BROWSER);
+            String webDriverPath = managerProps.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+
+            arWebDriver.openDriver(
+                    browserType, webDriverPath, homeBanking.getUrl(), homeBanking.getOptionsConfig(), null, false, 0);
 
             // Ensure botJob and abrPriorities are not null before accessing their methods
             if (botLoadJobs.get(0) != null && abrPriorities != null) {
@@ -241,9 +247,9 @@ public class Engine {
                     abrPriorities.setJobId(botLoadJobs.get(0).getId());
 
                     // Check for non-null HomeBanking and Priority
-                    if (homeBankingLoad != null) {
-                        String priorityValue = homeBankingLoad.getPriority();
-                        String searchConfig = homeBankingLoad.getSearchConfig();
+                    if (homeBanking != null) {
+                        String priorityValue = homeBanking.getPriority();
+                        String searchConfig = homeBanking.getSearchConfig();
 
                         if (priorityValue != null) {
                             abrPriorities.loadPrioritiesFromString(priorityValue);
@@ -255,7 +261,7 @@ public class Engine {
                     }
 
                     // Initialize performAction with abrPriorities and arWebDriver
-                    performAction.initializePerformActions(abrPriorities, arWebDriver);
+                    performAction.initialize(abrPriorities);
                 }
             }
             if (performAction.waitForPage == null) {
@@ -263,10 +269,10 @@ public class Engine {
                         ARPropertyManager.getInstance().getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
                 String interactionTimeout =
                         ARPropertyManager.getInstance().getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
-                performAction.waitForPage =
-                        new WebDriverWait(arWebDriver.getDriver(), Duration.ofSeconds(Integer.parseInt(updateTimeout)));
+                performAction.waitForPage = new WebDriverWait(
+                        arWebDriver.getCurrentDriver(), Duration.ofSeconds(Integer.parseInt(updateTimeout)));
                 performAction.waitForAction = new WebDriverWait(
-                        arWebDriver.getDriver(), Duration.ofSeconds(Integer.parseInt(interactionTimeout)));
+                        arWebDriver.getCurrentDriver(), Duration.ofSeconds(Integer.parseInt(interactionTimeout)));
             }
 
             String botJobName = botLoadJobs.get(0).getName();
@@ -277,13 +283,14 @@ public class Engine {
 
             printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
 
-            ExcelWriter.ExcelChain writerReport =
-                    new ExcelWriter(botLoadJobs.get(0).getName(), arWebDriver.getDriver(), false).withPurpose("report");
+            ExcelWriter.ExcelChain writerReport = new ExcelWriter(
+                            botLoadJobs.get(0).getName(), arWebDriver.getCurrentDriver(), false)
+                    .withPurpose("report");
             writerReport.insertReportHead();
 
             ExcelWriter.ExcelChain writerExport = null;
             //                new ExcelWriter(blocksLoaded.get(0).getName(),
-            // arWebDriver.getDriver()).withPurpose("export");
+            // arWebDriver.getCurrentDriver()).withPurpose("export");
             boolean excelExportOnceCreation = true;
             //        writerExport.insertReportHead();
 
@@ -1313,7 +1320,7 @@ public class Engine {
 
                                         if (!Strings.isNullOrEmpty(excelFieldName)) {
                                             writerExport = new ExcelWriter(
-                                                            excelFieldName, arWebDriver.getDriver(), true)
+                                                            excelFieldName, arWebDriver.getCurrentDriver(), true)
                                                     .withPurpose("export");
                                         }
 
@@ -1727,7 +1734,7 @@ public class Engine {
                         "Close Browser",
                         260);
                 if (respModal.equals(ARConstants.DialogModal.STOP)) {
-                    arWebDriver.getDriver().quit();
+                    arWebDriver.getCurrentDriver().quit();
                 }
 
             } else {
@@ -1761,7 +1768,7 @@ public class Engine {
             printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
 
             if (resultActions.equalsIgnoreCase("Close Browser")) {
-                arWebDriver.getDriver().quit();
+                arWebDriver.getCurrentDriver().quit();
             }
 
             return true;
@@ -1809,7 +1816,7 @@ public class Engine {
             fileWriter.write(log + System.lineSeparator());
             fileWriter.close();
         } catch (Exception e) {
-            ARLogger.getInstance(WebPage.class).severe("printLog Error: " + e.getMessage());
+            ARLogger.getInstance(Engine.class).severe("printLog Error: " + e.getMessage());
         }
     }
 
@@ -1822,7 +1829,7 @@ public class Engine {
             fileWriter.write(log + System.lineSeparator());
             fileWriter.close();
         } catch (Exception e) {
-            ARLogger.getInstance(WebPage.class).severe("printBaseLog Error: " + e.getMessage());
+            ARLogger.getInstance(Engine.class).severe("printBaseLog Error: " + e.getMessage());
         }
     }
 
@@ -1847,7 +1854,7 @@ public class Engine {
             logExcelWorkbook.close();
 
         } catch (Exception e) {
-            ARLogger.getInstance(WebPage.class).severe("printLogExcel Error: " + e.getMessage());
+            ARLogger.getInstance(Engine.class).severe("printLogExcel Error: " + e.getMessage());
         }
     }
 
