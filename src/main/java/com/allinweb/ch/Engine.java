@@ -9,7 +9,6 @@ import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.persistence.Repository;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.util.*;
@@ -40,7 +39,7 @@ public class Engine {
     static final String EXECUTE_JOB = "execute/j";
     static final String FORM_RECOGNITION = "form/r";
     static final String TEST = "test";
-    public static Repository repository;
+    //    public static Repository repository;
     private static final String language = "en";
     private static File baseLogFile = null;
 
@@ -60,16 +59,16 @@ public class Engine {
     private static final ARPropertyManager managerProps;
     private static final PerformMessage performMessage;
     private static final PerformDataBase performDataBase;
-    private static final PerformActions performAction;
+    private static final PerformActions performActions;
     private static ARPriorities abrPriorities;
-    private static ARWebDriver arWebDriver;
+    private static ARWebDriver currentARWebDriver;
 
     // Static block to initialize
     static {
         managerProps = ARPropertyManager.getInstance();
         performMessage = PerformMessage.getInstance();
         performDataBase = PerformDataBase.getInstance();
-        performAction = PerformActions.getInstance();
+        performActions = PerformActions.getInstance();
         abrPriorities = ARPriorities.getInstance();
     }
 
@@ -113,7 +112,7 @@ public class Engine {
 
         performDataBase.changeDbConnection();
 
-        repository = new Repository(sessionFactory);
+        //        repository = new Repository(sessionFactory);
 
         try {
             baseLogFile = new File(ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_LOG)
@@ -140,7 +139,7 @@ public class Engine {
             ARLogger.getInstance(Engine.class).severe("Main class Start Error: " + e.getMessage());
         }
 
-        repository.closeSession();
+        //        repository.closeSession();
     }
 
     private static void startParametersInterpreter(String[] args) throws Exception {
@@ -253,12 +252,12 @@ public class Engine {
             //                    homeBankingDTO.getOptionsConfig(),
             //                    mapOperators);
 
-            arWebDriver = new ARWebDriver();
+            currentARWebDriver = new ARWebDriver();
 
             String browserType = managerProps.getProperty(ARPropertyEnum.BROWSER);
             String webDriverPath = managerProps.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
 
-            arWebDriver.openDriver(
+            currentARWebDriver.openDriver(
                     browserType, webDriverPath, homeBanking.getUrl(), homeBanking.getOptionsConfig(), null, false, 0);
 
             // Ensure botJob and abrPriorities are not null before accessing their methods
@@ -284,18 +283,20 @@ public class Engine {
                     }
 
                     // Initialize performAction with abrPriorities and arWebDriver
-                    performAction.initialize(abrPriorities);
+                    performActions.initialize(abrPriorities);
+                    performActions.setCurrentDriver(currentARWebDriver.getCurrentDriver());
                 }
             }
-            if (performAction.waitForPage == null) {
+            if (performActions.waitForPage == null) {
                 String updateTimeout =
                         ARPropertyManager.getInstance().getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
                 String interactionTimeout =
                         ARPropertyManager.getInstance().getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
-                performAction.waitForPage = new WebDriverWait(
-                        arWebDriver.getCurrentDriver(), Duration.ofSeconds(Integer.parseInt(updateTimeout)));
-                performAction.waitForAction = new WebDriverWait(
-                        arWebDriver.getCurrentDriver(), Duration.ofSeconds(Integer.parseInt(interactionTimeout)));
+                performActions.waitForPage = new WebDriverWait(
+                        currentARWebDriver.getCurrentDriver(), Duration.ofSeconds(Integer.parseInt(updateTimeout)));
+                performActions.waitForAction = new WebDriverWait(
+                        currentARWebDriver.getCurrentDriver(),
+                        Duration.ofSeconds(Integer.parseInt(interactionTimeout)));
             }
 
             String botJobName = botLoadJobs.get(0).getName();
@@ -307,7 +308,7 @@ public class Engine {
             printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
 
             ExcelWriter.ExcelChain writerReport = new ExcelWriter(
-                            botLoadJobs.get(0).getName(), arWebDriver.getCurrentDriver(), false)
+                            botLoadJobs.get(0).getName(), currentARWebDriver.getCurrentDriver(), false)
                     .withPurpose("report");
             writerReport.insertReportHead();
 
@@ -406,7 +407,7 @@ public class Engine {
                                     Pair<String, String> msgBlock = new Pair(blocLoopKey, "0");
 
                                     // Excel Report and Log
-                                    performAction.logAndReport(
+                                    performActions.logAndReport(
                                             currentCondition,
                                             true,
                                             true,
@@ -425,7 +426,7 @@ public class Engine {
                                             ARConstants.EXIT);
 
                                     // Excel Report and Log
-                                    performAction.logAndReport(
+                                    performActions.logAndReport(
                                             currentCondition,
                                             true,
                                             true,
@@ -439,7 +440,7 @@ public class Engine {
                                             "Stopping App",
                                             String.format("Exit at Block Name: \"%s\"", blockName));
 
-                                    performAction.gotoLimitExecution(limit, resultActions);
+                                    performActions.gotoLimitExecution(limit, resultActions);
 
                                     continue blockLoop;
                                 }
@@ -454,7 +455,7 @@ public class Engine {
                                 new Pair(String.format("Ignore: \"%s\"", blockLoad.getName()), ARConstants.IGNORE);
 
                         // Excel Report and Log
-                        performAction.logAndReport(
+                        performActions.logAndReport(
                                 currentCondition,
                                 true,
                                 true,
@@ -476,7 +477,7 @@ public class Engine {
                         Pair<String, String> msgBlock = new Pair(blockLoad.getName(), ARConstants.EXCEL_BLOCK_HEADER);
 
                         // Block Header Format
-                        performAction.logAndReport(
+                        performActions.logAndReport(
                                 currentCondition,
                                 true,
                                 false,
@@ -490,14 +491,14 @@ public class Engine {
                                 null,
                                 null);
 
-                        performAction.onHoldInSeconds(blockWait);
+                        performActions.onHoldInSeconds(blockWait);
 
                         msgBlock = new Pair(
                                 String.format("Default Wait: \"%s\" ->  %d Seconds", blockLoad.getName(), blockWait),
                                 ARConstants.HOLD);
 
                         // Excel Report and Log
-                        performAction.logAndReport(
+                        performActions.logAndReport(
                                 currentCondition,
                                 true,
                                 true,
@@ -519,13 +520,13 @@ public class Engine {
                     // Step 1: Get all ParentIds For LOOPs Filter rows where actions = "REFRESH_LOOP" or "LOOP" on
                     // current
                     // Block
-                    parentIdsForLoop = performAction.getParentIdsForLoop(
+                    parentIdsForLoop = performActions.getParentIdsForLoop(
                             blocksLoaded.get(currentBlock).getInstructionLoadDTOS());
 
                     // Step 2: Get all Conditional By parentId for Index Locator on current Block Relocate "IF",
                     // "ELSEIF",
                     // "ELSE", and "ENDIF"
-                    mapConditional = performAction.getConditionIndexMapByParentId(blockLoad);
+                    mapConditional = performActions.getConditionIndexMapByParentId(blockLoad);
 
                     // Step 3: Get all Instructions Ids on current Block
                     int[] instructionIds = blockLoad.getInstructionLoadDTOS().stream()
@@ -576,7 +577,7 @@ public class Engine {
                                         new Pair(String.format("Ignore: \"%s\"", nameInstruc), ARConstants.IGNORE);
 
                                 // Excel Report and Log
-                                performAction.logAndReport(
+                                performActions.logAndReport(
                                         currentCondition,
                                         true,
                                         true,
@@ -654,7 +655,7 @@ public class Engine {
                                 // Conditions When Pass to any of then
                                 if (progressCondition.equals(ARConstants.ConditionStatus.IF_PASSED)
                                         || progressCondition.equals(ARConstants.ConditionStatus.ELSEIF_PASSED)) {
-                                    int jumpPassed = performAction.checkActionToJump(
+                                    int jumpPassed = performActions.checkActionToJump(
                                             actions[0],
                                             progressCondition,
                                             mapConditional,
@@ -696,7 +697,7 @@ public class Engine {
                             Pair<String, String> msgInstruction = null;
                             if (actions[0].equalsIgnoreCase(ARConstants.GOTO)) {
                                 // <currentId:blockId:blockOrderNumber:bockName>
-                                msgInstruction = performAction.getBlockDetailsById(blocksLoaded, currentInstruction);
+                                msgInstruction = performActions.getBlockDetailsById(blocksLoaded, currentInstruction);
                                 if (msgInstruction == null) {
                                     msgInstruction = new Pair("GO TO Block \"Unknown\"", "Unknown");
                                     success = false;
@@ -718,7 +719,7 @@ public class Engine {
 
                             } else if (actions[0].equalsIgnoreCase(ARConstants.LOOP)) {
                                 // <currentId:parentId:parentName>
-                                msgInstruction = performAction.getInstructionDetailsById(
+                                msgInstruction = performActions.getInstructionDetailsById(
                                         blocksLoaded.get(currentBlock).getInstructionLoadDTOS(), currentInstruction);
 
                                 if (msgInstruction == null) {
@@ -734,7 +735,7 @@ public class Engine {
                                             String.valueOf(mapLoops.get(msgInstruction.getKey())));
                                 }
                             } else if (actions[0].equalsIgnoreCase(ARConstants.REFRESH_LOOP)) {
-                                msgInstruction = performAction.getInstructionDetailsById(
+                                msgInstruction = performActions.getInstructionDetailsById(
                                         blocksLoaded.get(currentBlock).getInstructionLoadDTOS(), currentInstruction);
                                 if (msgInstruction == null) {
                                     msgInstruction = new Pair("Jump To Parent \"Unknown\"", "Unknown");
@@ -770,7 +771,7 @@ public class Engine {
                                                         : ""));
                             }
 
-                            resultActions = performAction.actionResultMessage(blockName, actions, msgInstruction);
+                            resultActions = performActions.actionResultMessage(blockName, actions, msgInstruction);
 
                             extraMsg = "";
 
@@ -791,7 +792,7 @@ public class Engine {
 
                             if (actions[0].equalsIgnoreCase(ARConstants.LOOP)) {
                                 parentFieldLoop =
-                                        performAction.getInstructionParentField(currentInstruction, blockLoad);
+                                        performActions.getInstructionParentField(currentInstruction, blockLoad);
                                 if (parentField == null && parentFieldLoop == null) {
                                     parentFieldLoop = "Unknown parent";
                                     parentField = parentFieldLoop;
@@ -822,7 +823,7 @@ public class Engine {
                                 refreshOnly = true;
                             } else if (actions[0].equalsIgnoreCase(ARConstants.REFRESH_LOOP)) {
                                 parentFieldLoop =
-                                        performAction.getInstructionParentField(currentInstruction, blockLoad);
+                                        performActions.getInstructionParentField(currentInstruction, blockLoad);
                                 if (parentField == null && parentFieldLoop == null) {
                                     parentFieldLoop = "Unknown parent";
                                     parentField = parentFieldLoop;
@@ -855,15 +856,15 @@ public class Engine {
 
                                 getAction = actions[0].equalsIgnoreCase(ARConstants.GET_VALUE);
 
-                                xPathOperation = performAction.getXPathInstruction(currentInstruction, blockLoad);
-                                parentField = performAction.getInstructionParentField(currentInstruction, blockLoad);
+                                xPathOperation = performActions.getXPathInstruction(currentInstruction, blockLoad);
+                                parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
 
                             } else if (actions[0].equalsIgnoreCase(ARConstants.CHECK_VALUE)) {
                                 execCheckValue = true;
-                                parentField = performAction.getInstructionParentField(currentInstruction, blockLoad);
+                                parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
                             } else if (actions[0].equalsIgnoreCase(ARConstants.EXTRACT_FIELD)) {
                                 excelWriteOperation = true;
-                                parentField = performAction.getInstructionParentField(currentInstruction, blockLoad);
+                                parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
                             }
 
                             File logFileForSingleExcel = excelReader.createLogFile(excelPath);
@@ -878,7 +879,7 @@ public class Engine {
 
                                         success = false;
 
-                                        resultActions = performAction.blockGotoFailed(resultActions);
+                                        resultActions = performActions.blockGotoFailed(resultActions);
                                     } else {
                                         if (!loopBlockActive.contains(msgInstruction.getKey())) {
                                             loopBlockActive.add(msgInstruction.getKey());
@@ -917,7 +918,7 @@ public class Engine {
 
                                                 success = false;
 
-                                                resultActions = performAction.blockGotoFailed(resultActions);
+                                                resultActions = performActions.blockGotoFailed(resultActions);
                                             }
 
                                             Pair<String, String> currentPair = new Pair(
@@ -925,7 +926,7 @@ public class Engine {
                                                     String.valueOf(mapLoops.get(msgInstruction.getKey())));
 
                                             // Excel Report and Log
-                                            performAction.logAndReport(
+                                            performActions.logAndReport(
                                                     currentCondition,
                                                     true,
                                                     true,
@@ -971,18 +972,18 @@ public class Engine {
 
                                             if (refreshLoop) {
 
-                                                String extraLog = performAction.actionResultMessage(
+                                                String extraLog = performActions.actionResultMessage(
                                                         blockName,
                                                         new String[] {ARConstants.REFRESH_HOLD},
                                                         msgInstruction);
 
-                                                performAction.performOtherActions(
+                                                performActions.performOtherActions(
                                                         byPassNotFound,
                                                         currentInstruction,
                                                         new String[] {ARConstants.REFRESH_HOLD});
 
                                                 // Excel Report and Log
-                                                performAction.logAndReport(
+                                                performActions.logAndReport(
                                                         currentCondition,
                                                         true,
                                                         true,
@@ -997,18 +998,18 @@ public class Engine {
                                                         extraLog);
 
                                                 // Refresh For REFRESH_LOOP
-                                                extraLog = performAction.actionResultMessage(
+                                                extraLog = performActions.actionResultMessage(
                                                         blockName,
                                                         new String[] {ARConstants.REFRESH_ONLY},
                                                         msgInstruction);
 
-                                                performAction.performOtherActions(
+                                                performActions.performOtherActions(
                                                         byPassNotFound,
                                                         currentInstruction,
                                                         new String[] {ARConstants.REFRESH_ONLY});
 
                                                 // Excel Report and Log
-                                                performAction.logAndReport(
+                                                performActions.logAndReport(
                                                         currentCondition,
                                                         true,
                                                         true,
@@ -1038,7 +1039,7 @@ public class Engine {
                                                     String.valueOf(mapLoops.get(msgInstruction.getKey())));
 
                                             // Excel Report and Log
-                                            performAction.logAndReport(
+                                            performActions.logAndReport(
                                                     currentCondition,
                                                     true,
                                                     true,
@@ -1071,7 +1072,7 @@ public class Engine {
                                         }
 
                                     } else {
-                                        resultActions = performAction.parentValueIsNotDefined(
+                                        resultActions = performActions.parentValueIsNotDefined(
                                                 currentInstruction.getName(),
                                                 "(" + parentId + ")-" + parentField,
                                                 resultActions);
@@ -1081,7 +1082,7 @@ public class Engine {
 
                                 } else if (refreshOnly) {
 
-                                    performAction.performOtherActions(byPassNotFound, currentInstruction, actions);
+                                    performActions.performOtherActions(byPassNotFound, currentInstruction, actions);
 
                                     resultActions = "Refresh Current Web Page ->  inside Block :\""
                                             + blockLoad.getName() + "\"";
@@ -1093,7 +1094,7 @@ public class Engine {
                                         || actions[0].equals(ARConstants.SCREEN)
                                         || actions[0].equals(ARConstants.REFRESH_ONLY)) {
 
-                                    performAction.performOtherActions(byPassNotFound, currentInstruction, actions);
+                                    performActions.performOtherActions(byPassNotFound, currentInstruction, actions);
 
                                     if (actions[0].equals(ARConstants.QUIT)) {
                                         stopAll = true;
@@ -1108,7 +1109,7 @@ public class Engine {
                                         && !pauseOperation) {
 
                                     // Extract dataFieldName and dataFieldValue using a separate method
-                                    Pair<String, String> fieldData = performAction.extractFieldData(
+                                    Pair<String, String> fieldData = performActions.extractFieldData(
                                             dataExcel,
                                             actions,
                                             currentInstruction.getDefaultValue(),
@@ -1116,7 +1117,7 @@ public class Engine {
 
                                     WebElement webElementFound = null;
                                     try {
-                                        webElementFound = performAction.searchElement(currentInstruction, botJobId);
+                                        webElementFound = performActions.searchElement(currentInstruction, botJobId);
                                     } catch (Exception ex) {
                                         extraMsg = "Element not found. Please try rescanning.!";
                                         success = false;
@@ -1134,7 +1135,7 @@ public class Engine {
                                         if (actions[0].equalsIgnoreCase(ARConstants.VISUALIZE)
                                                 || actions[0].equalsIgnoreCase(ARConstants.CLICK)
                                                 || actions[0].equalsIgnoreCase(ARConstants.INSERT)) {
-                                            success = performAction.executeActionsAtCoordinates(
+                                            success = performActions.executeActionsAtCoordinates(
                                                     mapSavedLocators.get("coordinates"),
                                                     fieldData,
                                                     actions[0],
@@ -1147,7 +1148,7 @@ public class Engine {
 
                                     if (webElementFound != null && success) {
 
-                                        success = performAction.performWebActions(
+                                        success = performActions.performWebActions(
                                                 byPassNotFound,
                                                 mapSavedLocators.get("coordinates"),
                                                 fieldData,
@@ -1193,21 +1194,21 @@ public class Engine {
                                     }
                                     // Mandatory for GET_VALUE
                                     if (xPathOperation == null && actions[0].equalsIgnoreCase(ARConstants.GET_VALUE)) {
-                                        resultActions = performAction.parentIdWrongBlock(
+                                        resultActions = performActions.parentIdWrongBlock(
                                                 currentInstruction, blockLoad, resultActions, currentCondition);
                                         success = false;
                                     } else if (parentField == null) {
-                                        resultActions = performAction.parentIdWrongBlock(
+                                        resultActions = performActions.parentIdWrongBlock(
                                                 currentInstruction, blockLoad, resultActions, currentCondition);
                                         success = false;
                                     } else if (!mapOperators.containsKey(parentField) && !getAction) {
-                                        resultActions = performAction.getValueIsNotDefined(
+                                        resultActions = performActions.getValueIsNotDefined(
                                                 currentInstruction, resultActions, currentCondition);
 
                                         success = false;
                                     } else {
 
-                                        resultActions = performAction.performOperatorActions(
+                                        resultActions = performActions.performOperatorActions(
                                                 byPassNotFound,
                                                 currentInstruction,
                                                 xPathOperation,
@@ -1246,16 +1247,16 @@ public class Engine {
                                     }
 
                                     if (parentField == null) {
-                                        resultActions = performAction.parentIdWrongBlock(
+                                        resultActions = performActions.parentIdWrongBlock(
                                                 currentInstruction, blockLoad, resultActions, currentCondition);
 
-                                        resultActions = performAction.getValueIsNotDefined(
+                                        resultActions = performActions.getValueIsNotDefined(
                                                 currentInstruction, resultActions, currentCondition);
 
                                         success = false;
 
                                     } else if (!mapOperators.containsKey(parentField)) {
-                                        resultActions = performAction.getValueIsNotDefined(
+                                        resultActions = performActions.getValueIsNotDefined(
                                                 currentInstruction, resultActions, currentCondition);
 
                                         success = false;
@@ -1301,7 +1302,7 @@ public class Engine {
                                             executedSuccess.add(currentInstruction.getId());
                                             success = true;
                                         } else {
-                                            resultActions = performAction.checkValidationFailed(
+                                            resultActions = performActions.checkValidationFailed(
                                                     parentField,
                                                     mapOperators.get(parentField),
                                                     resultActions,
@@ -1323,13 +1324,13 @@ public class Engine {
 
                                     if (parentField == null) {
 
-                                        resultActions = performAction.parentIdWrongBlock(
+                                        resultActions = performActions.parentIdWrongBlock(
                                                 currentInstruction, blockLoad, resultActions, currentCondition);
 
                                         success = false;
 
                                     } else if (!mapOperators.containsKey(parentField)) {
-                                        resultActions = performAction.getValueIsNotDefined(
+                                        resultActions = performActions.getValueIsNotDefined(
                                                 currentInstruction, resultActions, currentCondition);
 
                                         success = false;
@@ -1343,7 +1344,7 @@ public class Engine {
 
                                         if (!Strings.isNullOrEmpty(excelFieldName)) {
                                             writerExport = new ExcelWriter(
-                                                            excelFieldName, arWebDriver.getCurrentDriver(), true)
+                                                            excelFieldName, currentARWebDriver.getCurrentDriver(), true)
                                                     .withPurpose("export");
                                         }
 
@@ -1369,7 +1370,7 @@ public class Engine {
 
                                             writerExport.insertFieldNameAndValueLastColumn(mapExport, exportIndex - 1);
                                         }
-                                        performAction.onHoldForSeconds(null);
+                                        performActions.onHoldForSeconds(null);
 
                                         if (resultActions != null) {
                                             currentInstruction.setExecuted(true);
@@ -1422,14 +1423,14 @@ public class Engine {
                             if (!jumpGotoError
                                     && !jumpLoopError
                                     && !currentCondition.equals(ARConstants.ConditionStatus.NONE)) {
-                                progressCondition = performAction.updateProgressSuccess(success, currentCondition);
+                                progressCondition = performActions.updateProgressSuccess(success, currentCondition);
                                 //                                continue instructionLoop;
                             } else {
                                 progressCondition = ARConstants.ConditionStatus.NONE;
                             }
 
                             // Excel Report and Log
-                            performAction.logAndReport(
+                            performActions.logAndReport(
                                     !byPassFlagLoop ? progressCondition : ARConstants.ConditionStatus.BY_PASS,
                                     true,
                                     true,
@@ -1453,7 +1454,7 @@ public class Engine {
                                 Pair<String, String> msgBlock = new Pair(resultActions, ARConstants.PAUSE);
 
                                 // Excel Report and Log
-                                performAction.logAndReport(
+                                performActions.logAndReport(
                                         currentCondition,
                                         true,
                                         true,
@@ -1496,7 +1497,7 @@ public class Engine {
                             // Conditions When Pass to any of then
                             if (progressCondition.equals(ARConstants.ConditionStatus.IF_PASSED)
                                     || progressCondition.equals(ARConstants.ConditionStatus.ELSEIF_PASSED)) {
-                                int jumpPassed = performAction.checkActionToJump(
+                                int jumpPassed = performActions.checkActionToJump(
                                         actions[0],
                                         progressCondition,
                                         mapConditional,
@@ -1523,7 +1524,7 @@ public class Engine {
                                     || progressCondition.equals(ARConstants.ConditionStatus.ELSEIF_FAILED)) {
 
                                 // Goes to the next ELSEIF IF EXIST (ELSEIF index + 1);
-                                int index = performAction.searchMapConditional(
+                                int index = performActions.searchMapConditional(
                                         mapConditional,
                                         parentBlockCondition,
                                         ARConstants.ConditionStatus.ELSEIF,
@@ -1532,7 +1533,7 @@ public class Engine {
 
                                 // Goes to the next ELSE IF ELSEIF  DOES NOT EXIST  (ELSE index + 1);
                                 if (index < 0) {
-                                    index = performAction.searchMapConditional(
+                                    index = performActions.searchMapConditional(
                                             mapConditional,
                                             parentBlockCondition,
                                             ARConstants.ConditionStatus.ELSE,
@@ -1550,7 +1551,7 @@ public class Engine {
 
                             } else if (progressCondition.equals(ARConstants.ConditionStatus.ELSE_FAILED)) {
                                 // Goes to the ENDIF (ENDIF index + 1);
-                                int index = performAction.searchMapConditional(
+                                int index = performActions.searchMapConditional(
                                         mapConditional,
                                         parentBlockCondition,
                                         ARConstants.ConditionStatus.ENDIF,
@@ -1587,7 +1588,7 @@ public class Engine {
                                     currentInstruction.getActions(), ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
                             if (arr.length > 1) {
                                 String dataFieldName = arr[1].split(ARConstants.PATH_FIELD_SUBSTITUTION)[0];
-                                performAction.insertRandomName(dataFieldName);
+                                performActions.insertRandomName(dataFieldName);
                             }
                         }
                     }
@@ -1626,7 +1627,7 @@ public class Engine {
                                         ? currentInstruction.getOperation()
                                         : (actions[0].equalsIgnoreCase(ARConstants.INSERT)) ? valueInsert : ""));
 
-                        resultActions = performAction.actionResultMessage(blockName, actions, msgInstruction);
+                        resultActions = performActions.actionResultMessage(blockName, actions, msgInstruction);
 
                         try {
 
@@ -1634,7 +1635,7 @@ public class Engine {
                                     || actions[0].equals(ARConstants.QUIT)
                                     || actions[0].equals(ARConstants.SCREEN)
                                     || actions[0].equals(ARConstants.REFRESH_ONLY)) {
-                                performAction.performOtherActions(byPassNotFound, currentInstruction, actions);
+                                performActions.performOtherActions(byPassNotFound, currentInstruction, actions);
 
                                 if (actions[0].equals(ARConstants.QUIT)) {
                                     stopAll = true;
@@ -1642,7 +1643,7 @@ public class Engine {
                                 }
 
                                 // Excel Report and Log
-                                performAction.logAndReport(
+                                performActions.logAndReport(
                                         currentCondition,
                                         true,
                                         true,
@@ -1661,12 +1662,12 @@ public class Engine {
 
                             WebElement webElementFound = null;
                             try {
-                                webElementFound = performAction.searchElement(currentInstruction, botJobId);
+                                webElementFound = performActions.searchElement(currentInstruction, botJobId);
                             } catch (Exception ex) {
                                 extraMsg = "Element not found. Please try rescanning.!";
                             }
 
-                            success = performAction.performWebActions(
+                            success = performActions.performWebActions(
                                     byPassNotFound,
                                     mapSavedLocators.get("coordinates"),
                                     dataDynamic,
@@ -1688,7 +1689,7 @@ public class Engine {
                             }
 
                             // Excel Report and Log
-                            performAction.logAndReport(
+                            performActions.logAndReport(
                                     currentCondition,
                                     true,
                                     true,
@@ -1707,7 +1708,7 @@ public class Engine {
                             currentInstruction.setExecuted(false);
 
                             // Excel Report and Log
-                            performAction.logAndReport(
+                            performActions.logAndReport(
                                     currentCondition,
                                     true,
                                     true,
@@ -1728,7 +1729,7 @@ public class Engine {
                 }
             }
 
-            totalExecutionTime = performAction.getTotalExecutionTime();
+            totalExecutionTime = performActions.getTotalExecutionTime();
 
             if (totalExecutionTime == 0) {
                 writerReport.insertTotalExecutionTimes(botJobStartTime, botJobStartTime);
@@ -1755,9 +1756,9 @@ public class Engine {
                         false,
                         "OK",
                         "Close Browser",
-                        260);
+                        300);
                 if (respModal.equals(ARConstants.DialogModal.STOP)) {
-                    arWebDriver.getCurrentDriver().quit();
+                    currentARWebDriver.getCurrentDriver().quit();
                 }
 
             } else {
@@ -1789,9 +1790,10 @@ public class Engine {
 
             }
             printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
+            printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
 
             if (resultActions.equalsIgnoreCase("Close Browser")) {
-                arWebDriver.getCurrentDriver().quit();
+                currentARWebDriver.getCurrentDriver().quit();
             }
 
             return true;

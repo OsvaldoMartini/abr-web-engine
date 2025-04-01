@@ -3091,11 +3091,11 @@ public class PerformDataBase {
                 homeBanking.setUsername(rs.getString("username"));
             }
 
-        } catch (SQLException e) {
+        } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error selecting home banking record with ID %d. Error: %s",
-                            homeBankingId, e.getMessage()));
+                            homeBankingId, error.getMessage()));
         }
         return homeBanking;
     }

@@ -745,7 +745,7 @@ public class PerformActions {
             }
         }
 
-        if (arPriorities.getAllPriorityList().size() == 0
+        if (ARPriorities.getAllPriorityList().size() == 0
                 || arPriorities.getAllPriorityList().size() < 4) {
             StringBuilder priorMissing = new StringBuilder();
             priorMissing.append("1,xpath,currentXPath" + System.lineSeparator());
