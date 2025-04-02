@@ -99,7 +99,7 @@ public class PerformMessage {
         // Create a JDialog as a custom message dialog
         JDialog dialog = new JDialog();
         dialog.setTitle(title);
-        dialog.setSize(300, 150);
+        dialog.setSize(400, 150);
         dialog.setLocationRelativeTo(null); // Center on screen
         dialog.setUndecorated(true); // Remove the default border
 
@@ -208,15 +208,15 @@ public class PerformMessage {
         // Create a JDialog as a custom modal message dialog
         JDialog dialog = new JDialog((Frame) null, title, true); // true makes it modal
         if (height > 0) {
-            dialog.setSize(350, height);
+            dialog.setSize(450, height);
         } else if (message2 != null && message3 == null && message4 == null) {
-            dialog.setSize(380, 210);
+            dialog.setSize(450, 210);
         } else if (message2 != null && message3 != null && message4 == null) {
-            dialog.setSize(380, 250);
+            dialog.setSize(450, 250);
         } else if (message2 != null && message3 != null && message4 != null) {
-            dialog.setSize(380, 280);
+            dialog.setSize(450, 280);
         } else {
-            dialog.setSize(380, 150);
+            dialog.setSize(450, 150);
         }
 
         dialog.setLocationRelativeTo(null); // Center on screen
@@ -393,15 +393,15 @@ public class PerformMessage {
 
         // Set dialog size dynamically
         if (height > 0) {
-            dialog.setSize(380, height);
+            dialog.setSize(450, height);
         } else if (message2 != null && message3 == null && message4 == null) {
-            dialog.setSize(380, 240);
+            dialog.setSize(450, 240);
         } else if (message2 != null && message3 != null && message4 == null) {
-            dialog.setSize(380, 280);
+            dialog.setSize(450, 280);
         } else if (message2 != null && message3 != null && message4 != null) {
-            dialog.setSize(380, 320);
+            dialog.setSize(450, 320);
         } else {
-            dialog.setSize(380, 200);
+            dialog.setSize(450, 200);
         }
 
         dialog.setLocationRelativeTo(null); // Center on screen
@@ -490,6 +490,70 @@ public class PerformMessage {
         return status[0];
     }
 
+    public List<String> distributeMsg(List<String> lstOrigin) {
+        List<String> result = new ArrayList<>(3); // Initialize with capacity 3
+
+        if (lstOrigin == null || lstOrigin.isEmpty()) {
+            result.add(null);
+            result.add(null);
+            result.add(null);
+            return result;
+        }
+
+        int listSize = lstOrigin.size();
+
+        if (listSize <= 3) {
+            // Distribute evenly among 1-3 messages
+            for (int i = 0; i < listSize; i++) {
+                result.add(lstOrigin.get(i));
+            }
+            while (result.size() < 3) {
+                result.add(null);
+            }
+        } else if (listSize <= 6) {
+            // Distribute evenly among 2-3 messages
+            String msg1 = "";
+            String msg2 = "";
+            String msg3 = "";
+
+            for (int i = 0; i < listSize; i++) {
+                if (i < 2) {
+                    msg1 += lstOrigin.get(i) + "\n";
+                } else if (i < 4) {
+                    msg2 += lstOrigin.get(i) + "\n";
+                } else {
+                    msg3 += lstOrigin.get(i) + "\n";
+                }
+            }
+            result.add(msg1);
+            result.add(msg2);
+            result.add(msg3);
+
+        } else {
+            // Distribute evenly among 3 messages
+            String msg1 = "";
+            String msg2 = "";
+            String msg3 = "";
+
+            int itemsPerMessage = listSize / 3;
+            int remainingItems = listSize % 3;
+
+            for (int i = 0; i < listSize; i++) {
+                if (i < itemsPerMessage + remainingItems) {
+                    msg1 += lstOrigin.get(i) + "\n";
+                } else if (i < (itemsPerMessage * 2) + remainingItems) {
+                    msg2 += lstOrigin.get(i) + "\n";
+                } else {
+                    msg3 += lstOrigin.get(i) + "\n";
+                }
+            }
+            result.add(msg1);
+            result.add(msg2);
+            result.add(msg3);
+        }
+        return result;
+    }
+
     /**
      * Creates a styled button with Windows 11 theme
      */
@@ -510,15 +574,15 @@ public class PerformMessage {
 
         // Set dialog size dynamically
         if (height > 0) {
-            dialog.setSize(380, height);
+            dialog.setSize(450, height);
         } else if (message2 != null && message3 == null && message4 == null) {
-            dialog.setSize(380, 270);
+            dialog.setSize(450, 270);
         } else if (message2 != null && message3 != null && message4 == null) {
-            dialog.setSize(380, 310);
+            dialog.setSize(450, 310);
         } else if (message2 != null && message3 != null && message4 != null) {
-            dialog.setSize(380, 380);
+            dialog.setSize(450, 380);
         } else {
-            dialog.setSize(380, 210);
+            dialog.setSize(450, 210);
         }
 
         dialog.setLocationRelativeTo(null); // Center on screen

@@ -115,8 +115,8 @@ public class Engine {
         //        repository = new Repository(sessionFactory);
 
         try {
-            baseLogFile = new File(ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_LOG)
-                    + ARConstants.FILE_NAME_ENGINE_BASE_LOG);
+            baseLogFile = new File(
+                    managerProps.getProperty(ARPropertyEnum.FOLDER_PATH_LOG) + ARConstants.FILE_NAME_ENGINE_BASE_LOG);
         } catch (Exception e) {
             ARLogger.getInstance(Engine.class).severe("baseLogFile Error: " + e.getMessage());
         }
@@ -288,10 +288,8 @@ public class Engine {
                 }
             }
             if (performActions.waitForPage == null) {
-                String updateTimeout =
-                        ARPropertyManager.getInstance().getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
-                String interactionTimeout =
-                        ARPropertyManager.getInstance().getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
+                String updateTimeout = managerProps.getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
+                String interactionTimeout = managerProps.getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
                 performActions.waitForPage = new WebDriverWait(
                         currentARWebDriver.getCurrentDriver(), Duration.ofSeconds(Integer.parseInt(updateTimeout)));
                 performActions.waitForAction = new WebDriverWait(
@@ -362,9 +360,11 @@ public class Engine {
             ARConstants.ConditionStatus currentCondition = ARConstants.ConditionStatus.NONE;
             ARConstants.ConditionStatus previousCondition;
             ARConstants.ConditionStatus progressCondition;
-            ARConstants.DialogModal respModal;
+            ARConstants.DialogModal respModal = ARConstants.DialogModal.NONE;
 
             int exportIndex = 1;
+            boolean webElementWork = false;
+
             if (extractedData.getNumberOfDataRows() > 0) {
 
                 // Execute All Blocks starting from executeSpecificBlock if Defined
@@ -558,6 +558,7 @@ public class Engine {
                         while (currentIndex < instructionIds.length && !stopAll) {
                             // Resets the success
                             success = true;
+                            webElementWork = false;
 
                             long currentInstructionStartTime = System.nanoTime();
 
@@ -1108,6 +1109,8 @@ public class Engine {
                                         && !excelWriteOperation
                                         && !pauseOperation) {
 
+                                    webElementWork = true;
+
                                     // Extract dataFieldName and dataFieldValue using a separate method
                                     Pair<String, String> fieldData = performActions.extractFieldData(
                                             dataExcel,
@@ -1266,6 +1269,8 @@ public class Engine {
                                         resultActions = "CHECK_VALUE for (Parent: " + parentField + ")"
                                                 + String.join(" ", operations);
                                         boolean isOperationValid = false;
+                                        String invalidValues = null;
+
                                         if (operations[1].equalsIgnoreCase("=")) {
                                             isOperationValid = mapOperators
                                                     .get(parentField)
@@ -1273,15 +1278,38 @@ public class Engine {
                                                     .equalsIgnoreCase(operations[2]);
 
                                         } else if (operations[1].equalsIgnoreCase(">")) {
-                                            isOperationValid = mapOperators
-                                                    .get(parentField)
-                                                    .trim()
-                                                    .equalsIgnoreCase(operations[2]);
+                                            int resp = handleGreaterThan(
+                                                    mapOperators
+                                                            .get(parentField)
+                                                            .trim(),
+                                                    operations[2]);
+                                            if (resp == 1) {
+                                                isOperationValid = true;
+                                            } else if (resp == 0) {
+                                                isOperationValid = false;
+                                            } else {
+                                                isOperationValid = false;
+                                                invalidValues = "Invalid Numbers";
+                                            }
                                         } else if (operations[1].equalsIgnoreCase("!=")) {
                                             isOperationValid = !mapOperators
                                                     .get(parentField)
                                                     .trim()
                                                     .equalsIgnoreCase(operations[2]);
+                                        } else if (operations[1].equalsIgnoreCase("<")) {
+                                            int resp = handleLessThan(
+                                                    mapOperators
+                                                            .get(parentField)
+                                                            .trim(),
+                                                    operations[2]);
+                                            if (resp == 1) {
+                                                isOperationValid = true;
+                                            } else if (resp == 0) {
+                                                isOperationValid = false;
+                                            } else {
+                                                isOperationValid = false;
+                                                invalidValues = "Invalid Numbers";
+                                            }
                                         }
 
                                         if (isOperationValid) {
@@ -1303,6 +1331,7 @@ public class Engine {
                                             success = true;
                                         } else {
                                             resultActions = performActions.checkValidationFailed(
+                                                    invalidValues,
                                                     parentField,
                                                     mapOperators.get(parentField),
                                                     resultActions,
@@ -1757,9 +1786,6 @@ public class Engine {
                         "OK",
                         "Close Browser",
                         300);
-                if (respModal.equals(ARConstants.DialogModal.STOP)) {
-                    currentARWebDriver.getCurrentDriver().quit();
-                }
 
             } else {
                 baseLogString = botLoadJobs.get(0).getName()
@@ -1769,13 +1795,27 @@ public class Engine {
                         + labelsValue.getProperty(Labels.KO)
                         + resultActions;
 
-                performMessage.errorMessage(
-                        "Failed to locate the element after 10 attempts.",
-                        "Try rescanning the element,",
-                        "or change the action to \"Force Coordinates\".",
-                        "Last Execution:",
-                        resultActions,
-                        260);
+                if (webElementWork) {
+                    performMessage.errorMessage(
+                            "Failed finding element (5 attempts).",
+                            "Use \"Force Coordinates\" in some cases.",
+                            "Last Execution:",
+                            resultActions,
+                            null,
+                            350);
+                } else {
+
+                    respModal = performMessage.showCustomModalDialogDragWin11(
+                            "Process Execution Terminated",
+                            "Last Execution:",
+                            resultActions,
+                            null,
+                            null,
+                            true,
+                            "OK",
+                            "Close Browser",
+                            350);
+                }
 
                 System.out.println(String.format("Failed: %s Last Execution: %s", botJobName, resultActions));
                 System.out.println("Failed to locate the element after 10 attempts");
@@ -1792,7 +1832,7 @@ public class Engine {
             printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
             printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
 
-            if (resultActions.equalsIgnoreCase("Close Browser")) {
+            if (resultActions.equalsIgnoreCase("Close Browser") || respModal.equals(ARConstants.DialogModal.STOP)) {
                 currentARWebDriver.getCurrentDriver().quit();
             }
 
@@ -1820,6 +1860,9 @@ public class Engine {
                 ARLogger.getInstance(Engine.class).severe("Error Open URL: \n" + msg1 + "\n" + msg2);
 
                 performMessage.errorMessage("Error WebDriver Version", msg1, msg2, null, null, 260);
+            } else {
+                String driverPath = managerProps.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+                performMessage.errorMessage("WebDriver Cannot be open", driverPath, null, null, null, 260);
             }
 
             return false;
@@ -1961,5 +2004,27 @@ public class Engine {
         }
 
         return missingPropertiesList;
+    }
+
+    private static int handleGreaterThan(String value1, String value2) {
+        try {
+            double num1 = Double.parseDouble(value1);
+            double num2 = Double.parseDouble(value2);
+            return num1 > num2 ? 1 : 0;
+        } catch (NumberFormatException e) {
+            // Handle non-numeric values (e.g., log an error, return false)
+            return -1; // Or throw an exception
+        }
+    }
+
+    private static int handleLessThan(String value1, String value2) {
+        try {
+            double num1 = Double.parseDouble(value1);
+            double num2 = Double.parseDouble(value2);
+            return num1 < num2 ? 1 : 0;
+        } catch (NumberFormatException e) {
+            // Handle non-numeric values
+            return -1; // Or throw an exception
+        }
     }
 }

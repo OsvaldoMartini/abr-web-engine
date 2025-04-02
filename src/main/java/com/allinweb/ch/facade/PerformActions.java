@@ -745,7 +745,7 @@ public class PerformActions {
             }
         }
 
-        if (ARPriorities.getAllPriorityList().size() == 0
+        if (arPriorities.getAllPriorityList().size() == 0
                 || arPriorities.getAllPriorityList().size() < 4) {
             StringBuilder priorMissing = new StringBuilder();
             priorMissing.append("1,xpath,currentXPath" + System.lineSeparator());
@@ -1852,6 +1852,7 @@ public class PerformActions {
     }
 
     public String checkValidationFailed(
+            String invalidValues,
             String parent,
             String expected,
             String lastInstructionExecuted,
@@ -1890,7 +1891,12 @@ public class PerformActions {
                     + ")";
             String msg4 = "\nExpected value: " + operations[2] + " Length: (" + operations[2].length() + ")";
 
-            performMessage.errorMessage("Check Validation Error", msg1, msg2, msg3, msg4, 0);
+            if (Strings.isNullOrEmpty(invalidValues)) {
+                invalidValues = "Check Validation Value Error";
+            } else {
+                invalidValues += " Operator: (\"" + operations[1] + "\")";
+            }
+            performMessage.errorMessage(invalidValues, msg1, msg2, msg3, msg4, 0);
         }
 
         String conditionalBlock = conditionStatus.equals(ARConstants.ConditionStatus.IF_PASSED)
@@ -2330,7 +2336,7 @@ public class PerformActions {
     public void executeActionsAtInstructionCoordinates(InstructionLoadDTO currentInstruction, Pair<String, String> data)
             throws Exception {
 
-        List<com.allinweb.ch.util.Priority> priorityList = ARPriorities.getAllPriorityList();
+        List<com.allinweb.ch.util.Priority> priorityList = arPriorities.getAllPriorityList();
         Optional<com.allinweb.ch.util.Priority> priority = priorityList.stream()
                 .filter(p -> p.getPriorityType().equals(PriorityTypeEnum.coordinates))
                 .findFirst();
