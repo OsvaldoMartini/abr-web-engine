@@ -1796,12 +1796,15 @@ public class Engine {
                         + resultActions;
 
                 if (webElementWork) {
-                    performMessage.errorMessage(
+                    respModal = performMessage.showCustomModalDialogDragWin11(
                             "Failed finding element (5 attempts).",
                             "Use \"Force Coordinates\" in some cases.",
                             "Last Execution:",
                             resultActions,
                             null,
+                            true,
+                            "OK",
+                            "Close Browser",
                             350);
                 } else {
 
