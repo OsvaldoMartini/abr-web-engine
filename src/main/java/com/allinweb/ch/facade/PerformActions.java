@@ -1898,7 +1898,12 @@ public class PerformActions {
             if (Strings.isNullOrEmpty(invalidValues)) {
                 invalidValues = "Check Validation Value Error";
             } else {
-                invalidValues += " Operator: (\"" + operations[1] + "\")";
+
+                if (operations[1].equals("<")) {
+                    invalidValues += " Operator: (\" &lt; \")";
+                } else {
+                    invalidValues += " Operator: (\" " + operations[1] + " \")";
+                }
             }
             performMessage.errorMessage(invalidValues, msg1, msg2, msg3, msg4, 0);
         }
