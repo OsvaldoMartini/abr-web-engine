@@ -853,7 +853,6 @@ public class Engine {
                                 parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
                             } else if (actions[0].equalsIgnoreCase(ARConstants.EXTRACT_FIELD)) {
                                 excelWriteOperation = true;
-                                parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
                             }
 
                             File logFileForSingleExcel = excelReader.createLogFile(excelPath);
@@ -1331,10 +1330,8 @@ public class Engine {
                                 } else if (excelWriteOperation && operations.length == 2) {
                                     // Excel Write Operator
 
-                                    if (parentField != null) {
-                                        fieldName = parentField;
-                                        parentField = parentId + "-" + parentField;
-                                    }
+                                    fieldName = currentInstruction.getOperation();
+                                    parentField = currentInstruction.getVariableId() + "-" + fieldName;
 
                                     if (parentField == null) {
 
@@ -1758,7 +1755,6 @@ public class Engine {
             }
 
             totalExecutionTime = performActions.getTotalExecutionTime();
-
             if (totalExecutionTime == 0) {
                 writerReport.insertTotalExecutionTimes(botJobStartTime, botJobStartTime);
             } else {
