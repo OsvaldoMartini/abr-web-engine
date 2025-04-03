@@ -11,36 +11,29 @@ public class VariableUserDTO {
     private StringProperty name;
     private StringProperty value;
     private IntegerProperty botJobId;
-    private IntegerProperty instructionId;
+    private IntegerProperty parentId;
     private StringProperty usedVars;
 
     public VariableUserDTO() {}
 
     public VariableUserDTO(
-            Integer id,
-            String type,
-            String name,
-            String value,
-            Integer botJobId,
-            Integer instructionId,
-            String usedVars) {
+            Integer id, String type, String name, String value, Integer botJobId, Integer parentId, String usedVars) {
         this.id = new SimpleIntegerProperty(id);
         this.type = new SimpleStringProperty(type);
         this.name = new SimpleStringProperty(name);
         this.value = new SimpleStringProperty(value);
         this.botJobId = new SimpleIntegerProperty(botJobId);
-        this.instructionId = new SimpleIntegerProperty(instructionId);
+        this.parentId = new SimpleIntegerProperty(parentId);
         this.usedVars = new SimpleStringProperty(usedVars);
     }
 
-    public VariableUserDTO(
-            Integer id, String type, String name, String value, Integer botJobId, Integer instructionId) {
+    public VariableUserDTO(Integer id, String type, String name, String value, Integer botJobId, Integer parentId) {
         this.id = new SimpleIntegerProperty(id);
         this.type = new SimpleStringProperty(type);
         this.name = new SimpleStringProperty(name);
         this.value = new SimpleStringProperty(value);
         this.botJobId = new SimpleIntegerProperty(botJobId);
-        this.instructionId = new SimpleIntegerProperty(instructionId);
+        this.parentId = new SimpleIntegerProperty(parentId);
     }
 
     public Integer getId() {
@@ -103,16 +96,16 @@ public class VariableUserDTO {
         this.botJobId.set(botJobId);
     }
 
-    public Integer getInstructionId() {
-        return instructionId.get();
+    public Integer getParentId() {
+        return parentId.get();
     }
 
-    public IntegerProperty instructionIdProperty() {
-        return instructionId;
+    public IntegerProperty parentIdProperty() {
+        return parentId;
     }
 
-    public void setInstructionId(Integer instructionId) {
-        this.instructionId.set(instructionId);
+    public void setParentId(Integer parentId) {
+        this.parentId.set(parentId);
     }
 
     public String getUsedVars() {

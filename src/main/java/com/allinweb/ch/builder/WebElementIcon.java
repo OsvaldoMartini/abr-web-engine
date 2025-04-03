@@ -11,6 +11,11 @@ public enum WebElementIcon {
     GET_VALUE("GetValue"),
     CHECK_VALUE("CheckValue"),
     IFRAME("iframe"),
+    GOTO("GO TO"),
+    EXTRACT_FIELD("ExcelWrite"),
+    REFRESH_ONLY("Refresh"),
+    REFRESH_LOOP("Refresh Loop"),
+    LOOP("Loop"),
     NONE("none");
 
     private String value;

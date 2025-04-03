@@ -1434,7 +1434,8 @@ public class PerformDataBase {
                 + "  bli.operation, bli.parent_id, "
                 + "  b.export_file, "
                 + "  b.active as block_active, b.wait, "
-                + "  bli.active as instruction_active "
+                + "  bli.active as instruction_active, "
+                + "  bli.variable_id "
                 + " FROM bot_job bot "
                 + " LEFT JOIN block b ON b.bot_job_id = bot.id "
                 + " JOIN instruction bli ON bli.block_id = b.id "
@@ -1515,6 +1516,8 @@ public class PerformDataBase {
                     instruction.setExportToABR(rs.getBoolean("export_to_abr"));
                     instruction.setOperation(rs.getString("operation"));
                     instruction.setParentId(rs.getInt("parent_id"));
+                    instruction.setVariableId(rs.getInt("variable_id"));
+
                     instruction.setInstructionActive(rs.getBoolean("instruction_active"));
 
                     instruction.setInstructionReferenceLoadDTOList(new ArrayList<>());
@@ -1577,7 +1580,8 @@ public class PerformDataBase {
                 + "    bli.parent_id, \n"
                 + "    bli.active AS instruction_active,\n"
                 + "    irl.reference_type, \n"
-                + "    irl.value AS reference_value\n"
+                + "    irl.value AS reference_value, \n"
+                + "    bli.variable_id \n"
                 + "FROM home_banking hb\n"
                 + "LEFT JOIN component_block blk ON blk.home_banking_id = hb.id\n"
                 + "JOIN component_instruction bli ON bli.block_id = blk.id\n"
@@ -1659,6 +1663,8 @@ public class PerformDataBase {
                     instruction.setExportToABR(rs.getBoolean("export_to_abr"));
                     instruction.setOperation(rs.getString("operation"));
                     instruction.setParentId(rs.getInt("parent_id"));
+                    instruction.setVariableId(rs.getInt("variable_id"));
+
                     instruction.setInstructionActive(rs.getBoolean("instruction_active"));
 
                     instruction.setInstructionReferenceLoadDTOList(new ArrayList<>());
@@ -3404,7 +3410,7 @@ public class PerformDataBase {
                         && !actions.equalsIgnoreCase(ARConstants.GET_VALUE)
                         && !actions.equalsIgnoreCase(ARConstants.CHECK_VALUE)
                         && !actions.equalsIgnoreCase(ARConstants.HOLD)) {
-                    webPageItems.add(new ComboBoxVars("(" + id + ")" + name, name, id, blockId, tagName));
+                    webPageItems.add(new ComboBoxVars("(" + id + ")" + name, name, id, blockId, -1, -1, tagName));
                 }
             }
         } catch (SQLException e) {
@@ -4934,6 +4940,7 @@ public class PerformDataBase {
                                 itemBlock.getWait(),
                                 loopInstLoad.getActions(),
                                 loopInstLoad.getParentId(),
+                                loopInstLoad.getVariableId(),
                                 loopInstLoad.getOperation(),
                                 itemBlock.getExportFile(),
                                 loopInstLoad.getTagName())))
@@ -5730,15 +5737,15 @@ public class PerformDataBase {
         return false;
     }
 
-    public ObservableList<VariableUserDTO> loadAllVariblesByCriteria(int botJobId, int instructionId) {
+    public ObservableList<VariableUserDTO> loadAllVariblesByCriteria(int botJobId, int parentId) {
         variablesList.clear();
         String selectSQL = "SELECT vars.id, vars.type, vars.name, vars.value, COUNT(blk.variable_id) UsedVars "
                 + "FROM variable vars "
                 + "LEFT JOIN instruction blk ON blk.variable_id = vars.id "
                 + "WHERE vars.bot_job_id = " + botJobId;
 
-        if (instructionId != -1) { // Check if instructionId is provided (not -1)
-            selectSQL += " AND instruction_id = " + instructionId;
+        if (parentId != -1) { // Check if instructionId is provided (not -1)
+            selectSQL += " AND instruction_id = " + parentId;
         }
 
         selectSQL += " GROUP BY vars.id, vars.type, vars.Name, vars.value";
@@ -5752,7 +5759,7 @@ public class PerformDataBase {
                 String name = rs.getString("name");
                 String value = rs.getString("value");
                 String usedVars = rs.getString("UsedVars");
-                variablesList.add(new VariableUserDTO(id, type, name, value, botJobId, instructionId, usedVars));
+                variablesList.add(new VariableUserDTO(id, type, name, value, botJobId, parentId, usedVars));
             }
             return variablesList;
         } catch (SQLException e) {
@@ -5789,7 +5796,7 @@ public class PerformDataBase {
                 + "'" + user.getName() + "', "
                 + "'" + user.getValue() + "', "
                 + "'" + user.getBotJobId() + "', "
-                + "'" + user.getInstructionId() + "')";
+                + "'" + user.getParentId() + "')";
         try (Statement stmt = getConnection().createStatement()) {
             stmt.executeUpdate(insertSQL);
             System.out.println("Data saved successfully.");

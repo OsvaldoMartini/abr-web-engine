@@ -74,6 +74,7 @@ public class InstructionLoadDTO {
             Integer blockWait,
             String actions,
             Integer parentId,
+            Integer variableId,
             String operation,
             String exportFile,
             String tagName) {
@@ -92,6 +93,7 @@ public class InstructionLoadDTO {
         this.blockWait = blockWait;
         this.actions = actions;
         this.parentId = parentId;
+        this.variableId = variableId;
         this.operation = operation;
         this.exportFile = exportFile;
         this.tagName = tagName;

@@ -318,8 +318,6 @@ public class Engine {
 
             Set<String> mapIgnore = new HashSet<>();
 
-            boolean searchByJavaScript = false; // checkBoxJavaScript.isSelected();
-
             String mainMsg = "";
             boolean byPassNotFound = false;
             boolean byPassFlagLoop = false;
@@ -328,19 +326,10 @@ public class Engine {
             long botJobStartTime = System.nanoTime();
             long totalExecutionTime = 0;
             String resultActions = "No instruction executed yet";
-            boolean showAlert = true;
-            String extraMsg = "";
-            short status = (short) ExcelReportStatusEnum.ERROR.ordinal();
+            String failedMessage = "";
             Map<String, String> dataExcel = null;
 
             // clearFields();
-
-            //            ExcelReportDTO report = new ExcelReportDTO();
-            //            report.setOrder((short) botLoadJobs.get(0).getId());
-            //            report.setStartDate(LocalDateTime.now());
-            //            report.setBatchJobId(selectedJob.getId());
-            //            report.setBotJobDTO(selectedJob);
-            //            report.setStatus((short) ExcelReportStatusEnum.NOT_RUN.ordinal());
 
             // Execute All Blocks starting from executeSpecificBlock if Defined
             // int executeSpecificBlock = comboBoxBlocks.getValue().getVarId();
@@ -371,7 +360,7 @@ public class Engine {
                 int currentBlock = (executeSpecificBlock > -1) ? executeSpecificBlock - 1 : 0;
 
                 blockLoop:
-                while (currentBlock <= blocksLoaded.size() - 1 && blocksLoaded.size() > 0 && !stopAll) {
+                while (currentBlock <= blocksLoaded.size() - 1 && !blocksLoaded.isEmpty() && !stopAll) {
                     long blockStartTime = System.nanoTime();
 
                     currentCondition = ARConstants.ConditionStatus.NONE;
@@ -535,7 +524,7 @@ public class Engine {
 
                     // Step 2: Filter rows where actions = "REFRESH_LOOP" or "LOOP" and collect into the map
 
-                    //                mapLoops = performAction.getLoopAndRefreshLoops(
+                    //                mapLoops = performActions.getLoopAndRefreshLoops(
                     //                        blocksLoaded.get(currentBlock).getBlockLoopInstructionLoadDTOS());
 
                     //                executionTimes++;
@@ -548,6 +537,7 @@ public class Engine {
 
                     for (int i = 0; success && i < extractedData.getNumberOfDataRows() && !stopAll; i++) {
                         mapExport.clear();
+
                         //                    writerReport.insertBlockSeparation(blockLoad.getName());
 
                         dataExcel = extractedData.getRowFieldValues(i);
@@ -774,16 +764,14 @@ public class Engine {
 
                             resultActions = performActions.actionResultMessage(blockName, actions, msgInstruction);
 
-                            extraMsg = "";
-
                             if (actions[0].equalsIgnoreCase(ARConstants.PAUSE)) {
                                 pauseOperation = true;
 
                                 respModal = performMessage.showCustomModalDialogDragWin11(
                                         "PAUSE BOT JOB",
-                                        String.format("PAUSE BOT JOB at Block Name:\"%s\"", blockLoad.getName()),
+                                        "PAUSED at Block Name",
+                                        blockLoad.getName(),
                                         " Please click OK to continue!",
-                                        null,
                                         null,
                                         false,
                                         "Continue",
@@ -870,16 +858,12 @@ public class Engine {
 
                             File logFileForSingleExcel = excelReader.createLogFile(excelPath);
 
-                            //                            fillUpCurretLocators(currentInstruction);
-
                             try {
                                 if (jumpGoto) {
 
                                     if (jumpGotoError) {
-                                        resultActions = "Failed " + resultActions;
-
                                         success = false;
-
+                                        failedMessage = "Failed: GO TO";
                                         resultActions = performActions.blockGotoFailed(resultActions);
                                     } else {
                                         if (!loopBlockActive.contains(msgInstruction.getKey())) {
@@ -915,7 +899,7 @@ public class Engine {
                                                 success = true;
 
                                             } catch (Exception ex) {
-                                                resultActions = "Failed " + resultActions;
+                                                failedMessage = "Failed: GO TO";
 
                                                 success = false;
 
@@ -939,7 +923,7 @@ public class Engine {
                                                     dataExcel,
                                                     writerReport,
                                                     mainMsg,
-                                                    resultActions);
+                                                    finalLogMessage(failedMessage, resultActions));
 
                                             if (success) {
                                                 continue blockLoop;
@@ -1052,7 +1036,7 @@ public class Engine {
                                                     dataExcel,
                                                     writerReport,
                                                     mainMsg,
-                                                    resultActions);
+                                                    finalLogMessage(failedMessage, resultActions));
 
                                         } else {
                                             mapLoops.put(parentFieldLoop, repeat);
@@ -1122,7 +1106,6 @@ public class Engine {
                                     try {
                                         webElementFound = performActions.searchElement(currentInstruction, botJobId);
                                     } catch (Exception ex) {
-                                        extraMsg = "Element not found. Please try rescanning.!";
                                         success = false;
                                     }
 
@@ -1172,7 +1155,8 @@ public class Engine {
                                     // Special Cases for Select Responses
                                     // It could be Improved the case
                                     if (resultActions.contains("Error:") || webElementFound == null || !success) {
-                                        resultActions = "Failed " + resultActions;
+                                        failedMessage = "Failed: Web Action";
+
                                         success = false;
                                     } else if (resultActions != null && success) {
                                         currentInstruction.setExecuted(true);
@@ -1237,7 +1221,7 @@ public class Engine {
                                             executedSuccess.add(currentInstruction.getId());
                                             success = true;
                                         } else {
-                                            resultActions = "Failed: " + resultActions;
+                                            failedMessage = "Failed: Operation (GetVaue / SetValue)";
                                             success = false;
                                         }
                                     }
@@ -1266,8 +1250,8 @@ public class Engine {
                                     } else {
                                         //                                    fieldName = parentField;
 
-                                        resultActions = "CHECK_VALUE for (Parent: " + parentField + ")"
-                                                + String.join(" ", operations);
+                                        resultActions =
+                                                "CHECK_VALUE for (" + parentField + ")" + String.join(" ", operations);
                                         boolean isOperationValid = false;
                                         String invalidValues = null;
 
@@ -1330,6 +1314,7 @@ public class Engine {
                                             executedSuccess.add(currentInstruction.getId());
                                             success = true;
                                         } else {
+                                            failedMessage = "Failed: Check Validation";
                                             resultActions = performActions.checkValidationFailed(
                                                     invalidValues,
                                                     parentField,
@@ -1373,7 +1358,7 @@ public class Engine {
 
                                         if (!Strings.isNullOrEmpty(excelFieldName)) {
                                             writerExport = new ExcelWriter(
-                                                            excelFieldName, currentARWebDriver.getCurrentDriver(), true)
+                                                            excelFieldName, performActions.getCurrentDriver(), true)
                                                     .withPurpose("export");
                                         }
 
@@ -1418,7 +1403,7 @@ public class Engine {
                                             executedSuccess.add(currentInstruction.getId());
                                             success = true;
                                         } else {
-                                            resultActions = "Failed: " + resultActions;
+                                            failedMessage = "Failed: Generate File -> Excel/CSV";
                                             success = false;
                                         }
                                     }
@@ -1441,11 +1426,19 @@ public class Engine {
 
                                 String msg3 = resultActions;
 
+                                if (Strings.isNullOrEmpty(failedMessage)) {
+                                    failedMessage = "Failed: General Execution";
+                                }
+
                                 performMessage.errorMessage(resultActions, msg1, msg2, msg3, null, 260);
                                 //                            throw new RuntimeException(t);
                             }
 
-                            printLog(generateTimestamp(), logFileForSingleExcel, resultActions, success);
+                            printLog(
+                                    generateTimestamp(),
+                                    logFileForSingleExcel,
+                                    finalLogMessage(failedMessage, resultActions),
+                                    success);
 
                             // Here mark the Status of a progress Condition Fail or Success at the end of each Kind
                             // of Execution
@@ -1471,7 +1464,7 @@ public class Engine {
                                     dataExcel,
                                     writerReport,
                                     mainMsg,
-                                    resultActions);
+                                    finalLogMessage(failedMessage, resultActions));
 
                             if (pauseOperation && respModal.equals(ARConstants.DialogModal.STOP)) {
 
@@ -1617,7 +1610,7 @@ public class Engine {
                                     currentInstruction.getActions(), ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
                             if (arr.length > 1) {
                                 String dataFieldName = arr[1].split(ARConstants.PATH_FIELD_SUBSTITUTION)[0];
-                                performActions.insertRandomName(dataFieldName);
+                                PerformActions.insertRandomName(dataFieldName);
                             }
                         }
                     }
@@ -1684,7 +1677,7 @@ public class Engine {
                                         dataExcel,
                                         writerReport,
                                         mainMsg,
-                                        resultActions);
+                                        finalLogMessage(failedMessage, resultActions));
 
                                 continue;
                             }
@@ -1693,7 +1686,6 @@ public class Engine {
                             try {
                                 webElementFound = performActions.searchElement(currentInstruction, botJobId);
                             } catch (Exception ex) {
-                                extraMsg = "Element not found. Please try rescanning.!";
                             }
 
                             success = performActions.performWebActions(
@@ -1713,7 +1705,8 @@ public class Engine {
                                 currentInstruction.setExecuted(true);
                                 success = true;
                             } else {
-                                resultActions = "Failed to Execute -> " + currentInstruction.getName();
+                                failedMessage = "Failed: Execution";
+                                resultActions = currentInstruction.getName();
                                 success = false;
                             }
 
@@ -1730,11 +1723,13 @@ public class Engine {
                                     dataExcel,
                                     writerReport,
                                     mainMsg,
-                                    resultActions);
+                                    finalLogMessage(failedMessage, resultActions));
 
                         } catch (Throwable t) {
                             success = false;
                             currentInstruction.setExecuted(false);
+
+                            failedMessage = "Failed: ";
 
                             // Excel Report and Log
                             performActions.logAndReport(
@@ -1749,11 +1744,15 @@ public class Engine {
                                     dataExcel,
                                     writerReport,
                                     mainMsg,
-                                    resultActions);
+                                    finalLogMessage(failedMessage, resultActions));
 
                             //                        throw new RuntimeException(t);
                         }
-                        printLog(generateTimestamp(), logFileForSingleExcel, resultActions, success);
+                        printLog(
+                                generateTimestamp(),
+                                logFileForSingleExcel,
+                                finalLogMessage(failedMessage, resultActions),
+                                success);
                     }
                 }
             }
@@ -1799,9 +1798,9 @@ public class Engine {
                     respModal = performMessage.showCustomModalDialogDragWin11(
                             "Failed finding element (5 attempts).",
                             "Use \"Force Coordinates\" in some cases.",
+                            !Strings.isNullOrEmpty(failedMessage) ? failedMessage : "Failed:",
                             "Last Execution:",
                             resultActions,
-                            null,
                             true,
                             "OK",
                             "Close Browser",
@@ -1810,9 +1809,9 @@ public class Engine {
 
                     respModal = performMessage.showCustomModalDialogDragWin11(
                             "Process Execution Terminated",
+                            !Strings.isNullOrEmpty(failedMessage) ? failedMessage : "Failed:",
                             "Last Execution:",
                             resultActions,
-                            null,
                             null,
                             true,
                             "OK",
@@ -2029,5 +2028,12 @@ public class Engine {
             // Handle non-numeric values
             return -1; // Or throw an exception
         }
+    }
+
+    private static String finalLogMessage(String failedMessage, String resultActions) {
+        if (!Strings.isNullOrEmpty(failedMessage)) {
+            return failedMessage + resultActions;
+        }
+        return resultActions;
     }
 }
