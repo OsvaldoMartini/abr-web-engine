@@ -11,6 +11,7 @@ import com.allinweb.ch.component.model.ComplexInstructionLoadDTO;
 import com.allinweb.ch.component.model.ElementDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
+import com.allinweb.ch.component.model.VariableLoadDTO;
 import com.allinweb.ch.persistence.TargetElement;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.util.ARConstants;
@@ -21,6 +22,7 @@ import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ARWebUtil;
 import com.allinweb.ch.util.CryptationAlgorithm;
 import com.allinweb.ch.util.ExcelReportStatusEnum;
+import com.allinweb.ch.util.Priority;
 import com.allinweb.ch.util.PriorityTypeEnum;
 import com.allinweb.ch.util.UtilsMethods;
 import com.google.common.base.Strings;
@@ -317,7 +319,8 @@ public class PerformActions {
             switch (action) {
                 case "SET":
                     insertTargetElement(byPassNotFound, instructionElement, operations[0], operations[1]);
-                    return "SET_VALUE to (Parent: " + parentField + ") Var:" + operations[0] + " <-- " + operations[1];
+                    mapOperators.put(variableField, operations[1]);
+                    return "SET_VALUE to (Parent: " + parentField + ") Var:" + variableField + " <-- " + operations[1];
                 case "GET":
                     String valueElem;
                     if (mapOperators.containsKey(variableField)) {
@@ -436,7 +439,7 @@ public class PerformActions {
                 null,
                 true,
                 "Continue",
-                "Stop All",
+                "Stop all",
                 0);
     }
 
@@ -510,7 +513,7 @@ public class PerformActions {
 
         if (arPriorities.getAllPriorityList().size() < 4) {}
 
-        List<com.allinweb.ch.util.Priority> priorityList = arPriorities.getAllPriorityList();
+        List<Priority> priorityList = arPriorities.getAllPriorityList();
         if (arPriorities.getAllPriorityList().size() > 0) {
 
             //            if (instruction.getActionCustomMaxWaitSec() > 5) {
@@ -518,7 +521,7 @@ public class PerformActions {
             //            }
             WebElement elementFound = null;
             //            for (int i = 0; i < priorityList.size() && elementFound == null; i++) {
-            for (com.allinweb.ch.util.Priority priority : arPriorities.getAllPriorityList()) {
+            for (Priority priority : arPriorities.getAllPriorityList()) {
                 if (elementFound != null) {
                     break;
                 }
@@ -785,7 +788,7 @@ public class PerformActions {
         int attempts = 0;
         while (elementFound == null && attempts < 5) {
 
-            for (com.allinweb.ch.util.Priority priority : arPriorities.getAllPriorityList()) {
+            for (Priority priority : arPriorities.getAllPriorityList()) {
                 if (elementFound != null) {
                     break;
                 }
@@ -1628,30 +1631,35 @@ public class PerformActions {
     }
 
     public String getValueIsNotDefined(
+            String action,
             InstructionLoadDTO currentInstruction,
             String lastInstructionExecuted,
             ARConstants.ConditionStatus conditionStatus,
-            String parentField) {
+            String parentField,
+            String variableField) {
 
         if (conditionStatus.equals(ARConstants.ConditionStatus.NONE)) {
-            String msg1, msg2, msg3;
+            String msg1, msg2, msg3, msg4 = null;
 
-            if (ARConstants.EXTRACT_FIELD.equals(currentInstruction.getActions())) {
-                msg1 = "No GET steps found for: \"" + currentInstruction.getName() + "\".";
-                msg2 = "Please insert a GET step for variable: " + currentInstruction.getVariableId() + " - "
-                        + currentInstruction.getOperation() + ".";
+            if (action.equals(ARConstants.EXTRACT_FIELD) || action.equals(ARConstants.CHECK_VALUE)) {
+                msg1 = "The variable \"" + variableField + "\" has not been assigned.";
+                msg2 = "Please add a step for \"" + currentInstruction.getName() + "\" to assign this variable.";
+                msg3 = "Ensure that the variable \"" + variableField + "\" is properly defined before use.";
             } else {
-                msg1 = "No GET value defined for: \"" + currentInstruction.getName() + "\".";
-                msg2 = "Please insert a GET step for: " + currentInstruction.getParentId() + " - "
-                        + currentInstruction.getOperation() + ".";
+                msg1 = "No GET value has been defined for: \"" + currentInstruction.getName() + "\".";
+                msg2 = "Please add a GET step for instruction ID: " + currentInstruction.getParentId()
+                        + " - Operation: " + currentInstruction.getOperation() + ".";
+
+                if (parentField != null) {
+                    msg3 = "Parent Web Field:";
+                    msg4 = "Instruction ID " + currentInstruction.getParentId() + " - \"" + parentField + "\".";
+                } else {
+                    msg3 = "Parent Web Field is not defined!";
+                    msg4 = "Ensure a valid parent field is assigned.";
+                }
             }
-
-            msg3 = (parentField != null)
-                    ? "Parent Web Field: " + currentInstruction.getParentId() + " - " + parentField + "."
-                    : "Parent Web Field is not defined!";
-
             performMessage.errorMessage(
-                    "GET Step Missing for \"" + currentInstruction.getName() + "\"", msg1, msg2, msg3, null, 0);
+                    "Missing Variable for \"" + currentInstruction.getName() + "\"", msg1, msg2, msg3, msg4, 0);
         }
 
         String conditionalBlock = conditionStatus.equals(ARConstants.ConditionStatus.IF_PASSED)
@@ -2199,6 +2207,21 @@ public class PerformActions {
         }
     }
 
+    public String getInstructionVariableField(
+            InstructionLoadDTO currentInstruction, List<VariableLoadDTO> variableLoad) {
+        try {
+            return variableLoad.stream()
+                    .filter(f -> f.getId().equals(currentInstruction.getVariableId()))
+                    .findFirst()
+                    .map(v -> {
+                        return v.getId() + "-" + String.valueOf(v.getType().charAt(0)) + v.getName();
+                    })
+                    .orElse(null);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
     // It Must be Greater than CurrentIndex
     // Ir Predicts if is going to have multiple ENSEIFs
     public int searchMapConditional(
@@ -2348,8 +2371,8 @@ public class PerformActions {
     public void executeActionsAtInstructionCoordinates(InstructionLoadDTO currentInstruction, Pair<String, String> data)
             throws Exception {
 
-        List<com.allinweb.ch.util.Priority> priorityList = arPriorities.getAllPriorityList();
-        Optional<com.allinweb.ch.util.Priority> priority = priorityList.stream()
+        List<Priority> priorityList = arPriorities.getAllPriorityList();
+        Optional<Priority> priority = priorityList.stream()
                 .filter(p -> p.getPriorityType().equals(PriorityTypeEnum.coordinates))
                 .findFirst();
         if (priority.isPresent()) {

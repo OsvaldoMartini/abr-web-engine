@@ -241,29 +241,31 @@ public class PerformDataBase {
     // Handle DELETE_INSTRUCTION message
     public static void deleteInstruction(int botJobId, InstructionLoadDTO deleteInstructionLoadDTO) {
 
-        List<ParentOperations> listParents = loadParents(
-                botJobId, deleteInstructionLoadDTO.getInstructionId(), deleteInstructionLoadDTO.getParentId());
-        if (!listParents.isEmpty()) {
+        if (deleteInstructionLoadDTO.getParentId() != null) {
+            List<ParentOperations> listParents = loadParents(
+                    botJobId, deleteInstructionLoadDTO.getInstructionId(), deleteInstructionLoadDTO.getParentId());
+            if (!listParents.isEmpty()) {
 
-            List<String> lstMsg = performMessage.distributeMsg(
-                    listParents.stream().map(ParentOperations::getName).collect(Collectors.toList()));
+                List<String> lstMsg = performMessage.distributeMsg(
+                        listParents.stream().map(ParentOperations::getName).collect(Collectors.toList()));
 
-            ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
-                    "Steps Attached",
-                    "Are you Sure you want to delete?",
-                    lstMsg.get(0),
-                    lstMsg.get(1),
-                    lstMsg.get(2),
-                    false,
-                    "Confirm",
-                    "Cancel",
-                    0);
+                ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+                        "Steps Attached",
+                        "Are you Sure you want to delete?",
+                        lstMsg.get(0),
+                        lstMsg.get(1),
+                        lstMsg.get(2),
+                        false,
+                        "Confirm",
+                        "Cancel",
+                        0);
 
-            if (respModal.equals(ARConstants.DialogModal.STOP)) {
-                return;
+                if (respModal.equals(ARConstants.DialogModal.STOP)) {
+                    return;
+                }
+
+                deleteRowParents(deleteInstructionLoadDTO.getBotJobId(), deleteInstructionLoadDTO.getInstructionId());
             }
-
-            deleteRowParents(deleteInstructionLoadDTO.getBotJobId(), deleteInstructionLoadDTO.getInstructionId());
         }
 
         if (deleteVariable(botJobId, deleteInstructionLoadDTO.getInstructionId()))
@@ -1248,11 +1250,11 @@ public class PerformDataBase {
                                     instruction.getInstructionId(), rollBackBlocksDTO.getBlockId()));
                 }
             }
-        } catch (SQLException e) {
+        } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "This BlockId '%d' \n cannot be updated.\nError: %s",
-                            rollBackBlocksDTO.getBlockId(), e.getMessage()));
+                            rollBackBlocksDTO.getBlockId(), error.getMessage()));
             return;
         }
     }
@@ -3351,31 +3353,6 @@ public class PerformDataBase {
         return homeBanking;
     }
 
-    //    public ObservableList<VariableUserDTO> loadJobVariables(int botJobId) {
-    //        variablesList.clear();
-    //        String selectSQL = " SELECT vars.id, vars.type, vars.name, vars.value, COUNT(blk.variable_id) UsedVars "
-    //                + " FROM variable vars "
-    //                + " left join instruction blk on blk.variable_id = vars.id "
-    //                + " where blk.bot_job_id = " + botJobId
-    //                //                                + " and  instruction_id = " + instructionId
-    //                + " group by vars.id, vars.type, vars.Name, vars.value ";
-    //        try (Statement stmt = getConnection().createStatement();
-    //                ResultSet rs = stmt.executeQuery(selectSQL)) {
-    //            while (rs.next()) {
-    //                int id = rs.getInt("ID");
-    //                String type = rs.getString("type");
-    //                String name = rs.getString("name");
-    //                String value = rs.getString("value");
-    //                String usedVars = rs.getString("UsedVars");
-    //                variablesList.add(new VariableUserDTO(id, type, name, value, botJobId, -1, usedVars));
-    //            }
-    //        } catch (SQLException e) {
-    //            ARLogger.getInstance(PerformDataBase.class).severe("loadJobVariables  \nError: " + e.getMessage());
-    //        }
-    //
-    //        return variablesList;
-    //    }
-
     public ObservableList<ComboBoxVars> loadWebPageFields(int botJobId) {
         webPageItems.clear();
         String selectSQL = " SELECT  "
@@ -3581,34 +3558,6 @@ public class PerformDataBase {
         }
     }
 
-    public List<VariableLoadDTO> instVariablesToDuplicateOLD(Connection conn, int oldBotJobId, String targetTable)
-            throws SQLException {
-        String query = "SELECT id, name, type, value, block_loop_instruction_id, bot_job_id "
-                + " FROM " + targetTable
-                + " WHERE bot_job_id = ? "
-                + " ORDER BY id";
-
-        List<VariableLoadDTO> variableDTOList = new ArrayList<>();
-
-        try (PreparedStatement stmt = conn.prepareStatement(query)) {
-            stmt.setInt(1, oldBotJobId); // Set the oldBotJobId parameter
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                VariableLoadDTO variableDTO = new VariableLoadDTO();
-                variableDTO.setId(rs.getInt("id"));
-                variableDTO.setName(rs.getString("name"));
-                variableDTO.setType(rs.getString("type"));
-                variableDTO.setValue(rs.getString("value"));
-                variableDTO.setInstructionId(rs.getInt("block_loop_instruction_id"));
-                variableDTO.setBotJobId(rs.getInt("bot_job_id"));
-
-                variableDTOList.add(variableDTO); // Add to the list
-            }
-        }
-
-        return variableDTOList; // Return the list of variable DTOs
-    }
-
     public List<VariableLoadDTO> instVariablesToDuplicateNEW(
             Connection conn, int homeBankingId, int oldBotJobId, int oldBlockId, String targetTable)
             throws SQLException {
@@ -3655,20 +3604,23 @@ public class PerformDataBase {
             // Execute the query and process results
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                VariableLoadDTO variableDTO = new VariableLoadDTO();
-                variableDTO.setId(rs.getInt("id"));
-                variableDTO.setName(rs.getString("name"));
-                variableDTO.setType(rs.getString("type"));
-                variableDTO.setValue(rs.getString("value"));
-                variableDTO.setInstructionId(rs.getInt("instruction_id"));
 
+                int id = rs.getInt("id");
+                int botJobId = -1;
+                homeBankingId = -1;
                 if (targetTable.equalsIgnoreCase("instruction")) {
-                    variableDTO.setBotJobId(rs.getInt("bot_job_id"));
+                    botJobId = rs.getInt("bot_job_id");
                 } else if (targetTable.equalsIgnoreCase("component_instruction")) {
-                    variableDTO.setHomeBankingId(rs.getInt("home_banking_id"));
+                    homeBankingId = rs.getInt("home_banking_id");
                 }
 
-                variableDTOList.add(variableDTO); // Add to the list
+                int instructionId = rs.getInt("instruction_id");
+                String type = rs.getString("type");
+                String name = rs.getString("name");
+                String value = rs.getString("value");
+                int usedVars = rs.getInt("UsedVars");
+                variableDTOList.add(
+                        new VariableLoadDTO(id, homeBankingId, botJobId, instructionId, type, name, value, usedVars));
             }
         }
 
@@ -5737,7 +5689,7 @@ public class PerformDataBase {
         return false;
     }
 
-    public ObservableList<VariableUserDTO> loadAllVariblesByCriteria(int botJobId, int parentId) {
+    public ObservableList<VariableUserDTO> loadAllVariablesByCriteria(int botJobId, int parentId) {
         variablesList.clear();
         String selectSQL = "SELECT vars.id, vars.type, vars.name, vars.value, COUNT(blk.variable_id) UsedVars "
                 + "FROM variable vars "
@@ -5765,6 +5717,36 @@ public class PerformDataBase {
         } catch (SQLException e) {
             // Handle the exception properly (log, throw, etc.)
             ARLogger.getInstance(PerformDataBase.class).severe("loadAllVariblesByCriteria  \nError: " + e.getMessage());
+        }
+        return null;
+    }
+
+    public List<VariableLoadDTO> loadAllVariables(int botJobId) {
+        List<VariableLoadDTO> variablesLoadList = new ArrayList<>();
+        String selectSQL =
+                "SELECT vars.id, instruction_id, vars.type, vars.name, vars.value, COUNT(blk.variable_id) UsedVars "
+                        + "FROM variable vars "
+                        + "LEFT JOIN instruction blk ON blk.variable_id = vars.id "
+                        + "WHERE vars.bot_job_id = " + botJobId;
+
+        selectSQL += " GROUP BY vars.id, vars.type, vars.Name, vars.value";
+
+        try (Statement stmt = getConnection().createStatement(); // Assuming you have getConnection() method
+                ResultSet rs = stmt.executeQuery(selectSQL)) {
+
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                Integer instructionId = rs.getInt("instruction_id");
+                String type = rs.getString("type");
+                String name = rs.getString("name");
+                String value = rs.getString("value");
+                Integer usedVars = rs.getInt("UsedVars");
+                variablesLoadList.add(
+                        new VariableLoadDTO(id, -1, botJobId, instructionId, type, name, value, usedVars));
+            }
+            return variablesLoadList;
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class).severe("loadAllVariables  \nError: " + error.getMessage());
         }
         return null;
     }
