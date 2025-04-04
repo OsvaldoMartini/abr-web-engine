@@ -302,6 +302,7 @@ public class PerformActions {
             String action,
             String[] operations,
             String parentField,
+            String variableField,
             Map<String, String> mapOperators)
             throws Exception {
 
@@ -319,13 +320,13 @@ public class PerformActions {
                     return "SET_VALUE to (Parent: " + parentField + ") Var:" + operations[0] + " <-- " + operations[1];
                 case "GET":
                     String valueElem;
-                    if (mapOperators.containsKey(parentField)) {
-                        valueElem = mapOperators.get(parentField);
+                    if (mapOperators.containsKey(variableField)) {
+                        valueElem = mapOperators.get(variableField);
                     } else {
                         valueElem = getValueInElement(byPassNotFound, instructionElement);
-                        mapOperators.put(parentField, valueElem);
+                        mapOperators.put(variableField, valueElem);
                     }
-                    return "GET_VALUE from (Parent: " + parentField + ") Var" + operations[1] + " <-- " + valueElem;
+                    return "GET_VALUE from (Parent: " + parentField + ") Var" + variableField + " <-- " + valueElem;
                     //                    case "CK":
                     //                        if (operator.equalsIgnoreCase("=")) {
                     //                            result = "Equals -> "
@@ -1629,26 +1630,28 @@ public class PerformActions {
     public String getValueIsNotDefined(
             InstructionLoadDTO currentInstruction,
             String lastInstructionExecuted,
-            ARConstants.ConditionStatus conditionStatus) {
+            ARConstants.ConditionStatus conditionStatus,
+            String parentField) {
 
         if (conditionStatus.equals(ARConstants.ConditionStatus.NONE)) {
-            //            showAlert(
-            //                    Alert.AlertType.ERROR,
-            //                    "GET is Not Defined for \"" + currentInstruction.getName() + "\"",
-            //                    "\"" + currentInstruction.getName() + "\" - GET is Not Defined",
-            //                    "There is NOT GET VALUE defined for: "
-            //                            + currentInstruction.getName()
-            //                            + "\n --------------------- "
-            //                            + "\nCheck the GET for "
-            //                            + currentInstruction.getParentId() + "-"
-            //                            + currentInstruction.getOperation());
+            String msg1, msg2, msg3;
 
-            String msg1 = "There is NOT GET VALUE defined for: " + currentInstruction.getName();
-            String msg2 =
-                    "Check the GET for " + currentInstruction.getParentId() + "-" + currentInstruction.getOperation();
+            if (ARConstants.EXTRACT_FIELD.equals(currentInstruction.getActions())) {
+                msg1 = "No GET steps found for: \"" + currentInstruction.getName() + "\".";
+                msg2 = "Please insert a GET step for variable: " + currentInstruction.getVariableId() + " - "
+                        + currentInstruction.getOperation() + ".";
+            } else {
+                msg1 = "No GET value defined for: \"" + currentInstruction.getName() + "\".";
+                msg2 = "Please insert a GET step for: " + currentInstruction.getParentId() + " - "
+                        + currentInstruction.getOperation() + ".";
+            }
+
+            msg3 = (parentField != null)
+                    ? "Parent Web Field: " + currentInstruction.getParentId() + " - " + parentField + "."
+                    : "Parent Web Field is not defined!";
 
             performMessage.errorMessage(
-                    "GET is Not Defined for \"" + currentInstruction.getName() + "\"", msg1, msg2, null, null, 0);
+                    "GET Step Missing for \"" + currentInstruction.getName() + "\"", msg1, msg2, msg3, null, 0);
         }
 
         String conditionalBlock = conditionStatus.equals(ARConstants.ConditionStatus.IF_PASSED)

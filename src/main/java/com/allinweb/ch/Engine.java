@@ -1327,7 +1327,7 @@ public class Engine {
                                         }
                                     }
 
-                                } else if (excelWriteOperation && operations.length == 2) {
+                                } else if (excelWriteOperation) {
                                     // Excel Write Operator
 
                                     fieldName = currentInstruction.getOperation();
