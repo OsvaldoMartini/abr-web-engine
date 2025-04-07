@@ -4,7 +4,6 @@ import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementIcon;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
-import com.allinweb.ch.component.model.AttributeData;
 import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.ComplexInstructionLoadDTO;
@@ -45,6 +44,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javafx.application.Platform;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.layout.HBox;
@@ -79,11 +80,24 @@ public class PerformActions {
     private static final PerformMessage performMessage;
     private static final PerformDataBase performDataBase;
     private static final IframeInputLocator iframeInputLocator;
+    private BooleanProperty interceptBotJob = new SimpleBooleanProperty(false);
 
     static {
         performMessage = PerformMessage.getInstance();
         performDataBase = PerformDataBase.getInstance();
         iframeInputLocator = IframeInputLocator.getInstance();
+    }
+
+    public BooleanProperty interceptBotJobProperty() {
+        return interceptBotJob;
+    }
+
+    public boolean isInterceptBotJob() {
+        return interceptBotJob.get();
+    }
+
+    public void setInterceptBotJob(boolean value) {
+        interceptBotJob.set(value);
     }
 
     @Getter
@@ -129,11 +143,11 @@ public class PerformActions {
         return instance.get();
     }
 
-    public WebElement searchElement(InstructionLoadDTO instruction, int botJobId) {
+    public WebElement searchElement(InstructionLoadDTO instruction, int botJobId, boolean forceCoordinates) {
         WebElement instructionElement = null;
 
         if (!StringUtils.isBlank(instruction.getXpath())) {
-            instructionElement = locateElement(instruction, botJobId);
+            instructionElement = locateElement(instruction, botJobId, forceCoordinates);
         }
         return instructionElement;
     }
@@ -705,7 +719,7 @@ public class PerformActions {
         }
     }
 
-    private WebElement locateElement(InstructionLoadDTO currentInstruction, int botJobId) {
+    private WebElement locateElement(InstructionLoadDTO currentInstruction, int botJobId, boolean forceCoordinates) {
         String instructionPath = currentInstruction.getXpath();
         String tagName = null;
 
@@ -786,7 +800,9 @@ public class PerformActions {
         }
 
         int attempts = 0;
-        while (elementFound == null && attempts < 5) {
+        int maxAttempts = forceCoordinates ? 2 : 5;
+
+        while (elementFound == null && attempts < maxAttempts) {
 
             for (Priority priority : arPriorities.getAllPriorityList()) {
                 if (elementFound != null) {
@@ -829,8 +845,12 @@ public class PerformActions {
 
                     // Handle different priority types (like XPath, attribute, etc.)
                     switch (priority.getPriorityType()) {
-                        case xpath -> criterias = Arrays.asList(
-                                By.xpath(instructionReference.get().getValue()));
+                        case xpath -> {
+                            criterias = Arrays.asList(
+                                    By.xpath(instructionReference.get().getValue()));
+                            isAttributeID = false;
+                            isAttributeName = false;
+                        }
 
                         case attributeID -> {
                             isAttributeID = true;
@@ -854,10 +874,13 @@ public class PerformActions {
                             String[] parts = searchAttributeValue.split("=");
                             criterias = convertToCriteriaList(tagName, List.of(parts[0]), parts[1]);
                         }
-                        case attribute -> criterias = convertToCriteriaList(
-                                tagName,
-                                priority.getName(),
-                                instructionReference.get().getValue());
+                        case attribute -> {
+                            criterias = convertToCriteriaList(
+                                    tagName,
+                                    priority.getName(),
+                                    instructionReference.get().getValue());
+                            isAttributeID = true;
+                        }
                         case coordinates, allAttributes -> {
                             // These cases are placeholders and do not need additional handling
                         }
@@ -879,6 +902,20 @@ public class PerformActions {
                                 foundElementList = getCurrentDriver().findElements(criteria);
                             } catch (Exception ignore) {
 
+                            }
+
+                            if ((isAttributeID || isAttributeName || isSearchAttribute)
+                                    && foundElementList.size() == 0) {
+                                try {
+                                    String cssCriteria = convertToCssSelector(
+                                            tagName,
+                                            priority.getName(),
+                                            instructionReference.get().getValue());
+                                    WebElement byCriteria = findElementByCssSelector(cssCriteria);
+                                    foundElementList.add(byCriteria);
+                                } catch (Exception ignore) {
+
+                                }
                             }
 
                             if (foundElementList.size() == 0) {
@@ -952,7 +989,10 @@ public class PerformActions {
             attempts++;
             if (elementFound == null) {
                 try {
-                    onHoldInSeconds(5);
+                    if (isInterceptBotJob()) {
+                        break;
+                    }
+                    onHoldInSeconds(2);
                     ARLogger.getInstance(PerformActions.class)
                             .fine(String.format(
                                     "Re-try %d Locate Web Element TagName \"%s\"",
@@ -988,6 +1028,27 @@ public class PerformActions {
 
         // Return the last segment as the tag name
         return lastSegment;
+    }
+
+    public static String convertToCssSelector(String tagName, List<String> priorityToSearch, String attributeValue) {
+
+        for (String priority : priorityToSearch) {
+            priority = priority.trim();
+            String attributeName;
+
+            if (priority.equalsIgnoreCase("attributeID")) {
+                attributeName = "id";
+            } else if (priority.equalsIgnoreCase("attributeName")) {
+                attributeName = "name";
+            } else {
+                attributeName = priority; // Use the priority as the attribute name for other cases
+            }
+
+            // Create the CSS selector string and add it to the list
+            return tagName + "[" + attributeName + "='" + attributeValue.trim() + "']";
+        }
+
+        return null;
     }
 
     public static List<By> convertToCriteriaList(String tagName, List<String> priorityToSearch, String someXPath) {
@@ -2486,7 +2547,10 @@ public class PerformActions {
                 typeCharacters(data);
 
                 if (pressEnterAfter) {
-                    sendEnter(xCoord, yCoord);
+                    boolean respAction = sendActionEnter(xCoord, yCoord);
+                    if (!respAction) {
+                        sendEnterWithJS();
+                    }
                 }
             } else if (ARConstants.INSERT.equals(action) && forceCLick) {
                 scrollToCoordinates(x, y);
@@ -2498,7 +2562,10 @@ public class PerformActions {
                 typeCharacters(data);
 
                 if (pressEnterAfter) {
-                    sendEnter(xCoord, yCoord);
+                    boolean respAction = sendActionEnter(xCoord, yCoord);
+                    if (!respAction) {
+                        sendEnterWithJS();
+                    }
                 }
             }
             onHoldForSeconds(null);
@@ -2612,8 +2679,40 @@ public class PerformActions {
         new Actions(this.currentDriver).sendKeys(fieldData.getValue()).perform();
     }
 
-    private void sendEnter(int x, int y) {
-        new Actions(this.currentDriver).moveByOffset(x, y).sendKeys(Keys.ENTER).perform();
+    private boolean sendActionEnter(int x, int y) {
+        try {
+            new Actions(this.currentDriver)
+                    .moveByOffset(x, y)
+                    .sendKeys(Keys.ENTER)
+                    .perform();
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean sendEnterWithJS() {
+        try {
+            JavascriptExecutor js = (JavascriptExecutor) currentDriver;
+
+            String script =
+                    """
+            var evt = new KeyboardEvent('keydown', {
+                key: 'Enter',
+                code: 'Enter',
+                keyCode: 13,
+                which: 13,
+                bubbles: true,
+                cancelable: true
+            });
+            document.activeElement.dispatchEvent(evt);
+        """;
+
+            js.executeScript(script);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public String sequenceOfCommands(
@@ -2762,7 +2861,10 @@ public class PerformActions {
             ((JavascriptExecutor) this.currentDriver).executeScript(script, xCoord, yCoord);
 
             if (pressEnterAfter) {
-                sendEnter(xCoord, yCoord);
+                boolean respAction = sendActionEnter(xCoord, yCoord);
+                if (!respAction) {
+                    sendEnterWithJS();
+                }
             }
 
             return "Success Move And Click -> Red Circle";
@@ -3019,89 +3121,6 @@ public class PerformActions {
                 script, iframeXPath, inputXPath, inputValue, targetOriginURL, trustedOriginURL);
     }
 
-    public List<ElementDTO> extractElementData(String[] iFrameElements) {
-        List<ElementDTO> elements = new ArrayList<>();
-
-        for (String line : iFrameElements) {
-            String typeElement = "";
-            String tagName = "";
-            String xPath = "";
-            String text = "";
-            String attribId = "";
-            String attribName = "";
-            String coords = "";
-            AttributeData[] attributeData = new AttributeData[0];
-            String customXPath = "";
-
-            // Split into key-value pairs based on ";"
-            String[] parts = line.split(";");
-            for (String part : parts) {
-                int colonIndex = part.indexOf(":");
-                if (colonIndex == -1) continue; // Skip invalid parts
-
-                String key = part.substring(0, colonIndex).trim();
-                String value = part.substring(colonIndex + 1).trim();
-
-                // Map key-value pairs to variables
-                switch (key) {
-                    case "clicked":
-                    case "tagName-Found":
-                    case "clicked-iFrame":
-                    case "iFrame-Found":
-                    case "iFrame-Child":
-                        typeElement = key;
-                        tagName = value;
-                        break;
-                    case "xpath":
-                        xPath = value;
-                        break;
-                    case "text":
-                        text = value;
-                        break;
-                    case "attribId":
-                        attribId = value;
-                        break;
-                    case "attribName":
-                        attribName = value;
-                        break;
-                    case "coords":
-                        coords = value;
-                        break;
-                    case "attributeData":
-                        //                        attributeData = value.split(",");
-                        attributeData = new AttributeData[0];
-                        break;
-                    case "customXPath":
-                        customXPath = value;
-                        break;
-                }
-            }
-
-            // Only add valid elements
-            if (!typeElement.isEmpty() && !tagName.isEmpty()) {
-                elements.add(new ElementDTO(
-                        typeElement,
-                        tagName,
-                        xPath,
-                        text,
-                        attribId,
-                        attribName,
-                        coords,
-                        attributeData,
-                        customXPath,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null));
-            }
-        }
-        return elements;
-    }
-
     public ElementDTO convertTargetToElementDTO(TargetElement targetElement) {
         if (targetElement == null) {
             return null;
@@ -3119,7 +3138,6 @@ public class PerformActions {
         elementDTO.setCustomXPath(targetElement.getCustomXPath());
         elementDTO.setIFrameXPath(targetElement.getIFrameXPath());
 
-        elementDTO.setTagName(targetElement.getTagName());
         elementDTO.setShadowHost(targetElement.getShadowHost());
         elementDTO.setShadowRoot(targetElement.getShadowRoot());
         elementDTO.setNestedShadow(targetElement.getNestedShadow());
@@ -3136,12 +3154,13 @@ public class PerformActions {
                 case ANCHOR:
                 case OPTION:
                 case MAT_SELECT:
-                    elementDTO.setTypeElement(
-                            "button"); // or "link", "option", depending on how you want to represent these
+                    elementDTO.setTypeElement("tagName-Found");
+                    elementDTO.setTagName("button");
                     break;
                 case INPUT:
                 case TEXT_AREA:
-                    elementDTO.setTypeElement("input");
+                    elementDTO.setTypeElement("tagName-Found");
+                    elementDTO.setTagName("input");
                     break;
                 case OUTPUT:
                 case PARAGRAPH:
@@ -3151,17 +3170,19 @@ public class PerformActions {
                 case DIV:
                 case STRONG:
                 case SPAN:
-                    elementDTO.setTypeElement("output");
+                    elementDTO.setTypeElement("tagName-Found");
+                    elementDTO.setTagName("output");
                     break;
                 case IFRAME:
                     elementDTO.setTypeElement("iframe");
+                    elementDTO.setTagName("iframe");
                     break;
                 default:
-                    elementDTO.setTypeElement(targetElement.getTagName()); // Default to tag name
+                    elementDTO.setTypeElement("tagName-Found"); // Default to tag name
                     break;
             }
         } else {
-            elementDTO.setTypeElement(targetElement.getTagName()); // Default to tag name if tagType is null
+            elementDTO.setTypeElement("tagName-Found"); // Default to tag name if tagType is null
         }
 
         return elementDTO;
@@ -3577,547 +3598,6 @@ public class PerformActions {
         return element.getAttribute(attributeEnum.getValue());
     }
 
-    public void dynamicLoadElementsDTO(WebDriver driver, String currentUrl, String[] dataArray, int port) {
-        // JavaScript code to inject
-        String jsCode = "(function (searchTerms, hiddenFields, socketPort) {\n" + "  let ws = null;\n"
-                + "  let attempts = 0; // Initialize attempts\n"
-                + "  window.searchTerms = [];\n"
-                + "  var pageFullyLoaded = false;\n"
-                + "  var elementInfoMap = new Map();\n"
-                + "  // var elementInfoSubmit = new Map();\n"
-                + "  var allElementInfo = [];\n"
-                + "\n"
-                + "  function connectWebSocket() {\n"
-                + "    try {\n"
-                + "      ws = new WebSocket(`ws://localhost:${socketPort}/websocket`);\n"
-                + "\n"
-                + "      ws.onopen = () => {\n"
-                + "        console.log(\"WebSocket connected\");\n"
-                + "        attempts = 0; // Reset attempts on successful connection\n"
-                + "\n"
-                + "        try {\n"
-                + "          const subscriptionMessage = {\n"
-                + "            type: \"echo\",\n"
-                + "            body: \"subscribe\",\n"
-                + "          };\n"
-                + "          ws.send(JSON.stringify(subscriptionMessage));\n"
-                + "        } catch (sendError) {\n"
-                + "          console.error(\"Failed to send subscription message:\", sendError);\n"
-                + "        }\n"
-                + "        startCollectingElements(searchTerms);\n"
-                + "      };\n"
-                + "\n"
-                + "      ws.onmessage = (event) => {\n"
-                + "        let receivedMessage = event.data;\n"
-                + "\n"
-                + "        if (receivedMessage.endsWith(\"\\u0000\")) {\n"
-                + "          receivedMessage = receivedMessage.slice(0, -1);\n"
-                + "        }\n"
-                + "\n"
-                + "        if (receivedMessage) {\n"
-                + "          try {\n"
-                + "            const parsedObject = JSON.parse(receivedMessage);\n"
-                + "            console.log(\"WebSocket message received:\", parsedObject);\n"
-                + "\n"
-                + "            // Process parsedObject.body and parsedObject.footer here\n"
-                + "            if (parsedObject.body.includes(\"data_updated\")) {\n"
-                + "              //Handle data update\n"
-                + "            }\n"
-                + "\n"
-                + "            if (\n"
-                + "              parsedObject.body.includes(\"cannot be processed\") ||\n"
-                + "              (parsedObject.footer &&\n"
-                + "                parsedObject.footer.includes(\"cannot be processed\"))\n"
-                + "            ) {\n"
-                + "              //Handle cannot be processed\n"
-                + "            }\n"
-                + "          } catch (parseError) {\n"
-                + "            console.warn(\"Non-JSON message received:\", receivedMessage);\n"
-                + "          }\n"
-                + "        }\n"
-                + "      };\n"
-                + "\n"
-                + "      ws.onerror = (error) => {\n"
-                + "        console.error(\"WebSocket error:\", error);\n"
-                + "      };\n"
-                + "\n"
-                + "      ws.onclose = () => {\n"
-                + "        console.log(\"WebSocket connection closed\");\n"
-                + "\n"
-                + "        if (attempts < 100) {\n"
-                + "          attempts++;\n"
-                + "          console.log(`Reconnecting attempt ${attempts}...`);\n"
-                + "          connectWebSocket(); // Retry connection\n"
-                + "        } else {\n"
-                + "          console.log(\"100 Attempts to Reconnect with the WebSocket.\");\n"
-                + "        }\n"
-                + "      };\n"
-                + "    } catch (initError) {\n"
-                + "      console.error(\"Failed to initialize WebSocket:\", initError);\n"
-                + "    }\n"
-                + "  }\n"
-                + "\n"
-                + "  // Optionally, expose a cleanup function\n"
-                + "  window.cleanupWebSocket = () => {\n"
-                + "    try {\n"
-                + "      console.log(\"Cleaning up WebSocket...\");\n"
-                + "      if (ws && ws.readyState === WebSocket.OPEN) {\n"
-                + "        ws.close();\n"
-                + "      }\n"
-                + "    } catch (cleanupError) {\n"
-                + "      console.error(\"Error during WebSocket cleanup:\", cleanupError);\n"
-                + "    }\n"
-                + "  };\n"
-                + "\n"
-                + "  function init(eventName) {\n"
-                + "    if (pageFullyLoaded) {\n"
-                + "      console.log(\"Event Name\", eventName);\n"
-                + "      if (\n"
-                + "        [\n"
-                + "          \"DOMContentLoaded\",\n"
-                + "          \"onreadystatechange\",\n"
-                + "          \"load\",\n"
-                + "          \"onload\",\n"
-                + "          \"Direct Execution\",\n"
-                + "        ].includes(eventName) ||\n"
-                + "        [\"complete\", \"interactive\"].includes(document.readyState)\n"
-                + "      ) {\n"
-                + "        startCollectingElements(window.searchTerms);\n"
-                + "      }\n"
-                + "    }\n"
-                + "    pageFullyLoaded = true;\n"
-                + "  }\n"
-                + "\n"
-                + "  // Function to collect general elements based on search terms\n"
-                + "  const collectElements = function collectElements(\n"
-                + "    doc,\n"
-                + "    searchTerms,\n"
-                + "    collectionFound,\n"
-                + "    elementInfoMap\n"
-                + "  ) {\n"
-                + "    // Collect elements from the current document using the provided search terms\n"
-                + "    searchTerms.forEach((selector) => {\n"
-                + "      collectionFound.push(...Array.from(doc.querySelectorAll(selector)));\n"
-                + "    });\n"
-                + "\n"
-                + "    // After collecting, process element identities for the parent document\n"
-                + "    collectionFound.forEach((node) => {\n"
-                + "      if (\n"
-                + "        [\"html\", \"body\", \"main\", \"script\", \"meta\", \"head\", \"style\"].includes(\n"
-                + "          node.tagName.toLowerCase()\n"
-                + "        )\n"
-                + "      ) {\n"
-                + "        return;\n"
-                + "      }\n"
-                + "\n"
-                + "      const elementIdentity = getElementIdentity(node);\n"
-                + "      if (elementIdentity) {\n"
-                + "        elementInfoMap.set(\n"
-                + "          elementIdentity.xPath,\n"
-                + "          `tagName-Found;${elementInfoString(node, elementIdentity)}`\n"
-                + "        );\n"
-                + "      }\n"
-                + "    });\n"
-                + "  };\n"
-                + "\n"
-                + "  function fetchAndParseIframeContent(iframe) {\n"
-                + "    if (!iframe.src) return null;\n"
-                + "\n"
-                + "    const xhr = new XMLHttpRequest();\n"
-                + "    xhr.open(\"GET\", iframe.src, false); // 'false' makes the request synchronous\n"
-                + "\n"
-                + "    try {\n"
-                + "      xhr.send();\n"
-                + "\n"
-                + "      if (xhr.status !== 200) {\n"
-                + "        console.error(\"Error fetching the iframe content:\", xhr.status);\n"
-                + "        return null;\n"
-                + "      }\n"
-                + "\n"
-                + "      const htmlContent = xhr.responseText;\n"
-                + "\n"
-                + "      // Parse the HTML content\n"
-                + "      const parser = new DOMParser();\n"
-                + "      const parsedDocument = parser.parseFromString(htmlContent, \"text/html\");\n"
-                + "\n"
-                + "      // Get all elements inside the parsed document\n"
-                + "      const srcElements = parsedDocument.querySelectorAll(\"*\");\n"
-                + "      console.log(`srcElements Total: <${srcElements.length}>`);\n"
-                + "\n"
-                + "      // srcElements.forEach((element) => {\n"
-                + "      //   console.log(`Element: <${element.tagName}>`);\n"
-                + "      //   console.log(\"Text Content:\", element.textContent.trim());\n"
-                + "      // });\n"
-                + "\n"
-                + "      return srcElements; // Return the NodeList\n"
-                + "    } catch (error) {\n"
-                + "      console.error(\"Error fetching the iframe content:\", error);\n"
-                + "      return null;\n"
-                + "    }\n"
-                + "  }\n"
-                + "\n"
-                + "  const iFrameDetails = function iFrameDetails(iframe, xPathIFrame, childSize) {\n"
-                + "    const iframeDetails = `Elements inside iframe: ${childSize}`;\n"
-                + "\n"
-                + "    console.log(\n"
-                + "      `iFrame Found: ${\n"
-                + "        iframe.src ||\n"
-                + "        iframe.title ||\n"
-                + "        iframe.id ||\n"
-                + "        iframe.name ||\n"
-                + "        \"No description\"\n"
-                + "      }; ${iframeDetails}`\n"
-                + "    );\n"
-                + "    // Store the iframe details in the elementInfoMap\n"
-                + "    elementInfoMap.set(\n"
-                + "      xPathIFrame,\n"
-                + "      `xpath:${xPathIFrame};text:${\n"
-                + "        iframe.src ||\n"
-                + "        iframe.title ||\n"
-                + "        iframe.id ||\n"
-                + "        iframe.name ||\n"
-                + "        \"No description\"\n"
-                + "      };${iframeDetails}`\n"
-                + "    );\n"
-                + "  };\n"
-                + "\n"
-                + "  // Function to collect iframe elements recursively\n"
-                + "  const collectIframeElements = function collectIframeElements(\n"
-                + "    doc,\n"
-                + "    collectionFound,\n"
-                + "    elementInfoMap,\n"
-                + "    isIframeChild = false\n"
-                + "  ) {\n"
-                + "    doc.querySelectorAll(\"iframe\").forEach((iframe) => {\n"
-                + "      try {\n"
-                + "        let iframeDocument =\n"
-                + "          iframe.contentDocument || iframe.contentWindow.document;\n"
-                + "\n"
-                + "        try {\n"
-                + "          console.log(\n"
-                + "            \"Iframe origin:\",\n"
-                + "            new URL(iframe.src, window.location.origin).origin\n"
-                + "          );\n"
-                + "          console.log(\"Parent origin:\", window.location.origin);\n"
-                + "        } catch (e) {\n"
-                + "          console.warn(\"Cross-origin access denied for iframe:\", iframe.src);\n"
-                + "        }\n"
-                + "\n"
-                + "        if (iframe) {\n"
-                + "          let iframeParsed = null;\n"
-                + "          let srcDocElements = null;\n"
-                + "\n"
-                + "          const xPathIFrame = getMartiniXPath(iframe); // Get the XPath of the iframe\n"
-                + "\n"
-                + "          const elementIdentity = getElementIdentity(iframe);\n"
-                + "          if (elementIdentity) {\n"
-                + "            elementInfoMap.set(\n"
-                + "              elementIdentity.xPath,\n"
-                + "              `iFrame-Found;${elementInfoString(iframe, elementIdentity)}`\n"
-                + "            );\n"
-                + "          }\n"
-                + "\n"
-                + "          const parser = new DOMParser();\n"
-                + "\n"
-                + "          if (iframe.srcdoc) {\n"
-                + "            iframeParsed = parser.parseFromString(iframe.srcdoc, \"text/html\");\n"
-                + "\n"
-                + "            // Select all elements inside the parsed document\n"
-                + "            srcDocElements = iframeParsed.querySelectorAll(\"*\");\n"
-                + "          }\n"
-                + "\n"
-                + "          if (iframe.src) {\n"
-                + "            const srcElements = fetchAndParseIframeContent(iframe);\n"
-                + "            if (srcElements) {\n"
-                + "              // console.log(\"Fetched Elements:\", srcElements);\n"
-                + "\n"
-                + "              iFrameDetails(iframe, xPathIFrame, srcElements.length);\n"
-                + "\n"
-                + "              srcElements.forEach(function (element) {\n"
-                + "                const elementIdentity = getElementIdentity(element);\n"
-                + "                // console.log(\n"
-                + "                //   \"elementIdentity.xPath\",\n"
-                + "                //   `${xPathIFrame}${elementIdentity?.xpath}`\n"
-                + "                // );\n"
-                + "                if (elementIdentity) {\n"
-                + "                  elementInfoMap.set(\n"
-                + "                    `${xPathIFrame}${elementIdentity?.xpath}`,\n"
-                + "                    `iFrame-Child;${elementInfoString(\n"
-                + "                      element,\n"
-                + "                      elementIdentity\n"
-                + "                    )}`\n"
-                + "                  );\n"
-                + "                }\n"
-                + "              });\n"
-                + "            }\n"
-                + "          }\n"
-                + "\n"
-                + "          // Collect all elements inside the iframe\n"
-                + "          if (!iframe.src) {\n"
-                + "            iFrameDetails(\n"
-                + "              iframe,\n"
-                + "              xPathIFrame,\n"
-                + "              srcDocElements\n"
-                + "                ? srcDocElements.length\n"
-                + "                : iframeDocument\n"
-                + "                ? iframeDocument.querySelectorAll(\"*\").length\n"
-                + "                : 0\n"
-                + "            );\n"
-                + "          }\n"
-                + "\n"
-                + "          iframeDocument\n"
-                + "            .querySelectorAll(\"*\")\n"
-                + "            .forEach(function (elementInsideIframe) {\n"
-                + "              const elementIdentity = getElementIdentity(elementInsideIframe);\n"
-                + "\n"
-                + "              // console.log(\n"
-                + "              //   \"elementIdentity.xPath\",\n"
-                + "              //   `${xPathIFrame}${elementIdentity?.xpath}`\n"
-                + "              // );\n"
-                + "              if (elementIdentity) {\n"
-                + "                elementInfoMap.set(\n"
-                + "                  `${xPathIFrame}${elementIdentity?.xpath}`,\n"
-                + "                  `iFrame-Child;${elementInfoString(\n"
-                + "                    elementInsideIframe,\n"
-                + "                    elementIdentity\n"
-                + "                  )}`\n"
-                + "                );\n"
-                + "              }\n"
-                + "            });\n"
-                + "\n"
-                + "          // Loop through all the elements and extract their properties\n"
-                + "          srcDocElements?.forEach(function (element) {\n"
-                + "            const elementType = element.tagName; // Get the tag name of the element\n"
-                + "            const elementContent = element.textContent.trim(); // Get the text content of the element\n"
-                + "\n"
-                + "            const elementIdentity = getElementIdentity(element);\n"
-                + "            // console.log(\n"
-                + "            //   \"elementIdentity.xPath\",\n"
-                + "            //   `${xPathIFrame}${elementIdentity?.xpath}`\n"
-                + "            // );\n"
-                + "            if (elementIdentity) {\n"
-                + "              elementInfoMap.set(\n"
-                + "                `${xPathIFrame}${elementIdentity?.xpath}`,\n"
-                + "                `iFrame-Child;${elementInfoString(element, elementIdentity)}`\n"
-                + "              );\n"
-                + "            }\n"
-                + "          });\n"
-                + "\n"
-                + "          // Process iframe content depending on the presence of srcdoc\n"
-                + "          if (iframeParsed) {\n"
-                + "            processIframeElements(iframeParsed, xPathIFrame);\n"
-                + "          }\n"
-                + "\n"
-                + "          // If the iframe contains nested iframes, recursively collect them\n"
-                + "          collectIframeElements(\n"
-                + "            iframeDocument,\n"
-                + "            collectionFound,\n"
-                + "            elementInfoMap,\n"
-                + "            true\n"
-                + "          );\n"
-                + "        } else {\n"
-                + "          console.warn(`Skipping cross-origin iframe: ${iframe.src}`);\n"
-                + "        }\n"
-                + "      } catch (e) {\n"
-                + "        console.error(\n"
-                + "          `Error accessing iframe: ${iframe.src || \"Unknown iframe\"}`,\n"
-                + "          e\n"
-                + "        );\n"
-                + "      }\n"
-                + "    });\n"
-                + "  };\n"
-                + "\n"
-                + "  const processIframeElements = function (iframeDocument, xPathIFrame) {\n"
-                + "    // Collect all elements inside the iframe\n"
-                + "    iframeDocument\n"
-                + "      .querySelectorAll(\"*\")\n"
-                + "      .forEach(function (elementInsideIframe) {\n"
-                + "        const elementIdentity = getElementIdentity(elementInsideIframe);\n"
-                + "\n"
-                + "        // console.log(\n"
-                + "        //   \"elementIdentity.xPath\",\n"
-                + "        //   `${xPathIFrame}${elementIdentity?.xpath}`\n"
-                + "        // );\n"
-                + "        if (elementIdentity) {\n"
-                + "          elementInfoMap.set(\n"
-                + "            `${xPathIFrame}${elementIdentity?.xpath}`,\n"
-                + "            `iFrame-Child;${elementInfoString(\n"
-                + "              elementInsideIframe,\n"
-                + "              elementIdentity\n"
-                + "            )}`\n"
-                + "          );\n"
-                + "        }\n"
-                + "      });\n"
-                + "  };\n"
-                + "\n"
-                + "  // Function to initialize the collection process\n"
-                + "  const startCollectingElements = function startCollectingElements(\n"
-                + "    searchTerms\n"
-                + "  ) {\n"
-                + "    // const searchTerms = [\"button\", \"input\", \"a\", \"div\"]; // Define elements to search for\n"
-                + "    let elementInfoMap = new Map(); // Initialize the map to store element information\n"
-                + "    let collectionFound = [];\n"
-                + "\n"
-                + "    console.log(\"searchTerms\", window.searchTerms);\n"
-                + "    // First, collect iframe elements\n"
-                + "    collectIframeElements(document, collectionFound, elementInfoMap);\n"
-                + "\n"
-                + "    // Then, collect general elements based on search terms\n"
-                + "    collectElements(document, searchTerms, collectionFound, elementInfoMap);\n"
-                + "\n"
-                + "    limitMapCharacters(elementInfoMap);\n"
-                + "    console.log(\"All element info stored in Map:\", allElementInfo);\n"
-                + "\n"
-                + "    // WebSocket Message Sending Logic\n"
-                + "    if (window.webSocket && window.webSocket.readyState === WebSocket.OPEN) {\n"
-                + "      const message = {\n"
-                + "        type: \"RESPONSE_BACK\",\n"
-                + "        details: allElementInfo, // Send allElementInfo\n"
-                + "      };\n"
-                + "      window.webSocket.send(JSON.stringify(message));\n"
-                + "      console.log(\"Sent RESPONSE_BACK:\", message);\n"
-                + "    } else {\n"
-                + "      console.warn(\"WebSocket is not open. Cannot send message.\");\n"
-                + "    }\n"
-                + "  };\n"
-                + "\n"
-                + "  const getElementIdentity = function getElementIdentity(element) {\n"
-                + "    if (!hiddenFields) {\n"
-                + "      if (\n"
-                + "        (element.offsetWidth === 0 ||\n"
-                + "          element.offsetHeight === 0 ||\n"
-                + "          window.getComputedStyle(element).visibility === \"hidden\") &&\n"
-                + "        !(\n"
-                + "          element.tagName.toLowerCase() === \"input\" &&\n"
-                + "          element.type.toLowerCase() === \"hidden\"\n"
-                + "        )\n"
-                + "      ) {\n"
-                + "        return null; // Ignore all hidden elements except <input type=\"hidden\">\n"
-                + "      }\n"
-                + "    }\n"
-                + "    const xpath = getMartiniXPath(element);\n"
-                + "    const allAttributes = Array.from(element.attributes)\n"
-                + "      .map((attr) => `${attr.name}=\"${attr.value}\"`)\n"
-                + "      .join(\";\");\n"
-                + "    const attribId = element.id || \"\";\n"
-                + "    const attribName = element.name || \"\";\n"
-                + "    const coords = `${element.getBoundingClientRect().left.toFixed(2)},${element\n"
-                + "      .getBoundingClientRect()\n"
-                + "      .top.toFixed(2)}`;\n"
-                + "    const someText =\n"
-                + "      element.textContent.trim() ||\n"
-                + "      (element.tagName.toLowerCase() === \"input\" ? element.value || \"\" : \"\");\n"
-                + "\n"
-                + "    return {\n"
-                + "      xpath,\n"
-                + "      allAttributes,\n"
-                + "      customXPath: \"\",\n"
-                + "      attribId,\n"
-                + "      attribName,\n"
-                + "      coords,\n"
-                + "      someText,\n"
-                + "    };\n"
-                + "  };\n"
-                + "\n"
-                + "  // Helper function to generate a unique XPath for an element\n"
-                + "  const getMartiniXPath = function getMartiniXPath(element) {\n"
-                + "    if (element === document.body) return \"/html/body\";\n"
-                + "    let ix = 0;\n"
-                + "    const siblings = element.parentNode ? element.parentNode.childNodes : [];\n"
-                + "    for (let i = 0; i < siblings.length; i++) {\n"
-                + "      let sibling = siblings[i];\n"
-                + "      if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {\n"
-                + "        if (sibling === element) {\n"
-                + "          return (\n"
-                + "            getMartiniXPath(element.parentNode) +\n"
-                + "            \"/\" +\n"
-                + "            element.tagName.toLowerCase() +\n"
-                + "            \"[\" +\n"
-                + "            (ix + 1) +\n"
-                + "            \"]\"\n"
-                + "          );\n"
-                + "        }\n"
-                + "        ix++;\n"
-                + "      }\n"
-                + "    }\n"
-                + "    return \"\";\n"
-                + "  };\n"
-                + "\n"
-                + "  // Helper function to generate element information string\n"
-                + "  const elementInfoString = function elementInfoString(element, identity) {\n"
-                + "    return `${element.tagName.toLowerCase()};xpath:${identity.xpath};text:${\n"
-                + "      identity.someText\n"
-                + "    };attribId:${identity.attribId};attribName:${identity.attribName};coords:${\n"
-                + "      identity.coords\n"
-                + "    };allAttributes:${identity.allAttributes};customXPath:${\n"
-                + "      identity.customXPath\n"
-                + "    };`;\n"
-                + "  };\n"
-                + "\n"
-                + "  function limitMapCharacters(elementInfoMap, coordText) {\n"
-                + "    elementInfoMap.forEach((value, key) => {\n"
-                + "      let modifiedValue = value;\n"
-                + "      allElementInfo.push(modifiedValue);\n"
-                + "    });\n"
-                + "  }\n"
-                + "\n"
-                + "  // Event listener to handle incoming messages from iframes\n"
-                + "  window.addEventListener(\"message\", function (event) {\n"
-                + "    if (event.origin !== window.trustedOriginURL) {\n"
-                + "      return; // Ignore messages from untrusted origins\n"
-                + "    }\n"
-                + "\n"
-                + "    console.log(\"Received message data:\", event.data);\n"
-                + "\n"
-                + "    if (event.data.type === \"elementsData\") {\n"
-                + "      const elementData = event.data.data; // Process received element data\n"
-                + "      console.log(\"Element data from parent:\", elementData);\n"
-                + "    }\n"
-                + "  });\n"
-                + "\n"
-                + "  function checkEdgeTrackingPrevention() {\n"
-                + "    if (navigator.userAgent.includes(\"Edg\")) {\n"
-                + "      console.log(\n"
-                + "        \"Edge Tracking Prevention may be blocking iframes. Go to Edge Settings -> Privacy, Search, and Services -> Set Tracking Prevention to 'Basic' and refresh the page.\"\n"
-                + "      );\n"
-                + "    }\n"
-                + "  }\n"
-                + "\n"
-                + "  checkEdgeTrackingPrevention();\n"
-                + "\n"
-                + "  // MOVE EVENT LISTENERS OUTSIDE\n"
-                + "  if (\n"
-                + "    document.readyState === \"complete\" ||\n"
-                + "    document.readyState === \"interactive\"\n"
-                + "  ) {\n"
-                + "    setTimeout(() => init(\"Direct Execution\"), 0);\n"
-                + "  } else {\n"
-                + "    document.addEventListener(\"DOMContentLoaded\", () =>\n"
-                + "      setTimeout(() => init(\"DOMContentLoaded\"), 0)\n"
-                + "    );\n"
-                + "    window.addEventListener(\"load\", () => init(\"load\"));\n"
-                + "    document.attachEvent?.(\"onreadystatechange\", function () {\n"
-                + "      if (document.readyState === \"complete\")\n"
-                + "        setTimeout(() => init(\"onreadystatechange\"), 0);\n"
-                + "    });\n"
-                + "    window.attachEvent?.(\"onload\", () => init(\"onload\"));\n"
-                + "  }\n"
-                + "\n"
-                + "  connectWebSocket();\n"
-                + "\n"
-                + "  // init(\"Initiate\");\n"
-                + "})(arguments[0], arguments[1], arguments[2]);\n"
-                + "// })([\"div\"], false, 8181);\n";
-        List<String> dataList = Arrays.asList(dataArray);
-
-        try {
-            jsExecutor = (JavascriptExecutor) driver;
-            jsExecutor.executeScript(jsCode, dataList, dataList, port);
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-        }
-    }
-
     public WebElement findShadowElementByCssSelector(String shadowLocator, String cssSelector) {
         try {
             // Find the shadow host
@@ -4365,5 +3845,42 @@ public class PerformActions {
         }
 
         return elementFound;
+    }
+
+    public WebElement findElementByCssSelector(String cssSelector) throws Exception {
+        try {
+            if (cssSelector == null || cssSelector.isEmpty()) {
+                throw new IllegalArgumentException("CSS Selector cannot be null or empty.");
+            }
+
+            // Escape single quotes within the CSS selector for JavaScript
+            String escapedCssSelector = cssSelector.replace("'", "\\'");
+
+            String script = "return document.querySelectorAll('" + escapedCssSelector + "')[0];";
+
+            WebElement foundElement = (WebElement) ((JavascriptExecutor) this.currentDriver).executeScript(script);
+
+            if (foundElement == null) {
+                ARLogger.getInstance(PerformActions.class)
+                        .fine(String.format("Element with CSS Selector \"%s\" not found.", cssSelector));
+                return null;
+            }
+            return foundElement;
+
+        } catch (Exception e) {
+            ARLogger.getInstance(PerformActions.class)
+                    .severe(String.format(
+                            "Error finding element with CSS Selector \"%s\" -> Cause: %s",
+                            cssSelector, e.getMessage()));
+            return null;
+        }
+    }
+
+    public WebElement findElementByCssSelector(String cssSelector, boolean byPassNotFound) throws Exception {
+        WebElement element = findElementByCssSelector(cssSelector);
+        if (element == null && !byPassNotFound) {
+            performMessage.couldNotFindElement("Could not find element with CSS Selector: " + cssSelector);
+        }
+        return element;
     }
 }

@@ -1495,9 +1495,10 @@ public class PerformPreLoad {
                       function limitMapSize(sortedList) {
                         // Check the length of allElementInfo before adding new elements
                         console.log("limitMapSize");
+                        let currentId = 1;
                         sortedList.forEach((item) => {
                           if (window.allElementInfo.length < 35) {
-                            window.allElementInfo.push(item);
+                            window.allElementInfo.push({ ...item, id: currentId++ });
                           }
                         });
                       }
@@ -1609,6 +1610,5 @@ public class PerformPreLoad {
                     // );
                     // })(["*"], false, 8181, "scannerTool", "scannerGrid", "searchTerms", 3);
                     // })(["button"], false, 8181, "scannerTool", "scannerGrid", "searchTerms", 3);
-
             """;
 }

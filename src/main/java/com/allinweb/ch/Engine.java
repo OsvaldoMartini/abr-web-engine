@@ -1113,15 +1113,16 @@ public class Engine {
                                             currentInstruction.getCodified());
 
                                     WebElement webElementFound = null;
+                                    boolean forceCoordinates = currentInstruction.getForceCoordinates() != null
+                                            && currentInstruction.getForceCoordinates();
                                     try {
-                                        webElementFound = performActions.searchElement(currentInstruction, botJobId);
+                                        webElementFound = performActions.searchElement(
+                                                currentInstruction, botJobId, forceCoordinates);
                                     } catch (Exception ex) {
                                         success = false;
                                     }
 
-                                    if (webElementFound == null
-                                            && currentInstruction.getForceCoordinates() != null
-                                            && currentInstruction.getForceCoordinates()) {
+                                    if (webElementFound == null && forceCoordinates) {
 
                                         Boolean pressEnterAfter = false;
                                         if (actions[0].equals(ARConstants.INSERT)
@@ -1164,7 +1165,7 @@ public class Engine {
                                     }
                                     // Special Cases for Select Responses
                                     // It could be Improved the case
-                                    if (resultActions.contains("Error:") || webElementFound == null || !success) {
+                                    if (resultActions.contains("Error:") || (webElementFound == null && !success)) {
                                         failedMessage = "Failed: Web Action";
 
                                         success = false;
@@ -1679,8 +1680,12 @@ public class Engine {
                             }
 
                             WebElement webElementFound = null;
+                            boolean forceCoordinates = currentInstruction.getForceCoordinates() != null
+                                    && currentInstruction.getForceCoordinates();
+
                             try {
-                                webElementFound = performActions.searchElement(currentInstruction, botJobId);
+                                webElementFound =
+                                        performActions.searchElement(currentInstruction, botJobId, forceCoordinates);
                             } catch (Exception ex) {
                             }
 
@@ -1754,6 +1759,7 @@ public class Engine {
             }
 
             totalExecutionTime = performActions.getTotalExecutionTime();
+
             if (totalExecutionTime == 0) {
                 writerReport.insertTotalExecutionTimes(botJobStartTime, botJobStartTime);
             } else {

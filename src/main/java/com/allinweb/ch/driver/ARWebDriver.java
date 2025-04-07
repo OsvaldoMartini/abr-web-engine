@@ -10,7 +10,10 @@ import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -21,6 +24,7 @@ import java.util.stream.Collectors;
 import javafx.collections.ObservableList;
 import javax.swing.*;
 import lombok.Data;
+import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.WebDriver;
@@ -33,6 +37,7 @@ import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxOptions;
 import org.openqa.selenium.logging.LogType;
 import org.openqa.selenium.logging.LoggingPreferences;
+import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 @Data
@@ -53,6 +58,9 @@ public class ARWebDriver {
     private PerformMessage performMessage;
     private PerformPreLoad performPreLoad;
     private WebDriver currentDriver;
+    private String edgeVersion;
+    private String webDriverEdgeVersion;
+    private String webDriverPath;
 
     public void initialize(
             ObservableList<WebDriver> webDriverList, PerformMessage performMessage, PerformPreLoad performPreLoad) {
@@ -68,6 +76,35 @@ public class ARWebDriver {
         webDriverList.add(driver);
     }
 
+    private String getEdgeWebDriverVersion(String webDriverPath) {
+        try {
+            ProcessBuilder builder = new ProcessBuilder(webDriverPath, "--version");
+            builder.redirectErrorStream(true);
+            Process process = builder.start();
+
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line = reader.readLine();
+                if (line != null && line.contains("MSEdgeDriver")) {
+                    // Expected output: "MSEdgeDriver 122.0.2365.66 ..."
+                    return line.split(" ")[1];
+                }
+            }
+        } catch (IOException e) {
+            ARLogger.getInstance(ARWebDriver.class).info("Error getting Edge WebDriver version: " + e.getMessage());
+        }
+        return "unknown";
+    }
+
+    private String getEdgeBrowserVersion(WebDriver driver) {
+        try {
+            Capabilities capabilities = ((RemoteWebDriver) driver).getCapabilities();
+            return capabilities.getBrowserVersion();
+        } catch (Exception e) {
+            ARLogger.getInstance(ARWebDriver.class).info("Error getting Edge browser version: " + e.getMessage());
+            return "unknown";
+        }
+    }
+
     public WebDriver getDriverEdge(EdgeOptions options) {
         if (this.currentDriver == null) {
             synchronized (ARWebDriver.class) {
@@ -75,8 +112,14 @@ public class ARWebDriver {
                     if (options != null) {
                         this.currentDriver = new EdgeDriver(options);
                         addWebDriver(this.currentDriver);
+                        this.edgeVersion =
+                                getEdgeBrowserVersion(this.currentDriver); // Detect version on driver creation
+                        ARLogger.getInstance(ARWebDriver.class).fine("Detected Edge Version: " + this.edgeVersion);
                     } else {
                         this.currentDriver = new EdgeDriver();
+                        this.edgeVersion =
+                                getEdgeBrowserVersion(this.currentDriver); // Detect version on driver creation
+                        ARLogger.getInstance(ARWebDriver.class).fine("Detected Edge Version: " + this.edgeVersion);
                     }
                 }
             }
@@ -135,6 +178,10 @@ public class ARWebDriver {
             String[] dataArray,
             boolean searchHiddenFields,
             int port) {
+
+        this.webDriverPath = webDriverPath;
+
+        this.webDriverEdgeVersion = getEdgeWebDriverVersion(webDriverPath);
 
         if (Strings.isNullOrEmpty(url.trim())) {
             ARLogger.getInstance(ARWebDriver.class).fine("URL IS EMPTY");
