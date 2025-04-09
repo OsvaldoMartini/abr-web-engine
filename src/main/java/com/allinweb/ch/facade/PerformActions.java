@@ -345,22 +345,21 @@ public class PerformActions {
                     return "SET_VALUE to (Parent: " + parentField + ") Var:" + variableField + " <-- " + operations[1];
                 case "GET":
                     String valueElem;
-                    if (mapOperators.containsKey(variableField)) {
+                    if (parentOperations[0].equals(ARConstants.OUTPUT)) {
+                        valueElem = getOutPutElement(
+                                byPassNotFound,
+                                instructionElement,
+                                parentField,
+                                instruction.getActions(),
+                                mapOperators);
+                    } else if (mapOperators.containsKey(variableField)) {
                         valueElem = mapOperators.get(variableField);
                     } else {
-                        if (parentOperations[0].equals(ARConstants.OUTPUT)) {
-                            valueElem = getOutPutElement(
-                                    byPassNotFound,
-                                    instructionElement,
-                                    parentField,
-                                    instruction.getActions(),
-                                    mapOperators);
-                        } else {
-                            valueElem = getValueInElement(byPassNotFound, instructionElement);
-                        }
-
-                        mapOperators.put(variableField, valueElem);
+                        valueElem = getValueInElement(byPassNotFound, instructionElement);
                     }
+
+                    mapOperators.put(variableField, valueElem);
+
                     return "GET_VALUE from (Parent: " + parentField + ") Var" + variableField + " <-- " + valueElem;
                     //                    case "CK":
                     //                        if (operator.equalsIgnoreCase("=")) {
@@ -742,7 +741,11 @@ public class PerformActions {
         String tagName = null;
 
         this.currentDriver.switchTo().defaultContent();
-        this.currentDriver.switchTo().window(windowHandlesList.get(currentTabIndex));
+        try {
+            this.currentDriver.switchTo().window(windowHandlesList.get(currentTabIndex));
+        } catch (Exception ignore) {
+
+        }
 
         try {
             tagName = removeTrailingSlash(instructionPath);
