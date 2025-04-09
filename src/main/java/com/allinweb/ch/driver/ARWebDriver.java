@@ -254,6 +254,7 @@ public class ARWebDriver {
                     optionsEdge.addArguments("--remote-allow-origins=*"); // Required for some Edge versions
                     optionsEdge.addArguments("--start-maximized"); // Opens browser in full-screen
                     optionsEdge.addArguments("--disable-gpu"); // Fixes potential rendering issues
+                    optionsEdge.addArguments("--disable-infobars"); // Disable DevTools
                     optionsEdge.addArguments("--no-sandbox"); // Bypass OS security model
                     optionsEdge.addArguments("--disable-dev-shm-usage"); // Prevents resource exhaustion
                     // options.addArguments("--headless"); // if you want run it in headless mode.

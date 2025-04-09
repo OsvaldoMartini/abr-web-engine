@@ -104,6 +104,7 @@ public class PerformActions {
     long totalExecutionTime = 0;
 
     public List<String> windowHandlesList = new ArrayList<>();
+    public int currentTabIndex = 0; // Track the currently active tab index
 
     private ARPriorities arPriorities;
 
@@ -240,6 +241,10 @@ public class PerformActions {
                             }
                             return passed;
                         } else {
+
+                            instructionElement.clear();
+                            clearElement(instructionElement);
+                            clearValueAtCoordinates(savedCoordinates);
 
                             passed = insertInElement(
                                     byPassNotFound,
@@ -737,6 +742,7 @@ public class PerformActions {
         String tagName = null;
 
         this.currentDriver.switchTo().defaultContent();
+        this.currentDriver.switchTo().window(windowHandlesList.get(currentTabIndex));
 
         try {
             tagName = removeTrailingSlash(instructionPath);
@@ -1256,6 +1262,12 @@ public class PerformActions {
 
     public void refreshPage() {
         this.currentDriver.navigate().refresh();
+
+        for (String handle : this.currentDriver.getWindowHandles()) {
+            this.currentDriver.switchTo().window(handle);
+            System.out.println("Window title: " + this.currentDriver.getTitle());
+        }
+
         justCalledRefreshPage = true;
     }
 
@@ -1290,7 +1302,6 @@ public class PerformActions {
                 }
 
                 if (dataFieldValue != null) {
-                    element.clear();
                     element.sendKeys(dataFieldValue);
                     // Waits component reaction
                     onHoldInSeconds(1);
@@ -3330,7 +3341,7 @@ public class PerformActions {
                 targetDefine.setIconType(WebElementIcon.IFRAME);
             } else {
                 targetDefine.setTagType(WebElementTagNameEnum.OUTPUT);
-                targetDefine.setIconType(WebElementIcon.TEXT);
+                targetDefine.setIconType(WebElementIcon.OUTPUT);
                 targetDefine.setTagName("label");
             }
         }
