@@ -362,9 +362,8 @@ public class Engine {
 
                     int parentBlockCondition = -1;
 
-                    instructionsExecuted.clear();
-
                     BlockLoadDTO blockLoad = blocksLoaded.get(currentBlock);
+
                     String excelFieldName = blockLoad.getExportFile();
 
                     String blockName = blocksLoaded.get(currentBlock).getName();
@@ -602,10 +601,12 @@ public class Engine {
                             // !currentInstruction.getExecuted()) {
                             boolean execGetOrSet = false;
                             boolean execCheckValue = false;
+                            boolean execOutPut = false;
                             boolean excelWriteOperation = false;
                             boolean pauseOperation = false;
 
                             String xPathOperation = null;
+                            String[] parentActions = null;
                             String parentField = null;
                             String parentFieldLoop = null;
                             String variableField = null;
@@ -841,6 +842,12 @@ public class Engine {
                                 execGetOrSet = true;
 
                                 xPathOperation = performActions.getXPathInstruction(currentInstruction, blockLoad);
+                                String actionsParent =
+                                        performActions.getInstructionParentActions(currentInstruction, blockLoad);
+                                parentActions = actionsParent != null
+                                        ? actionsParent.split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)
+                                        : null;
+
                                 parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
                                 variableField =
                                         performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
@@ -848,6 +855,9 @@ public class Engine {
                                     variableField = "Not Variable defined";
                                 }
 
+                            } else if (actions[0].equalsIgnoreCase(ARConstants.OUTPUT)) {
+                                execOutPut = true;
+                                fieldName = currentInstruction.getId() + "-" + currentInstruction.getName();
                             } else if (actions[0].equalsIgnoreCase(ARConstants.CHECK_VALUE)) {
                                 execCheckValue = true;
                                 parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
@@ -894,18 +904,6 @@ public class Engine {
                                                 currentBlock = blockOrderNumber - 1;
                                                 currentInstruction.setExecuted(true);
 
-                                                // Assuming currentInstruction and instructionsExecuted are already
-                                                // defined
-                                                if (currentInstruction != null
-                                                        && instructionsExecuted.stream()
-                                                                .noneMatch(instruction ->
-                                                                        instruction.getInstructionOrderNumber()
-                                                                                == currentInstruction
-                                                                                        .getInstructionOrderNumber())) {
-                                                    instructionsExecuted.add(currentInstruction);
-                                                }
-
-                                                executedSuccess.add(currentInstruction.getId());
                                                 success = true;
 
                                             } catch (Exception ex) {
@@ -1154,8 +1152,7 @@ public class Engine {
                                                 webElementFound,
                                                 actions);
 
-                                        if (actions[0].equalsIgnoreCase(ARConstants.OUTPUT)) {
-                                            fieldName = currentInstruction.getId() + "-" + currentInstruction.getName();
+                                        if (execOutPut) {
                                             if (mapOperators.containsKey(fieldName)) {
                                                 msgInstruction = new Pair(fieldName, mapOperators.get(fieldName));
                                             } else {
@@ -1171,17 +1168,6 @@ public class Engine {
                                         success = false;
                                     } else if (resultActions != null && success) {
                                         currentInstruction.setExecuted(true);
-                                        // Assuming currentInstruction and instructionsExecuted are already defined
-                                        if (currentInstruction != null
-                                                && instructionsExecuted.stream()
-                                                        .noneMatch(
-                                                                instruction -> instruction.getInstructionOrderNumber()
-                                                                        == currentInstruction
-                                                                                .getInstructionOrderNumber())) {
-                                            instructionsExecuted.add(currentInstruction);
-                                        }
-
-                                        executedSuccess.add(currentInstruction.getId());
                                     }
 
                                 } else if (execGetOrSet) {
@@ -1205,6 +1191,7 @@ public class Engine {
                                                 byPassNotFound,
                                                 currentInstruction,
                                                 xPathOperation,
+                                                parentActions,
                                                 actions[0],
                                                 operations,
                                                 parentField,
@@ -1213,19 +1200,6 @@ public class Engine {
 
                                         if (resultActions != null) {
                                             currentInstruction.setExecuted(true);
-
-                                            // Assuming currentInstruction and instructionsExecuted are already
-                                            // defined
-                                            if (currentInstruction != null
-                                                    && instructionsExecuted.stream()
-                                                            .noneMatch(instruction ->
-                                                                    instruction.getInstructionOrderNumber()
-                                                                            == currentInstruction
-                                                                                    .getInstructionOrderNumber())) {
-                                                instructionsExecuted.add(currentInstruction);
-                                            }
-
-                                            executedSuccess.add(currentInstruction.getId());
                                             success = true;
                                         } else {
                                             failedMessage = "Failed: Operation (GetVaue / SetValue)";
@@ -1297,19 +1271,6 @@ public class Engine {
                                         if (isOperationValid) {
 
                                             currentInstruction.setExecuted(true);
-
-                                            // Assuming currentInstruction and instructionsExecuted are already
-                                            // defined
-                                            if (currentInstruction != null
-                                                    && instructionsExecuted.stream()
-                                                            .noneMatch(instruction ->
-                                                                    instruction.getInstructionOrderNumber()
-                                                                            == currentInstruction
-                                                                                    .getInstructionOrderNumber())) {
-                                                instructionsExecuted.add(currentInstruction);
-                                            }
-
-                                            executedSuccess.add(currentInstruction.getId());
                                             success = true;
                                         } else {
                                             failedMessage = "Failed: Check Validation";
@@ -1378,26 +1339,20 @@ public class Engine {
                                         if (writerExport != null) {
                                             mapExport.put("KEY", "EXTERNAL");
                                             mapExport.put(parentField, mapOperators.get(variableField));
-
-                                            writerExport.insertFieldNameAndValueLastColumn(mapExport, exportIndex - 1);
+                                            if (excelFieldName != null
+                                                    && excelFieldName
+                                                            .toLowerCase()
+                                                            .endsWith(".csv")) {
+                                                writerExport.writeMapToCSV(mapExport, excelFieldName);
+                                            } else {
+                                                writerExport.insertFieldNameAndValueLastColumn(
+                                                        mapExport, exportIndex - 1);
+                                            }
                                         }
                                         performActions.onHoldForSeconds(null);
 
                                         if (resultActions != null) {
                                             currentInstruction.setExecuted(true);
-
-                                            // Assuming currentInstruction and instructionsExecuted are already
-                                            // defined
-                                            if (currentInstruction != null
-                                                    && instructionsExecuted.stream()
-                                                            .noneMatch(instruction ->
-                                                                    instruction.getInstructionOrderNumber()
-                                                                            == currentInstruction
-                                                                                    .getInstructionOrderNumber())) {
-                                                instructionsExecuted.add(currentInstruction);
-                                            }
-
-                                            executedSuccess.add(currentInstruction.getId());
                                             success = true;
                                         } else {
                                             failedMessage = "Failed: Generate File -> Excel/CSV";
@@ -1597,11 +1552,8 @@ public class Engine {
                 Pair<String, String> dataDynamic = null;
                 for (int j = 0; success && j < blocksLoaded.size(); j++) {
 
-                    // Call the method to get the filtered list
-                    List<InstructionLoadDTO> unexecutedInstructions = getUnexecutedInstructions(
-                            instructionsExecuted, blocksLoaded.get(j).getInstructionLoadDTOS());
-
-                    for (InstructionLoadDTO currentInstruction : unexecutedInstructions) {
+                    for (InstructionLoadDTO currentInstruction :
+                            blocksLoaded.get(j).getInstructionLoadDTOS()) {
                         if (currentInstruction.getDefaultValue() == null) {
                             String[] arr = UtilsMethods.splitIfContains(
                                     currentInstruction.getActions(), ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
@@ -1618,11 +1570,8 @@ public class Engine {
                     int blockOrder = blocksLoaded.get(j).getBlockOrderNumber();
                     String blockReportName = "#" + blockOrder + " " + blockName;
 
-                    // Call the method to get the filtered list
-                    List<InstructionLoadDTO> unexecutedInstructions = getUnexecutedInstructions(
-                            instructionsExecuted, blocksLoaded.get(j).getInstructionLoadDTOS());
-
-                    for (InstructionLoadDTO currentInstruction : unexecutedInstructions) {
+                    for (InstructionLoadDTO currentInstruction :
+                            blocksLoaded.get(j).getInstructionLoadDTOS()) {
 
                         long currentInstructionStartTime = System.nanoTime();
                         File logFileForSingleExcel = excelReader.createLogFile(excelPath);
@@ -1757,6 +1706,7 @@ public class Engine {
                     }
                 }
             }
+            //            launchBotJobButton.setDisable(false);
 
             totalExecutionTime = performActions.getTotalExecutionTime();
 

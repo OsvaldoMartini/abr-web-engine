@@ -311,6 +311,61 @@ public class PerformDataBase {
         return false;
     }
 
+    public static List<ParentOperations> loadAllParents(int bot_job_id, int instructionId) {
+        List<ParentOperations> parentList = new ArrayList<>();
+
+        try (Statement stmt = getConnection().createStatement()) {
+
+            String selectSQL = MessageFormat.format(
+                    """
+                    SELECT
+                        parent.name as parent_name,
+                        child.actions,
+                        child.operation,
+                        child.name as child_name,
+                        child.id
+                    FROM instruction AS child
+                    LEFT JOIN instruction AS parent ON child.parent_id = parent.id
+                    WHERE child.parent_id = {0}
+                      AND child.bot_job_id = {1}
+                    ORDER BY child.id;
+            """,
+                    instructionId, bot_job_id);
+
+            try (ResultSet rs = stmt.executeQuery(selectSQL)) {
+                while (rs.next()) {
+                    ParentOperations parentOper = new ParentOperations();
+                    parentOper.setId(rs.getInt("id"));
+                    parentOper.setName(rs.getString("child_name"));
+                    parentOper.setParentName(rs.getString("parent_name"));
+                    parentOper.setActions(rs.getString("actions"));
+                    parentOper.setOperations(rs.getString("operation"));
+                    parentOper.setInstructionId(instructionId);
+
+                    parentList.add(parentOper);
+                }
+            }
+
+            if (!parentList.isEmpty()) {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .info(String.format(
+                                "Loaded parents for instruction ID %d from botJobId %d", instructionId, bot_job_id));
+            } else {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .warning(String.format(
+                                "No parents found for instruction ID %d in botJobId %d.", instructionId, bot_job_id));
+            }
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "Error loading parents for instruction ID %d from botJobId %d. Error: %s",
+                            instructionId, bot_job_id, e.getMessage()));
+        }
+
+        return parentList;
+    }
+
     private static List<ParentOperations> loadParents(int bot_job_id, int instructionId, int parentId) {
         List<ParentOperations> parentList = new ArrayList<>();
 
@@ -1116,6 +1171,40 @@ public class PerformDataBase {
                             .warning(String.format(
                                     "UpdateMoveRowsOrder - No matching record found to update InstructionId: %d and name: %s",
                                     instruction.getInstructionId(), instruction.getInstructionName()));
+                }
+            }
+            return true;
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format("This Instruction\n cannot be updated.\nError: %s", e.getMessage()));
+        }
+        return false;
+    }
+
+    public boolean rowsGetUpdateName(List<ParentOperations> listParents) {
+        // Build the SQL update statement
+        try (Statement stmt = getConnection().createStatement()) {
+            for (ParentOperations parent : listParents) {
+
+                if ("GET".equals(parent.getActions())) {
+
+                    String updateSQL = "UPDATE instruction SET  "
+                            + " operation = '" + parent.getOperations() + "' "
+                            + " WHERE id = " + parent.getId()
+                            + " and parent_id = " + parent.getInstructionId();
+
+                    int rowsAffected = stmt.executeUpdate(updateSQL);
+                    if (rowsAffected > 0) {
+                        ARLogger.getInstance(PerformDataBase.class)
+                                .warning(String.format(
+                                        "RowsUpdateName - InstructionId: %s now have name: %s",
+                                        parent.getInstructionId(), parent.getName()));
+                    } else {
+                        ARLogger.getInstance(PerformDataBase.class)
+                                .warning(String.format(
+                                        "UpdateMoveRowsOrder - No matching record found to update InstructionId: %d and name: %s",
+                                        parent.getInstructionId(), parent.getName()));
+                    }
                 }
             }
             return true;
@@ -3380,6 +3469,7 @@ public class PerformDataBase {
                 String actions = rs.getString("actions").trim();
                 Integer blockId = rs.getInt("block_id");
                 String tagName = rs.getString("tag_name").trim();
+                Integer orderNumber = rs.getInt("instruction_order_number");
 
                 // Filter out "SET", "GET", "CK", adn "H"
                 if (actions != null
@@ -3387,7 +3477,8 @@ public class PerformDataBase {
                         && !actions.equalsIgnoreCase(ARConstants.GET_VALUE)
                         && !actions.equalsIgnoreCase(ARConstants.CHECK_VALUE)
                         && !actions.equalsIgnoreCase(ARConstants.HOLD)) {
-                    webPageItems.add(new ComboBoxVars("(" + id + ")" + name, name, id, blockId, -1, -1, tagName));
+                    webPageItems.add(
+                            new ComboBoxVars("(" + id + ")" + name, name, id, blockId, -1, -1, tagName, orderNumber));
                 }
             }
         } catch (SQLException e) {

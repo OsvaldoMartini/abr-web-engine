@@ -210,12 +210,14 @@ public class PerformActions {
                         return passed;
                     case ARConstants.OUTPUT:
                         String fieldName = currentInstruction.getId() + "-" + currentInstruction.getName();
-                        return getOutPutElement(
+                        String valueElem = getOutPutElement(
                                 byPassNotFound,
                                 instructionElement,
                                 fieldName,
                                 currentInstruction.getActions(),
                                 mapOperators);
+
+                        return !Strings.isNullOrEmpty(valueElem);
                     case ARConstants.CLICK:
                     case ARConstants.OTHER:
                         passed = clickElement(byPassNotFound, instructionElement);
@@ -315,6 +317,7 @@ public class PerformActions {
             boolean byPassNotFound,
             InstructionLoadDTO instruction,
             String targetXPath,
+            String[] parentOperations,
             String action,
             String[] operations,
             String parentField,
@@ -340,7 +343,17 @@ public class PerformActions {
                     if (mapOperators.containsKey(variableField)) {
                         valueElem = mapOperators.get(variableField);
                     } else {
-                        valueElem = getValueInElement(byPassNotFound, instructionElement);
+                        if (parentOperations[0].equals(ARConstants.OUTPUT)) {
+                            valueElem = getOutPutElement(
+                                    byPassNotFound,
+                                    instructionElement,
+                                    parentField,
+                                    instruction.getActions(),
+                                    mapOperators);
+                        } else {
+                            valueElem = getValueInElement(byPassNotFound, instructionElement);
+                        }
+
                         mapOperators.put(variableField, valueElem);
                     }
                     return "GET_VALUE from (Parent: " + parentField + ") Var" + variableField + " <-- " + valueElem;
@@ -1399,7 +1412,7 @@ public class PerformActions {
         return true;
     }
 
-    private boolean getOutPutElement(
+    private String getOutPutElement(
             boolean byPassNotFound,
             WebElement element,
             String fieldName,
@@ -1419,7 +1432,7 @@ public class PerformActions {
             if (!byPassNotFound) {
                 performMessage.couldNotFindElement(fieldName);
             }
-            return false;
+            return null;
         }
 
         String textByhJS = "";
@@ -1501,7 +1514,7 @@ public class PerformActions {
                     .severe(String.format("Failed to retrieve text from element for: %s", fieldName));
         }
 
-        return true;
+        return finalText;
     }
 
     private void listOperation(boolean byPassNotFound, InstructionLoadDTO instructionDTO) {
@@ -1704,8 +1717,10 @@ public class PerformActions {
 
             if (action.equals(ARConstants.EXTRACT_FIELD) || action.equals(ARConstants.CHECK_VALUE)) {
                 msg1 = "The variable \"" + variableField + "\" has not been assigned.";
-                msg2 = "Please add a step for \"" + currentInstruction.getName() + "\" to assign this variable.";
-                msg3 = "Ensure that the variable \"" + variableField + "\" is properly defined before use.";
+                msg2 = "Please add a <span style='color: #000080; font-weight: bold;'>GET</span> step for \""
+                        + currentInstruction.getName() + "\" to assign this variable.";
+                msg3 = "Missing a <span style='color: #000080; font-weight: bold;'>GET</span> for variable \""
+                        + variableField + "\" .";
             } else {
                 msg1 = "No GET value has been defined for: \"" + currentInstruction.getName() + "\".";
                 msg2 = "Please add a GET step for instruction ID: " + currentInstruction.getParentId()
@@ -1936,11 +1951,11 @@ public class PerformActions {
 
             String msg1;
             if (operations[1].equals(">")) {
-                msg1 = "The Value of: \"" + expected + "\" is not <span style='color:#000080; font-weight: bold;'>( "
+                msg1 = "The Value of: \"" + expected + "\" is not <span style='color: #000080; font-weight: bold;'>( "
                         + operations[1] + " )</span> \"" + operations[2] + "\"";
             } else if (operations[1].equals("<")) {
                 msg1 = "The Value of: \"" + operations[2]
-                        + "\" is not <span style='color:#000080; font-weight: bold;'>( &lt; )</span> \"" + expected
+                        + "\" is not <span style='color: #000080; font-weight: bold;'>( &lt; )</span> \"" + expected
                         + "\"";
             } else {
                 msg1 = "The Value of: \"" + operations[2] + "\" is not " + operations[1] + " \""
@@ -2268,6 +2283,18 @@ public class PerformActions {
         }
     }
 
+    public String getInstructionParentActions(InstructionLoadDTO currentInstruction, BlockLoadDTO blockLoad) {
+        try {
+            return blockLoad.getInstructionLoadDTOS().stream()
+                    .filter(f -> f.getId().equals(currentInstruction.getParentId()))
+                    .findFirst()
+                    .get()
+                    .getActions();
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
     public String getInstructionVariableField(
             InstructionLoadDTO currentInstruction, List<VariableLoadDTO> variableLoad) {
         try {
@@ -2429,85 +2456,6 @@ public class PerformActions {
                 element);
     }
 
-    public void executeActionsAtInstructionCoordinates(InstructionLoadDTO currentInstruction, Pair<String, String> data)
-            throws Exception {
-
-        List<Priority> priorityList = arPriorities.getAllPriorityList();
-        Optional<Priority> priority = priorityList.stream()
-                .filter(p -> p.getPriorityType().equals(PriorityTypeEnum.coordinates))
-                .findFirst();
-        if (priority.isPresent()) {
-            List<InstructionReferenceLoadDTO> instructionReferenceList =
-                    currentInstruction.getInstructionReferenceLoadDTOList();
-            Optional<InstructionReferenceLoadDTO> reference = instructionReferenceList.stream()
-                    .filter(ref -> ref.getReferenceType().equals(priority.get().getName()))
-                    .findFirst();
-            int x = 0;
-            int y = 0;
-            int xCoord = 0;
-            int yCoord = 0;
-            if (reference.isPresent()) {
-                String[] coordinates = reference.get().getValue().split(ARConstants.FIELDS_SEPARATOR);
-
-                double temp1 = Double.parseDouble(coordinates[0]);
-                double temp2 = Double.parseDouble(coordinates[1]);
-                x = (int) temp1;
-                y = (int) temp2;
-                int maxHeight = this.currentDriver.manage().window().getSize().getHeight();
-                int maxWidth = this.currentDriver.manage().window().getSize().getWidth();
-                int offsetY = y - maxHeight;
-                int offsetX = x - maxWidth;
-                xCoord = x > maxWidth ? x - offsetX : x;
-                yCoord = y > maxHeight ? y - offsetY : y;
-            }
-            String[] actions = currentInstruction.getActions().split(ARConstants.ACTIONS_AND_PATHS_SPLITTER);
-            for (String action : actions) {
-                switch (String.valueOf(action.charAt(0))) {
-                    case ARConstants.VISUALIZE:
-                        scrollToCoordinates(x, y);
-                        break;
-                    case ARConstants.CLICK:
-                        scrollToCoordinates(x, y);
-                        onHoldForSeconds(null);
-                        clickAtCoordinates(xCoord, yCoord);
-                        break;
-                    case ARConstants.INSERT:
-                        scrollToCoordinates(x, y);
-                        onHoldForSeconds(null);
-                        clickAtCoordinates(xCoord, yCoord);
-                        onHoldForSeconds(null);
-                        typeCharacters(data);
-                        break;
-                }
-                onHoldForSeconds(null);
-            }
-        }
-    }
-
-    public Map<String, String> calculateCoordinates(String savedCoordinates) {
-        int x = 0;
-        int y = 0;
-        int xCoord = 0;
-        int yCoord = 0;
-        String[] coordinates = savedCoordinates.split(ARConstants.FIELDS_SEPARATOR);
-        double temp1 = Double.parseDouble(coordinates[0]);
-        double temp2 = Double.parseDouble(coordinates[1]);
-        x = (int) temp1;
-        y = (int) temp2;
-        int maxHeight = this.currentDriver.manage().window().getSize().getHeight();
-        int maxWidth = this.currentDriver.manage().window().getSize().getWidth();
-        int offsetY = y - maxHeight;
-        int offsetX = x - maxWidth;
-        xCoord = x > maxWidth ? x - offsetX : x;
-        yCoord = y > maxHeight ? y - offsetY : y;
-
-        Map<String, String> mapCoordinates = new HashMap<>();
-
-        mapCoordinates.put("ScrollTo", x + ":" + y);
-        mapCoordinates.put("ClickOn", xCoord + ":" + yCoord);
-        return mapCoordinates;
-    }
-
     public boolean executeActionsAtCoordinates(
             String savedCoordinates, Pair<String, String> data, String action, boolean pressEnterAfter) {
 
@@ -2544,8 +2492,7 @@ public class PerformActions {
                 onHoldForSeconds(null);
                 //                clickAtCoordinates(xCoord, yCoord);
                 //                onHoldForSeconds(null);
-                typeCharacters(data);
-
+                typeCharacters(savedCoordinates, data);
                 if (pressEnterAfter) {
                     boolean respAction = sendActionEnter(xCoord, yCoord);
                     if (!respAction) {
@@ -2559,7 +2506,7 @@ public class PerformActions {
                 onHoldForSeconds(null);
                 clickAtCoordinates(xCoord, yCoord);
                 onHoldForSeconds(null);
-                typeCharacters(data);
+                typeCharacters(savedCoordinates, data);
 
                 if (pressEnterAfter) {
                     boolean respAction = sendActionEnter(xCoord, yCoord);
@@ -2675,8 +2622,14 @@ public class PerformActions {
         ((JavascriptExecutor) driver).executeScript(script);
     }
 
-    private void typeCharacters(Pair<String, String> fieldData) {
-        new Actions(this.currentDriver).sendKeys(fieldData.getValue()).perform();
+    private void typeCharacters(String savedCoords, Pair<String, String> fieldData) {
+        clearValueAtCoordinates(savedCoords);
+        boolean passed = setValueAtCoordinates(savedCoords, fieldData.getValue().trim());
+        if (!passed) {
+            new Actions(this.currentDriver)
+                    .sendKeys(fieldData.getValue().trim())
+                    .perform();
+        }
     }
 
     private boolean sendActionEnter(int x, int y) {
@@ -2733,6 +2686,13 @@ public class PerformActions {
             } else if (typeCommand.equals(ARConstants.CLEAR)) {
                 message = "clear()";
                 element.clear();
+                //                clearElement(element);
+                for (String coords : coordinates) {
+                    //                    executeActionsAtCoordinates(coords, fieldData, ARConstants.INSERT,
+                    // pressEnterAfter);
+                    clearValueAtCoordinates(coords);
+                }
+
             } else if (typeCommand.equals(ARConstants.CLICK)) {
                 message = "click()";
                 element.click();
@@ -2756,7 +2716,9 @@ public class PerformActions {
             } else if (typeCommand.equals(ARConstants.COORD_CLICK)) {
                 message = "Coordinates Click";
                 for (String coords : coordinates) {
-                    executeActionsAtCoordinates(coords, fieldData, ARConstants.CLICK, pressEnterAfter);
+                    //                    executeActionsAtCoordinates(coords, fieldData, ARConstants.CLICK,
+                    // pressEnterAfter);
+                    clickElementAtCoordinates(coords);
                 }
             } else if (typeCommand.equals(ARConstants.COORD_INSERT)) {
                 message = "Coordinates Insert";
@@ -2764,8 +2726,11 @@ public class PerformActions {
                     message = "Coordinates Insert with <ENTER>";
                 }
                 for (String coords : coordinates) {
-                    executeActionsAtCoordinates(coords, fieldData, ARConstants.INSERT, pressEnterAfter);
+                    //                    executeActionsAtCoordinates(coords, fieldData, ARConstants.INSERT,
+                    // pressEnterAfter);
+                    setValueAtCoordinates(coords, fieldData.getValue());
                 }
+                //                insertElement(element, fieldData.getValue());
             } else if (typeCommand.equals(ARConstants.COORD_MOVE_CLICK_RED)) {
                 message = "Coordinates Move Insert Red Circle";
                 for (String coords : coordinates) {
@@ -2784,6 +2749,110 @@ public class PerformActions {
 
         Actions actions = new Actions(driver);
         actions.moveToElement(element).perform();
+    }
+
+    private void clearElement(WebElement element) {
+        JavascriptExecutor js = (JavascriptExecutor) currentDriver;
+        js.executeScript("arguments[0].value='';", element);
+
+        Actions actions = new Actions(currentDriver);
+        actions.moveToElement(element).perform();
+    }
+
+    private void insertElement(WebElement element, String text) {
+        JavascriptExecutor js = (JavascriptExecutor) currentDriver;
+        js.executeScript("arguments[0].value=arguments[1];", element, text);
+
+        Actions actions = new Actions(currentDriver);
+        actions.moveToElement(element).perform();
+    }
+
+    public boolean setValueAtCoordinates(String savedCoords, String textToSet) {
+
+        try {
+            String[] coordinates = savedCoords.split(ARConstants.FIELDS_SEPARATOR);
+            double temp1 = Double.parseDouble(coordinates[0]);
+            double temp2 = Double.parseDouble(coordinates[1]);
+
+            JavascriptExecutor jsExecutor = (JavascriptExecutor) currentDriver;
+
+            String script = "const temp1 = Number(arguments[0]);\n" + "const temp2 = Number(arguments[1]);\n"
+                    + "console.log('temp1', temp1);\n"
+                    + "console.log('temp2', temp2);\n"
+                    + "const elementAtPoint = document.elementFromPoint(temp1, temp2);\n"
+                    + "if (elementAtPoint && (elementAtPoint.tagName === 'INPUT' || elementAtPoint.tagName === 'TEXTAREA')) {\n"
+                    + "\telementAtPoint.value = \"" + textToSet + "\";\n"
+                    + "} else if (elementAtPoint && elementAtPoint.isContentEditable) {\n"
+                    + "\telementAtPoint.textContent = arguments[2];\n"
+                    + "} else {\n"
+                    + "\tconsole.log(\"No suitable element (input, textarea, or contenteditable) found at coordinates (\" + arguments[0] + \", \" + arguments[1] + \")\");\n"
+                    + "}";
+
+            jsExecutor.executeScript(script, temp1, temp2, textToSet);
+            return true;
+        } catch (Exception ignore) {
+            return false;
+        }
+    }
+
+    public boolean clearValueAtCoordinates(String savedCoords) {
+
+        try {
+            String[] coordinates = savedCoords.split(ARConstants.FIELDS_SEPARATOR);
+            double temp1 = Double.parseDouble(coordinates[0]);
+            double temp2 = Double.parseDouble(coordinates[1]);
+            JavascriptExecutor jsExecutor = (JavascriptExecutor) currentDriver;
+
+            String script =
+                    """
+        function getElementAtCoordinates(x, y) {
+          return document.elementFromPoint(x, y);
+        }
+
+        const elementAtPoint = getElementAtCoordinates(arguments[0], arguments[1]);
+
+        if (elementAtPoint && (elementAtPoint.tagName === 'INPUT' || elementAtPoint.tagName === 'TEXTAREA')) {
+          elementAtPoint.value = '';
+        } else if (elementAtPoint && elementAtPoint.isContentEditable) {
+          elementAtPoint.textContent = '';
+        } else {
+          console.log("No suitable element (input, textarea, or contenteditable) found at coordinates (" + arguments[0] + ", " + arguments[1] + ")");
+        }
+    """;
+
+            jsExecutor.executeScript(script, temp1, temp2);
+            return true;
+        } catch (Exception ignore) {
+            return false;
+        }
+    }
+
+    public boolean clickElementAtCoordinates(String savedCoords) {
+        try {
+            String[] coordinates = savedCoords.split(ARConstants.FIELDS_SEPARATOR);
+            double temp1 = Double.parseDouble(coordinates[0]);
+            double temp2 = Double.parseDouble(coordinates[1]);
+            JavascriptExecutor jsExecutor = (JavascriptExecutor) currentDriver;
+            String script =
+                    """
+        function getElementAtCoordinates(x, y) {
+          return document.elementFromPoint(x, y);
+        }
+
+        const elementAtPoint = getElementAtCoordinates(arguments[0], arguments[1]);
+
+        if (elementAtPoint) {
+          elementAtPoint.click();
+        } else {
+          console.log("No element found at coordinates (" + arguments[0] + ", " + arguments[1] + ")");
+        }
+    """;
+
+            jsExecutor.executeScript(script, temp1, temp2);
+            return true;
+        } catch (Exception ignore) {
+            return false;
+        }
     }
 
     public void sendInputJS(int x, int y, String text, WebDriver driver) {
@@ -3243,6 +3312,7 @@ public class PerformActions {
                     || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.TEXT_AREA.getValue())) {
                 targetDefine.setTagType(WebElementTagNameEnum.INPUT);
                 targetDefine.setIconType(WebElementIcon.INSERT);
+                targetDefine.setTagName("input");
             } else if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.PARAGRAPH.getValue())
                     || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.HEADER.getValue())
                     || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.LABEL.getValue())
@@ -3254,12 +3324,14 @@ public class PerformActions {
                             .contains(elemenDTO.getTagName().toLowerCase())) {
                 targetDefine.setTagType(WebElementTagNameEnum.OUTPUT);
                 targetDefine.setIconType(WebElementIcon.OUTPUT);
+                targetDefine.setTagName("label");
             } else if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.IFRAME.getValue())) {
                 targetDefine.setTagType(WebElementTagNameEnum.IFRAME);
                 targetDefine.setIconType(WebElementIcon.IFRAME);
             } else {
-                targetDefine.setTagType(WebElementTagNameEnum.ALL);
+                targetDefine.setTagType(WebElementTagNameEnum.OUTPUT);
                 targetDefine.setIconType(WebElementIcon.TEXT);
+                targetDefine.setTagName("label");
             }
         }
         return targetDefine;
@@ -3744,6 +3816,7 @@ public class PerformActions {
 
             // webdriver
             savedReferences.put("coordinates", newCoordinates);
+            targetRefs.setCoordinates(newCoordinates);
         } catch (Exception coords) {
             System.err.println("Invalid coordinates from WebDriver Selenium");
         }

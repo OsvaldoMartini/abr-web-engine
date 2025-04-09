@@ -234,13 +234,6 @@ public class PerformCloneLoad {
                             return null; // Ignore all hidden elements except <input type="hidden">
                           }
                         }
-                        const xPath = getMartiniXPath(element);
-
-                        let tagName = element.tagName.toLowerCase();
-                        const tagNameTemp = identifyElementTypeFromXPath(tagName, xPath);
-                        if (tagNameTemp !== tagName) {
-                          tagName = tagNameTemp;
-                        }
 
                         const attributeData = Array.from(element.attributes).map((attr) => ({
                           name: attr.name,
@@ -251,7 +244,17 @@ public class PerformCloneLoad {
                         const coordinates = `${element
                           .getBoundingClientRect()
                           .left.toFixed(2)},${element.getBoundingClientRect().top.toFixed(2)}`;
+
+                        let tagName = element.tagName.toLowerCase();
+
                         const someText = getVisibleText(tagName, attributeData, element);
+
+                        const xPath = getMartiniXPath(element);
+
+                        const tagNameTemp = identifyElementTypeFromXPath(tagName, xPath, someText);
+                        if (tagNameTemp !== tagName) {
+                          tagName = tagNameTemp;
+                        }
 
                         return {
                           xPath,
@@ -517,7 +520,7 @@ public class PerformCloneLoad {
                         return "";
                       };
 
-                      function identifyElementTypeFromXPath(tagName, xpath) {
+                      function identifyElementTypeFromXPath(tagName, xpath, someText) {
                         if (typeof xpath !== "string" || xpath.trim() === "") {
                           return "unknown";
                         }
@@ -532,8 +535,8 @@ public class PerformCloneLoad {
 
                           const tag = tagMatch[1].toLowerCase();
 
-                          if (tag === "a") {
-                            return "a"; // Link
+                          if (tag === "a" || tag === "label") {
+                            return "label"; // Link
                           }
 
                           if (tag === "input") {
@@ -558,6 +561,10 @@ public class PerformCloneLoad {
                           ) {
                             return "button";
                           }
+                        }
+
+                        if (someText.trim().length > 0) {
+                          return "label";
                         }
 
                         return tagName; // Default to the given tagName if no match
@@ -588,7 +595,7 @@ public class PerformCloneLoad {
                       function limitMapCharacters(elementInfoMap) {
                         elementInfoMap.forEach((value, key) => {
                           let modifiedValue = value;
-                          window.allElementInfo.push(modifiedValue);
+                          window.allElementInfo.push({ ...value, id: 1 }); // given '1' for  id
                         });
                       }
 
@@ -644,6 +651,10 @@ public class PerformCloneLoad {
 
                         // Highlight the clicked element (optional)
                         if (clickedElement) {
+                          if (!originalStyles.has(clickedElement)) {
+                            // Store the original outline before changing it
+                            originalStyles.set(clickedElement, clickedElement.style.outline);
+                          }
                           clickedElement.style.outline = "3px solid blue"; // Optionally highlight the element with a blue border
                         }
 
@@ -865,11 +876,11 @@ public class PerformCloneLoad {
                       arguments[5]
                     );
                     // })(
-                    //   "https://www.vpbank.com/",
-                    //   "https://www.vpbank.com/",
+                    //   "https://www.inlinea.ch/",
+                    //   "https://www.inlinea.ch/",
                     //   ["*"],
                     //   false,
-                    //   63760,
+                    //   60332,
                     //   1
                     // );
 

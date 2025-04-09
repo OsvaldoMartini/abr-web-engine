@@ -7,6 +7,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.time.LocalDateTime;
@@ -73,6 +74,31 @@ public class ExcelWriter {
                         .severe(String.format(
                                 "Excel Writer insertValueFieldName.Check if the file exist. File: %s\nError",
                                 botJobName, ex.getMessage()));
+            }
+        }
+
+        public static void writeMapToCSV(Map<String, String> mapExport, String filePath) {
+            try (FileWriter writer = new FileWriter(filePath)) {
+                // Write the keys (first row)
+                String keys = String.join(",", mapExport.keySet());
+                writer.write(keys + "\n");
+
+                // Write the values (second row, corresponding to the keys)
+                StringBuilder valuesBuilder = new StringBuilder();
+                boolean first = true;
+                for (String key : mapExport.keySet()) {
+                    if (!first) {
+                        valuesBuilder.append(",");
+                    }
+                    valuesBuilder.append(mapExport.get(key));
+                    first = false;
+                }
+                writer.write(valuesBuilder.toString() + "\n");
+
+                System.out.println("CSV file created successfully at: " + filePath);
+
+            } catch (IOException e) {
+                System.err.println("Error writing to CSV file: " + e.getMessage());
             }
         }
 
