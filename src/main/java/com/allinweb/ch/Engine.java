@@ -908,6 +908,7 @@ public class Engine {
 
                                             } catch (Exception ex) {
                                                 failedMessage = "Failed: GO TO";
+                                                msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 
                                                 success = false;
 
@@ -1162,9 +1163,10 @@ public class Engine {
                                     }
                                     // Special Cases for Select Responses
                                     // It could be Improved the case
-                                    if (resultActions.contains("Error:") || (webElementFound == null && !success)) {
-                                        failedMessage = "Failed: Web Action";
-
+                                    if (resultActions.contains("Error:")
+                                            || (webElementFound == null && !forceCoordinates)) {
+                                        failedMessage = "Failed execution Web Element";
+                                        msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         success = false;
                                     } else if (resultActions != null && success) {
                                         currentInstruction.setExecuted(true);
@@ -1178,10 +1180,14 @@ public class Engine {
                                     }
                                     // Mandatory for GET_VALUE
                                     if (xPathOperation == null && actions[0].equalsIgnoreCase(ARConstants.GET_VALUE)) {
+                                        failedMessage = "Parent Id in Wrong Block";
+                                        msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         resultActions = performActions.parentIdWrongBlock(
                                                 currentInstruction, blockLoad, resultActions, currentCondition);
                                         success = false;
                                     } else if (parentField == null) {
+                                        failedMessage = "Parent Id in Wrong Block";
+                                        msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         resultActions = performActions.parentIdWrongBlock(
                                                 currentInstruction, blockLoad, resultActions, currentCondition);
                                         success = false;
@@ -1198,12 +1204,12 @@ public class Engine {
                                                 variableField,
                                                 mapOperators);
 
-                                        if (resultActions != null) {
-                                            currentInstruction.setExecuted(true);
-                                            success = true;
-                                        } else {
-                                            failedMessage = "Failed: Operation (GetVaue / SetValue)";
+                                        if (resultActions.contains("Error:")) {
+                                            failedMessage = "Failed: Operation (GetValue / SetValue)";
+                                            msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                             success = false;
+                                        } else {
+                                            success = true;
                                         }
                                     }
 
@@ -1211,6 +1217,8 @@ public class Engine {
                                     // Check Validation Operator
 
                                     if (!mapOperators.containsKey(variableField)) {
+                                        failedMessage = "Get Value Is Not Defined";
+                                        msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         resultActions = performActions.getValueIsNotDefined(
                                                 actions[0],
                                                 currentInstruction,
@@ -1274,6 +1282,7 @@ public class Engine {
                                             success = true;
                                         } else {
                                             failedMessage = "Failed: Check Validation";
+                                            msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                             resultActions = performActions.checkValidationFailed(
                                                     invalidValues,
                                                     parentField,
@@ -1291,12 +1300,16 @@ public class Engine {
                                     // Excel Write Operator
 
                                     if (parentField == null) {
+                                        failedMessage = "Parent Id in Wrong Block";
+                                        msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         resultActions = performActions.parentIdWrongBlock(
                                                 currentInstruction, blockLoad, resultActions, currentCondition);
 
                                         success = false;
 
                                     } else if (!mapOperators.containsKey(variableField)) {
+                                        failedMessage = "Get Value Is Not Defined";
+                                        msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         resultActions = performActions.getValueIsNotDefined(
                                                 actions[0],
                                                 currentInstruction,
@@ -1356,6 +1369,8 @@ public class Engine {
                                             success = true;
                                         } else {
                                             failedMessage = "Failed: Generate File -> Excel/CSV";
+                                            msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
+
                                             success = false;
                                         }
                                     }
@@ -1380,6 +1395,7 @@ public class Engine {
 
                                 if (Strings.isNullOrEmpty(failedMessage)) {
                                     failedMessage = "Failed: General Execution";
+                                    msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                 }
 
                                 performMessage.errorMessage(resultActions, msg1, msg2, msg3, null, 260);
@@ -1656,6 +1672,8 @@ public class Engine {
                                 success = true;
                             } else {
                                 failedMessage = "Failed: Execution";
+                                msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
+
                                 resultActions = currentInstruction.getName();
                                 success = false;
                             }
@@ -1680,6 +1698,7 @@ public class Engine {
                             currentInstruction.setExecuted(false);
 
                             failedMessage = "Failed: ";
+                            msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 
                             // Excel Report and Log
                             performActions.logAndReport(
@@ -1814,8 +1833,24 @@ public class Engine {
 
                 performMessage.errorMessage("Error WebDriver Version", msg1, msg2, null, null, 260);
             } else {
-                String driverPath = managerProps.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
-                performMessage.errorMessage("WebDriver Cannot be open", driverPath, null, null, null, 260);
+                String errorMessage = t.getMessage();
+                String msg1 = "";
+                String msg2 = "";
+                String searchWord = "because";
+                int index = errorMessage.indexOf(searchWord);
+
+                if (index != -1) {
+                    msg1 = errorMessage.substring(0, index).trim();
+                    msg2 = errorMessage.substring(index).trim(); // Includes "because"
+                } else {
+                    // If "because" is not found, put the whole message in msg1 and leave msg2 empty
+                    msg1 = errorMessage.trim();
+                }
+
+                ARLogger.getInstance(Engine.class)
+                        .severe("Error Open URL: \n" + msg1 + "\n--- " + searchWord + " ---\n" + msg2);
+
+                performMessage.errorMessage("Error Details:", msg1, searchWord + " " + msg2, null, null, 0);
             }
 
             return false;
@@ -1986,5 +2021,12 @@ public class Engine {
             return failedMessage + resultActions;
         }
         return resultActions;
+    }
+
+    private static Pair<String, String> updateMSGInstruction(
+            Pair<String, String> msgInstruction, String failedMessage) {
+        String currentKey = msgInstruction.getKey();
+        String updatedKey = failedMessage + " - " + currentKey;
+        return new Pair<>(updatedKey, msgInstruction.getValue());
     }
 }

@@ -3709,9 +3709,9 @@ public class PerformDataBase {
                 String type = rs.getString("type");
                 String name = rs.getString("name");
                 String value = rs.getString("value");
-                int usedVars = rs.getInt("UsedVars");
+                //                int usedVars = rs.getInt("UsedVars");
                 variableDTOList.add(
-                        new VariableLoadDTO(id, homeBankingId, botJobId, instructionId, type, name, value, usedVars));
+                        new VariableLoadDTO(id, homeBankingId, botJobId, instructionId, type, name, value, 0));
             }
         }
 

@@ -327,56 +327,71 @@ public class PerformActions {
             String[] operations,
             String parentField,
             String variableField,
-            Map<String, String> mapOperators)
-            throws Exception {
+            Map<String, String> mapOperators) {
 
         WebElement instructionElement = null;
+        try {
+            onHoldInSeconds(1);
+        } catch (Exception ignore) {
 
+        }
         if (!StringUtils.isBlank(targetXPath)) {
             instructionElement =
                     locateTargetElement(byPassNotFound, targetXPath, instruction.getActionCustomMaxWaitSec());
         }
+        String msgReturn = "Error performing GET or SET";
         if (instructionElement != null) {
 
-            switch (action) {
-                case "SET":
-                    insertTargetElement(byPassNotFound, instructionElement, operations[0], operations[1]);
-                    mapOperators.put(variableField, operations[1]);
-                    return "SET_VALUE to (Parent: " + parentField + ") Var:" + variableField + " <-- " + operations[1];
-                case "GET":
-                    String valueElem;
-                    if (parentOperations[0].equals(ARConstants.OUTPUT)) {
-                        valueElem = getOutPutElement(
-                                byPassNotFound,
-                                instructionElement,
-                                parentField,
-                                instruction.getActions(),
-                                mapOperators);
-                    } else if (mapOperators.containsKey(variableField)) {
-                        valueElem = mapOperators.get(variableField);
-                    } else {
-                        valueElem = getValueInElement(byPassNotFound, instructionElement);
-                    }
+            try {
 
-                    mapOperators.put(variableField, valueElem);
+                switch (action) {
+                    case "SET":
+                        msgReturn = "SET_VALUE to (Parent: " + parentField + ") Var:" + variableField + " <-- "
+                                + operations[1];
 
-                    return "GET_VALUE from (Parent: " + parentField + ") Var" + variableField + " <-- " + valueElem;
-                    //                    case "CK":
-                    //                        if (operator.equalsIgnoreCase("=")) {
-                    //                            result = "Equals -> "
-                    //                                    + String.valueOf(getValueInElement(instructionElement)
-                    //                                            .equalsIgnoreCase(valueOperator));
-                    //                        } else if (operator.equalsIgnoreCase(">")) {
-                    //                            result = "Greater -> "
-                    //                                    + String.valueOf(getValueInElement(instructionElement)
-                    //                                            .equalsIgnoreCase(valueOperator));
-                    //                        }
-                    //                        break;
+                        insertTargetElement(byPassNotFound, instructionElement, operations[0], operations[1]);
+                        mapOperators.put(variableField, operations[1]);
+                    case "GET":
+                        String valueElem;
+                        msgReturn = "GET_VALUE from (Parent: " + parentField + ") Var" + variableField;
+                        if (parentOperations[0].equals(ARConstants.OUTPUT)) {
+                            valueElem = getOutPutElement(
+                                    byPassNotFound,
+                                    instructionElement,
+                                    parentField,
+                                    instruction.getActions(),
+                                    mapOperators);
+                        } else if (mapOperators.containsKey(variableField)) {
+                            valueElem = mapOperators.get(variableField);
+                        } else {
+                            valueElem = getValueInElement(byPassNotFound, instructionElement);
+                        }
+
+                        mapOperators.put(variableField, valueElem);
+
+                        msgReturn = "GET_VALUE from (Parent: " + parentField + ") Var" + variableField + " <-- "
+                                + valueElem;
+                        //                    case "CK":
+                        //                        if (operator.equalsIgnoreCase("=")) {
+                        //                            result = "Equals -> "
+                        //                                    + String.valueOf(getValueInElement(instructionElement)
+                        //                                            .equalsIgnoreCase(valueOperator));
+                        //                        } else if (operator.equalsIgnoreCase(">")) {
+                        //                            result = "Greater -> "
+                        //                                    + String.valueOf(getValueInElement(instructionElement)
+                        //                                            .equalsIgnoreCase(valueOperator));
+                        //                        }
+                        //                        break;
+                }
+                onHoldForSeconds(null);
+
+            } catch (Exception error) {
+                msgReturn = "Error: " + error.getMessage();
             }
-            onHoldForSeconds(null);
+        } else {
+            msgReturn = "Error: Instruction is null";
         }
-
-        return null;
+        return msgReturn;
     }
 
     private WebElement locateTargetElement(boolean byPassNotFound, String targetXPath, Integer actionCustomMaxWaitSec) {
@@ -741,10 +756,12 @@ public class PerformActions {
         String tagName = null;
 
         this.currentDriver.switchTo().defaultContent();
-        try {
-            this.currentDriver.switchTo().window(windowHandlesList.get(currentTabIndex));
-        } catch (Exception ignore) {
+        if (this.currentDriver.getWindowHandles().size() > 1) {
+            try {
+                this.currentDriver.switchTo().window(windowHandlesList.get(currentTabIndex));
+            } catch (Exception ignore) {
 
+            }
         }
 
         try {
@@ -1758,7 +1775,7 @@ public class PerformActions {
                         ? "Closing Block { ELSEIF -> ELSE }  -> "
                         : conditionStatus.equals(ARConstants.ConditionStatus.ELSE_PASSED)
                                 ? "Closing Block { ELSE -> ENDIF }  -> "
-                                : "";
+                                : "Get Value Is Not Defined";
 
         if (!conditionStatus.equals(ARConstants.ConditionStatus.NONE)) {
             return conditionalBlock + " -> " + lastInstructionExecuted;
@@ -1890,7 +1907,7 @@ public class PerformActions {
                         ? "Closing Block { ELSEIF -> ELSE }  -> "
                         : conditionStatus.equals(ARConstants.ConditionStatus.ELSE_PASSED)
                                 ? "Closing Block { ELSE -> ENDIF }  -> "
-                                : "";
+                                : "Parent Id in Wrong Block";
 
         if (!conditionStatus.equals(ARConstants.ConditionStatus.NONE)) {
             ARLogger.getInstance(PerformActions.class)
