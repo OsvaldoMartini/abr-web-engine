@@ -3,8 +3,6 @@ package com.allinweb.ch.facade;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.util.ARPriorities;
 import com.allinweb.ch.util.ErrorMessage;
-import java.util.Arrays;
-import java.util.List;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 
@@ -40,17 +38,25 @@ public class PerformCloneLoad {
 
     public ErrorMessage dynamicPickOneCloneElementsDTO(
             WebDriver driver,
-            String currentUrl,
-            String[] dataArray,
             boolean searchHiddenFields,
             int port,
-            int homeBankingId) {
-
-        List<String> dataList = Arrays.asList(dataArray);
+            String sessionId,
+            String destination,
+            String operationId,
+            int homeBankingId,
+            String currentUrl) {
         try {
             jsExecutor = (JavascriptExecutor) driver;
             jsExecutor.executeScript(
-                    jsHoverPickInject, currentUrl, currentUrl, dataList, searchHiddenFields, port, homeBankingId);
+                    jsHoverPickInject,
+                    searchHiddenFields,
+                    port,
+                    sessionId,
+                    destination,
+                    operationId,
+                    homeBankingId,
+                    currentUrl,
+                    currentUrl);
             return null;
         } catch (Exception error) {
             return new ErrorMessage("Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage());
@@ -61,17 +67,22 @@ public class PerformCloneLoad {
             """
                     // HOVER PICK IN USE (SENDER: scannerTool) -> scannerGrid
                     (function (
-                      targetOriginURL,
-                      trustedOriginURL,
-                      searchTerms,
                       hiddenFields,
                       socketPort,
-                      homeBankingId
+                      sessionId,
+                      destination,
+                      operationId,
+                      homeBankingId,
+                      targetOriginURL,
+                      trustedOriginURL
                     ) {
-                      var attempts = 0;
+                      let attempts = 0;
+                      let maxAttempts = 100;
                       var wSocket = null;
+                      let alreadySent = false;
                       // Temporary storage for original styles
                       const originalStyles = new Map();
+                      let previousHighlightedElement = null;
                       var coordinatesElement = document.createElement("div");
                       coordinatesElement.id = "coordinates";
                       coordinatesElement.style.position = "fixed"; // Fixed so it stays above all elements
@@ -89,24 +100,37 @@ public class PerformCloneLoad {
 
                       window.elementInfoMap = new Map();
                       window.allElementInfo = [];
+                      window.destination = destination;
+                      window.operationId = operationId;
+                      window.homeBankingId = homeBankingId;
+                      window.sessionId = `${sessionId}-${homeBankingId}`;
 
                       // Track the last hovered element to remove the border from it
                       let lastHoveredElement = null;
 
                       function connectWebSocket() {
+                        if (attempts >= maxAttempts) {
+                          //console.error("Reached maximum reconnection attempts. Stopping.");
+                          return;
+                        }
+
                         try {
-                          wSocket = new WebSocket(`ws://localhost:${socketPort}/websocket`);
+                          //console.log(`Attempt ${attempts + 1} to connect to WebSocket...`);
+                          wSocket = new WebSocket(
+                            `ws://localhost:${socketPort}/websocket?sessionId=${window.sessionId}`
+                          );
 
                           wSocket.onopen = () => {
-                            console.log("WebSocket connected");
+                            //console.log(`WebSocket connected for session: ${window.sessionId}`);
                             attempts = 0; // Reset attempts on successful connection
 
                             try {
                               const subscriptionMessage = {
                                 type: "echo",
+                                sessionId: window.sessionId,
+                                operationId: "test echo",
                                 body: "subscribe",
                               };
-
                               // Convert the JSON message to a buffer
                               const base64Message = btoa(
                                 unescape(encodeURIComponent(JSON.stringify(subscriptionMessage)))
@@ -114,8 +138,11 @@ public class PerformCloneLoad {
                               // Convert the buffer to a Base64 string
                               wSocket.send(base64Message);
                               // wSocket.send(JSON.stringify(message));
+                              //console.log("Sent SEARCH_TOOL:", subscriptionMessage);
+                              //console.log("Sent ENCODED Length:", base64Message.length);
+                              //console.log("Sent ENCODED:", base64Message);
                             } catch (sendError) {
-                              console.error("Failed to send subscription message:", sendError);
+                              //console.error("Failed to send subscription message:", sendError);
                             }
 
                             // Call startCollectingElements AFTER WebSocket is open
@@ -131,20 +158,68 @@ public class PerformCloneLoad {
 
                             if (receivedMessage) {
                               try {
-                                const parsedObject = JSON.parse(receivedMessage);
-                                console.log("WebSocket message received:", parsedObject);
+                                const parsedMessage = JSON.parse(receivedMessage);
+                                //console.log("WebSocket message received:", parsedMessage);
 
-                                // Process parsedObject.body and parsedObject.footer here
-                                if (parsedObject.body.includes("data_updated")) {
-                                  //Handle data update
-                                }
+                                const bodyData =
+                                  typeof parsedMessage.body === "string"
+                                    ? JSON.parse(parsedMessage.body)
+                                    : parsedMessage.body;
 
-                                if (
-                                  parsedObject.body.includes("cannot be processed") ||
-                                  (parsedObject.footer &&
-                                    parsedObject.footer.includes("cannot be processed"))
-                                ) {
-                                  //Handle cannot be processed
+                                if (window.sessionId === bodyData.sessionId) {
+                                  if (bodyData.operationId === "highlight") {
+                                    const detailsData = Array.isArray(bodyData.details)
+                                      ? bodyData.details
+                                      : [];
+
+                                    //console.log("detailsData", detailsData[0]);
+
+                                    var hoveredElement = getElementByCoordinates(
+                                      detailsData[0].coordinates
+                                    );
+
+                                    if (hoveredElement) {
+                                      const xPath = detailsData[0].xPath;
+
+                                      // Restore style of previous element (if XPath is different)
+                                      if (
+                                        previousHighlightedElement &&
+                                        previousHighlightedElement !== hoveredElement
+                                      ) {
+                                        const prevXPath = previousXPath;
+                                        const originalOutline = originalStyles.get(prevXPath);
+                                        previousHighlightedElement.style.outline =
+                                          originalOutline || "";
+                                      }
+
+                                      // Save original style using XPath as key
+                                      if (!originalStyles.has(xPath)) {
+                                        originalStyles.set(xPath, hoveredElement.style.outline);
+                                      }
+
+                                      const originalOutline = originalStyles.get(xPath) || "";
+
+                                      // Check if original style already had red
+                                      if (originalOutline.includes("#2323FF")) {
+                                        hoveredElement.style.outline = "3px solid #FF3131";
+                                      } else if (originalOutline.includes("#FF3131")) {
+                                        hoveredElement.style.outline = "3px solid #2323FF";
+                                      } else {
+                                        hoveredElement.style.outline = "3px solid #FF3131";
+                                      }
+
+                                      previousHighlightedElement = hoveredElement;
+                                      previousXPath = xPath;
+                                    }
+                                  }
+
+                                  if (
+                                    parsedMessage.body.includes("cannot be processed") ||
+                                    (parsedMessage.footer &&
+                                      parsedMessage.footer.includes("cannot be processed"))
+                                  ) {
+                                    //Handle cannot be processed
+                                  }
                                 }
                               } catch (parseError) {
                                 console.warn("Non-JSON message received:", receivedMessage);
@@ -153,34 +228,36 @@ public class PerformCloneLoad {
                           };
 
                           wSocket.onerror = (error) => {
-                            console.error("WebSocket error:", error);
+                            //console.error("WebSocket error:", error);
                           };
 
                           wSocket.onclose = () => {
-                            console.log("WebSocket connection closed");
+                            //console.log("WebSocket connection closed");
 
-                            if (attempts < 100) {
+                            if (attempts < maxAttempts) {
                               attempts++;
-                              console.log(`Reconnecting attempt ${attempts}...`);
-                              connectWebSocket();
+                              //console.log(`Reconnecting attempt ${attempts}...`);
+                              if (!alreadySent) {
+                                connectWebSocket(); // Retry connection
+                              }
                             } else {
-                              console.log("100 Attempts to Reconnect with the WebSocket.");
+                              //console.log(`${maxAttempts} Attempts to Reconnect with the WebSocket.`);
                             }
                           };
                         } catch (initError) {
-                          console.error("Failed to initialize WebSocket:", initError);
+                          //console.error("Failed to initialize WebSocket:", initError);
                         }
                       }
 
                       // Optionally, expose a cleanup function
                       window.cleanupWebSocket = () => {
                         try {
-                          console.log("Cleaning up WebSocket...");
+                          //console.log("Cleaning up WebSocket...");
                           if (wSocket && wSocket.readyState === WebSocket.OPEN) {
                             wSocket.close();
                           }
                         } catch (cleanupError) {
-                          console.error("Error during WebSocket cleanup:", cleanupError);
+                          //console.error("Error during WebSocket cleanup:", cleanupError);
                         }
                       };
 
@@ -196,16 +273,16 @@ public class PerformCloneLoad {
                         console.log("All element info stored in Map:", window.allElementInfo);
 
                         if (wSocket && wSocket.readyState) {
-                          console.log("WebSocket readyState:", wSocket.readyState);
+                          //console.log("WebSocket readyState:", wSocket.readyState);
                         }
 
                         if (wSocket && wSocket.readyState === WebSocket.OPEN) {
                           if (window.allElementInfo.length > 0) {
                             const message = {
                               type: "SEARCH_TOOL",
-                              sessionId: `scannerGrid-${homeBankingId}`,
-                              operationId: "addPickOne",
-                              homeBankingId: homeBankingId,
+                              sessionId: window.destination,
+                              operationId: window.operationId,
+                              homeBankingId: window.homeBankingId,
                               details: window.allElementInfo, // Send allElementInfo
                             };
 
@@ -216,14 +293,54 @@ public class PerformCloneLoad {
                             // Convert the buffer to a Base64 string
                             wSocket.send(base64Message);
                             // wSocket.send(JSON.stringify(message));
-                            console.log("Sent SEARCH_TOOL:", message);
-                            console.log("Sent ENCODED Length:", base64Message.length);
-                            console.log("Sent ENCODED:", base64Message);
+                            //console.log("Sent SEARCH_TOOL:", message);
+                            //console.log("Sent ENCODED Length:", base64Message.length);
+                            //console.log("Sent ENCODED:", base64Message);
                             window.elementInfoMap.clear();
                           }
                         } else {
                           console.warn("WebSocket is not open. Cannot send message.");
                         }
+                      }
+
+                      function startPing() {
+                        // Send a ping every 30 seconds (adjust if needed)
+                        pingIntervalId = setInterval(() => {
+                          if (wSocket && wSocket.readyState === WebSocket.OPEN) {
+                            const pingMessage = {
+                              type: "ping-hover",
+                              sessionId: window.sessionId,
+                              timestamp: new Date().toISOString(),
+                            };
+
+                            try {
+                              const encodedPing = btoa(
+                                unescape(encodeURIComponent(JSON.stringify(pingMessage)))
+                              );
+                              wSocket.send(encodedPing);
+                              //console.log("Ping sent:", pingMessage);
+                            } catch (pingError) {
+                              //console.error("Ping error:", pingError);
+                            }
+                          }
+                        }, 30000); // 30 seconds
+                      }
+
+                      startPing();
+
+                      function getElementByCoordinates(coordString) {
+                        const [xStr, yStr] = coordString.split(",");
+                        const x = parseFloat(xStr.trim());
+                        const y = parseFloat(yStr.trim());
+
+                        if (isNaN(x) || isNaN(y)) {
+                          console.error("Invalid coordinates:", coordString);
+                          return null;
+                        }
+
+                        const element = document.elementFromPoint(x, y);
+                        //console.log("Element found at", x, y, "=>", element);
+                        return element;
                       }
 
                       const getElementIdentity = function getElementIdentity(element) {
@@ -952,7 +1069,7 @@ public class PerformCloneLoad {
                       window.revertHoverPickInjections = function () {
                         document.removeEventListener("mousemove", showMartiniTooltip);
                         document.removeEventListener("click", handleMartiniClick);
-                        console.log("revertHoverPickInjections");
+                        //console.log("revertHoverPickInjections");
 
                         // Remove the tooltip from the page and delete the reference after 5 seconds
                         setTimeout(() => {
@@ -970,6 +1087,9 @@ public class PerformCloneLoad {
                         originalStyles.clear(); // Clear the stored styles
                       }
 
+                      // Set up the interval to call the function every 15 seconds (15000 milliseconds)
+                      setInterval(restoreOriginalStyles, 15000);
+
                       function removeElements() {
                         // Remove highlight from the previous element if any
                         if (lastHoveredElement) {
@@ -979,7 +1099,7 @@ public class PerformCloneLoad {
                         if (coordinatesElement) {
                           coordinatesElement.remove(); // Completely remove the tooltip from the DOM
                           coordinatesElement = null; // Clear the reference to free memory
-                          console.log("coordinatesElement completely removed.");
+                          //console.log("coordinatesElement completely removed.");
                         }
                       }
 
@@ -990,7 +1110,7 @@ public class PerformCloneLoad {
 
                       window.addEventListener("message", function (event) {
                         if (event.origin !== trustedOriginURL) return; // check the origin
-                        console.log(event.data);
+                        //console.log(event.data);
                       });
 
                       // window.cloneTerms = null; // Invalidating the function
@@ -1000,15 +1120,19 @@ public class PerformCloneLoad {
                       arguments[2],
                       arguments[3],
                       arguments[4],
-                      arguments[5]
+                      arguments[5],
+                      arguments[6],
+                      arguments[7]
                     );
                     // })(
-                    //   "https://www.inlinea.ch/",
-                    //   "https://www.inlinea.ch/",
-                    //   ["*"],
                     //   false,
-                    //   55330,
-                    //   1
+                    //   50597,
+                    //   "scannerTool",
+                    //   "scannerGrid-2",
+                    //   "addPickOne",
+                    //   2,
+                    //   "https://www.inlinea.ch/",
+                    //   "https://www.inlinea.ch/"
                     // );
 
             """;

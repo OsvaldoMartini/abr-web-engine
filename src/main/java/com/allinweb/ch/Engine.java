@@ -1223,7 +1223,8 @@ public class Engine {
                                                 actions[0],
                                                 currentInstruction,
                                                 resultActions,
-                                                currentCondition,
+                                                ARConstants.ConditionStatus
+                                                        .NONE, // NOT  currentCondition to Force Message,
                                                 parentField,
                                                 variableField);
 
@@ -1239,14 +1240,14 @@ public class Engine {
                                             isOperationValid = mapOperators
                                                     .get(variableField)
                                                     .trim()
-                                                    .equalsIgnoreCase(operations[2]);
+                                                    .equalsIgnoreCase(operations[2].trim());
 
                                         } else if (operations[1].equalsIgnoreCase(">")) {
                                             int resp = handleGreaterThan(
                                                     mapOperators
                                                             .get(variableField)
                                                             .trim(),
-                                                    operations[2]);
+                                                    operations[2].trim());
                                             if (resp == 1) {
                                                 isOperationValid = true;
                                             } else if (resp == 0) {
@@ -1259,13 +1260,13 @@ public class Engine {
                                             isOperationValid = !mapOperators
                                                     .get(variableField)
                                                     .trim()
-                                                    .equalsIgnoreCase(operations[2]);
+                                                    .equalsIgnoreCase(operations[2].trim());
                                         } else if (operations[1].equalsIgnoreCase("<")) {
                                             int resp = handleLessThan(
                                                     mapOperators
                                                             .get(variableField)
                                                             .trim(),
-                                                    operations[2]);
+                                                    operations[2].trim());
                                             if (resp == 1) {
                                                 isOperationValid = true;
                                             } else if (resp == 0) {
@@ -1314,7 +1315,8 @@ public class Engine {
                                                 actions[0],
                                                 currentInstruction,
                                                 resultActions,
-                                                currentCondition,
+                                                ARConstants.ConditionStatus
+                                                        .NONE, // NOT  currentCondition to Force Message,
                                                 parentField,
                                                 variableField);
 
@@ -1351,7 +1353,11 @@ public class Engine {
                                         // Insert the updated mapExport into the Excel after each instruction
                                         if (writerExport != null) {
                                             mapExport.put("KEY", "EXTERNAL");
-                                            mapExport.put(parentField, mapOperators.get(variableField));
+                                            mapExport.put(
+                                                    parentField.trim(),
+                                                    mapOperators
+                                                            .get(variableField)
+                                                            .trim());
                                             if (excelFieldName != null
                                                     && excelFieldName
                                                             .toLowerCase()

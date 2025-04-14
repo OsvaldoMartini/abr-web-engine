@@ -8,6 +8,8 @@ public enum PriorityTypeEnum {
     ByAttribute, // NEW
     xpath,
     coordinates,
+    js_coordinates,
+    cp_coordinates,
     allAttributes,
     ById,
     ByClassName,

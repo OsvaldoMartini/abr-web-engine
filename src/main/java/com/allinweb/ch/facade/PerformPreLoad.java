@@ -31,7 +31,6 @@ public class PerformPreLoad {
     // "scannerTool", "scannerGrid", "searchTerms"
     public ErrorMessage dynamicLoadElementsDTO(
             WebDriver driver,
-            String currentUrl,
             String[] dataArray,
             boolean searchHiddenFields,
             int port,
@@ -71,36 +70,38 @@ public class PerformPreLoad {
                       operationId,
                       homeBankingId
                     ) {
+                      let pingIntervalId = null;
                       let attempts = 0;
                       let maxAttempts = 100;
                       let wSocket = null;
                       let alreadySent = false;
                       const originalStyles = new Map();
+                      let previousHighlightedElement = null;
                       let pageFullyLoaded = false;
                       window.elementInfoMap = new Map();
                       // window.searchTerms = ["button", "input", "a", "select"];
                       window.searchTerms = searchTerms;
                       window.allElementInfo = [];
-                      window.sessionId = sessionId;
                       window.destination = destination;
                       window.operationId = operationId;
                       window.homeBankingId = homeBankingId;
+                      window.sessionId = `${sessionId}-${homeBankingId}`;
                       // var elementInfoSubmit = new Map();
 
                       function connectWebSocket() {
                         if (attempts >= maxAttempts) {
-                          console.error("Reached maximum reconnection attempts. Stopping.");
+                          //console.error("Reached maximum reconnection attempts. Stopping.");
                           return;
                         }
 
                         try {
-                          console.log(`Attempt ${attempts + 1} to connect to WebSocket...`);
+                          //console.log(`Attempt ${attempts + 1} to connect to WebSocket...`);
                           wSocket = new WebSocket(
                             `ws://localhost:${socketPort}/websocket?sessionId=${window.sessionId}`
                           );
 
                           wSocket.onopen = () => {
-                            console.log(`WebSocket connected for session: ${window.sessionId}`);
+                            //console.log(`WebSocket connected for session: ${window.sessionId}`);
                             attempts = 0; // Reset attempts on successful connection
 
                             try {
@@ -117,11 +118,11 @@ public class PerformPreLoad {
                               // Convert the buffer to a Base64 string
                               wSocket.send(base64Message);
                               // wSocket.send(JSON.stringify(message));
-                              console.log("Sent SEARCH_TOOL:", subscriptionMessage);
-                              console.log("Sent ENCODED Length:", base64Message.length);
-                              console.log("Sent ENCODED:", base64Message);
+                              //console.log("Sent SEARCH_TOOL:", subscriptionMessage);
+                              //console.log("Sent ENCODED Length:", base64Message.length);
+                              //console.log("Sent ENCODED:", base64Message);
                             } catch (sendError) {
-                              console.error("Failed to send subscription message:", sendError);
+                              //console.error("Failed to send subscription message:", sendError);
                             }
 
                             // Call startCollectingElements AFTER WebSocket is open
@@ -137,20 +138,68 @@ public class PerformPreLoad {
 
                             if (receivedMessage) {
                               try {
-                                const parsedObject = JSON.parse(receivedMessage);
-                                console.log("WebSocket message received:", parsedObject);
+                                const parsedMessage = JSON.parse(receivedMessage);
+                                //console.log("WebSocket message received:", parsedMessage);
 
-                                // Process parsedObject.body and parsedObject.footer here
-                                if (parsedObject.body.includes("data_updated")) {
-                                  //Handle data update
-                                }
+                                const bodyData =
+                                  typeof parsedMessage.body === "string"
+                                    ? JSON.parse(parsedMessage.body)
+                                    : parsedMessage.body;
 
-                                if (
-                                  parsedObject.body.includes("cannot be processed") ||
-                                  (parsedObject.footer &&
-                                    parsedObject.footer.includes("cannot be processed"))
-                                ) {
-                                  //Handle cannot be processed
+                                if (window.sessionId === bodyData.sessionId) {
+                                  if (bodyData.operationId === "highlight") {
+                                    const detailsData = Array.isArray(bodyData.details)
+                                      ? bodyData.details
+                                      : [];
+
+                                    //console.log("detailsData", detailsData[0]);
+
+                                    var hoveredElement = getElementByCoordinates(
+                                      detailsData[0].coordinates
+                                    );
+
+                                    if (hoveredElement) {
+                                      const xPath = detailsData[0].xPath;
+
+                                      // Restore style of previous element (if XPath is different)
+                                      if (
+                                        previousHighlightedElement &&
+                                        previousHighlightedElement !== hoveredElement
+                                      ) {
+                                        const prevXPath = previousXPath;
+                                        const originalOutline = originalStyles.get(prevXPath);
+                                        previousHighlightedElement.style.outline =
+                                          originalOutline || "";
+                                      }
+
+                                      // Save original style using XPath as key
+                                      if (!originalStyles.has(xPath)) {
+                                        originalStyles.set(xPath, hoveredElement.style.outline);
+                                      }
+
+                                      const originalOutline = originalStyles.get(xPath) || "";
+
+                                      // Check if original style already had red
+                                      if (originalOutline.includes("#2323FF")) {
+                                        hoveredElement.style.outline = "3px solid #FF3131";
+                                      } else if (originalOutline.includes("#FF3131")) {
+                                        hoveredElement.style.outline = "3px solid #2323FF";
+                                      } else {
+                                        hoveredElement.style.outline = "3px solid #FF3131";
+                                      }
+
+                                      previousHighlightedElement = hoveredElement;
+                                      previousXPath = xPath;
+                                    }
+                                  }
+
+                                  if (
+                                    parsedMessage.body.includes("cannot be processed") ||
+                                    (parsedMessage.footer &&
+                                      parsedMessage.footer.includes("cannot be processed"))
+                                  ) {
+                                    //Handle cannot be processed
+                                  }
                                 }
                               } catch (parseError) {
                                 console.warn("Non-JSON message received:", receivedMessage);
@@ -159,45 +208,43 @@ public class PerformPreLoad {
                           };
 
                           wSocket.onerror = (error) => {
-                            console.error("WebSocket error:", error);
+                            //console.error("WebSocket error:", error);
                             // connectWebSocket(); // Retry connection
                           };
 
                           wSocket.onclose = () => {
-                            console.log("WebSocket connection closed");
+                            //console.log("WebSocket connection closed");
 
                             if (attempts < maxAttempts) {
                               attempts++;
-                              console.log(`Reconnecting attempt ${attempts}...`);
+                              //console.log(`Reconnecting attempt ${attempts}...`);
                               if (!alreadySent) {
                                 connectWebSocket(); // Retry connection
                               }
                             } else {
-                              console.log(
-                                `${maxAttempts} Attempts to Reconnect with the WebSocket.`
-                              );
+                              //console.log(`${maxAttempts} Attempts to Reconnect with the WebSocket.`);
                             }
                           };
                         } catch (initError) {
-                          console.error("Failed to initialize WebSocket:", initError);
+                          //console.error("Failed to initialize WebSocket:", initError);
                         }
                       }
 
                       // Optionally, expose a cleanup function
                       window.cleanupWebSocket = () => {
                         try {
-                          console.log("Cleaning up WebSocket...");
+                          //console.log("Cleaning up WebSocket...");
                           if (wSocket && wSocket.readyState === WebSocket.OPEN) {
                             wSocket.close();
                           }
                         } catch (cleanupError) {
-                          console.error("Error during WebSocket cleanup:", cleanupError);
+                          //console.error("Error during WebSocket cleanup:", cleanupError);
                         }
                       };
 
                       function init(eventName) {
                         if (pageFullyLoaded) {
-                          console.log("Event Name", eventName);
+                          //console.log("Event Name", eventName);
                           if (
                             [
                               "DOMContentLoaded",
@@ -208,7 +255,7 @@ public class PerformPreLoad {
                             ].includes(eventName) ||
                             ["complete", "interactive"].includes(document.readyState)
                           ) {
-                            console.log("searchTerms", window.searchTerms);
+                            //console.log("searchTerms", window.searchTerms);
                             connectWebSocket();
                             // startCollectingElements(window.searchTerms);
                           }
@@ -412,7 +459,7 @@ public class PerformPreLoad {
                           xhr.send();
 
                           if (xhr.status !== 200) {
-                            console.error("Error fetching the iframe content:", xhr.status);
+                            //console.error("Error fetching the iframe content:", xhr.status);
                             return null;
                           }
 
@@ -424,7 +471,7 @@ public class PerformPreLoad {
 
                           // Get all elements inside the parsed document
                           const srcElements = parsedDocument.querySelectorAll("*");
-                          console.log(`srcElements Total: <${srcElements.length}>`);
+                          //console.log(`srcElements Total: <${srcElements.length}>`);
 
                           // srcElements.forEach((element) => {
                           //   console.log(`Element: <${element.tagName}>`);
@@ -433,7 +480,7 @@ public class PerformPreLoad {
 
                           return srcElements; // Return the NodeList
                         } catch (error) {
-                          console.error("Error fetching the iframe content:", error);
+                          //console.error("Error fetching the iframe content:", error);
                           return null;
                         }
                       }
@@ -475,13 +522,10 @@ public class PerformPreLoad {
                               iframe.contentDocument || iframe.contentWindow.document;
 
                             try {
-                              console.log(
-                                "Iframe origin:",
-                                new URL(iframe.src, window.location.origin).origin
-                              );
-                              console.log("Parent origin:", window.location.origin);
+                              //console.log("Iframe origin:",new URL(iframe.src, window.location.origin).origin);
+                              //console.log("Parent origin:", window.location.origin);
                             } catch (e) {
-                              console.warn("Cross-origin access denied for iframe:", iframe.src);
+                              //console.warn("Cross-origin access denied for iframe:", iframe.src);
                             }
 
                             if (iframe) {
@@ -601,10 +645,7 @@ public class PerformPreLoad {
                               console.warn(`Skipping cross-origin iframe: ${iframe.src}`);
                             }
                           } catch (e) {
-                            console.error(
-                              `Error accessing iframe: ${iframe.src || "Unknown iframe"}`,
-                              e
-                            );
+                            // console.error(`Error accessing iframe: ${iframe.src || "Unknown iframe"}`, e);
                           }
                         });
                       };
@@ -653,7 +694,7 @@ public class PerformPreLoad {
                         console.log("All Collection Found :", collectionFound);
 
                         const sameXPathFound = processElementsWithXPath(collectionFound);
-                        console.log("processElementsWithXPath", sameXPathFound);
+                        // console.log("processElementsWithXPath", sameXPathFound);
 
                         const noRepeatedItems = findUniqueAndOneRepeated(sameXPathFound);
                         console.log("noRepeatedItems", noRepeatedItems); // Output the items with repetitions
@@ -695,7 +736,7 @@ public class PerformPreLoad {
                         window.elementInfoMap.clear();
 
                         if (wSocket && wSocket.readyState) {
-                          console.log("WebSocket readyState:", wSocket.readyState);
+                          //console.log("WebSocket readyState:", wSocket.readyState);
                         }
 
                         if (wSocket && wSocket.readyState === WebSocket.OPEN) {
@@ -714,9 +755,9 @@ public class PerformPreLoad {
                           // Convert the buffer to a Base64 string
                           wSocket.send(base64Message);
                           // wSocket.send(JSON.stringify(message));
-                          console.log("Sent SEARCH_TOOL:", message);
-                          console.log("Sent ENCODED Length:", base64Message.length);
-                          console.log("Sent ENCODED:", base64Message);
+                          //console.log("Sent SEARCH_TOOL:", message);
+                          //console.log("Sent ENCODED Length:", base64Message.length);
+                          //console.log("Sent ENCODED:", base64Message);
 
                           alreadySent = true;
                           window.allElementInfo = [];
@@ -1513,7 +1554,7 @@ public class PerformPreLoad {
 
                       function limitMapSize(sortedList) {
                         // Check the length of allElementInfo before adding new elements
-                        console.log("limitMapSize");
+                        //console.log("limitMapSize");
                         let currentId = 1;
                         sortedList.forEach((item) => {
                           if (window.allElementInfo.length < 35) {
@@ -1584,7 +1625,7 @@ public class PerformPreLoad {
 
                       function limitMapCharacters(elementInfoMap) {
                         // Check the length of allElementInfo before adding new elements
-                        console.log("limitMapCharacters");
+                        //console.log("limitMapCharacters");
                         elementInfoMap.forEach((value, key) => {
                           // Only add elements if there are fewer than 20 elements in the array
                           if (window.allElementInfo.length < 30) {
@@ -1600,19 +1641,17 @@ public class PerformPreLoad {
                           return; // Ignore messages from untrusted origins
                         }
 
-                        console.log("Received message data:", event.data);
+                        //console.log("Received message data:", event.data);
 
                         if (event.data.type === "elementsData") {
                           const elementData = event.data.data; // Process received element data
-                          console.log("Element data from parent:", elementData);
+                          //console.log("Element data from parent:", elementData);
                         }
                       });
 
                       function checkEdgeTrackingPrevention() {
                         if (navigator.userAgent.includes("Edg")) {
-                          console.log(
-                            "Edge Tracking Prevention may be blocking iframes. Go to Edge Settings → Privacy, Search, and Services → Set Tracking Prevention to 'Basic' and refresh the page."
-                          );
+                          // console.log("Edge Tracking Prevention may be blocking iframes. Go to Edge Settings → Privacy, Search, and Services → Set Tracking Prevention to 'Basic' and refresh the page.");
                         }
                       }
 
@@ -1637,6 +1676,46 @@ public class PerformPreLoad {
                       }
 
                       connectWebSocket();
+
+                      function startPing() {
+                        // Send a ping every 30 seconds (adjust if needed)
+                        pingIntervalId = setInterval(() => {
+                          if (wSocket && wSocket.readyState === WebSocket.OPEN) {
+                            const pingMessage = {
+                              type: "ping-hover",
+                              sessionId: window.sessionId,
+                              timestamp: new Date().toISOString(),
+                            };
+
+                            try {
+                              const encodedPing = btoa(
+                                unescape(encodeURIComponent(JSON.stringify(pingMessage)))
+                              );
+                              wSocket.send(encodedPing);
+                              //console.log("Ping sent:", pingMessage);
+                            } catch (pingError) {
+                              //console.error("Ping error:", pingError);
+                            }
+                          }
+                        }, 30000); // 30 seconds
+                      }
+
+                      startPing();
+
+                      function getElementByCoordinates(coordString) {
+                        const [xStr, yStr] = coordString.split(",");
+                        const x = parseFloat(xStr.trim());
+                        const y = parseFloat(yStr.trim());
+
+                        if (isNaN(x) || isNaN(y)) {
+                          //console.error("Invalid coordinates:", coordString);
+                          return null;
+                        }
+
+                        const element = document.elementFromPoint(x, y);
+                        //console.log("Element found at", x, y, "=>", element);
+                        return element;
+                      }
 
                       window.revertSearchInjections = function () {
                         // Remove the tooltip from the page and delete the reference after 5 seconds
@@ -1670,9 +1749,9 @@ public class PerformPreLoad {
 
                     // })(["with name"], false, 8181, "scannerTool", "scannerGrid", "searchTerms", 3);
                     // })(
-                    //   ["with test-id"],
+                    //   ["button", "input", "label", "a", "select"],
                     //   false,
-                    //   8282,
+                    //   51443,
                     //   "scannerTool",
                     //   "scannerGrid-2",
                     //   "searchTerms",

@@ -348,9 +348,9 @@ public class PerformActions {
                     case "SET":
                         msgReturn = "SET_VALUE to (Parent: " + parentField + ") Var:" + variableField + " <-- "
                                 + operations[1];
-
                         insertTargetElement(byPassNotFound, instructionElement, operations[0], operations[1]);
-                        mapOperators.put(variableField, operations[1]);
+                        mapOperators.put(variableField.trim(), operations[1].trim());
+                        break;
                     case "GET":
                         String valueElem;
                         msgReturn = "GET_VALUE from (Parent: " + parentField + ") Var" + variableField;
@@ -366,22 +366,21 @@ public class PerformActions {
                         } else {
                             valueElem = getValueInElement(byPassNotFound, instructionElement);
                         }
-
-                        mapOperators.put(variableField, valueElem);
-
-                        msgReturn = "GET_VALUE from (Parent: " + parentField + ") Var" + variableField + " <-- "
-                                + valueElem;
-                        //                    case "CK":
-                        //                        if (operator.equalsIgnoreCase("=")) {
-                        //                            result = "Equals -> "
-                        //                                    + String.valueOf(getValueInElement(instructionElement)
-                        //                                            .equalsIgnoreCase(valueOperator));
-                        //                        } else if (operator.equalsIgnoreCase(">")) {
-                        //                            result = "Greater -> "
-                        //                                    + String.valueOf(getValueInElement(instructionElement)
-                        //                                            .equalsIgnoreCase(valueOperator));
-                        //                        }
-                        //                        break;
+                        if (!Strings.isNullOrEmpty(valueElem)) {
+                            msgReturn += " <-- " + valueElem;
+                        }
+                        mapOperators.put(variableField.trim(), valueElem.trim());
+                        break;
+                    case "CopyVar":
+                        String valueVar;
+                        if (mapOperators.containsKey(variableField)) {
+                            valueVar = mapOperators.get(variableField);
+                        } else {
+                            valueVar = "";
+                        }
+                        msgReturn =
+                                "COPY_VAR from (Parent: " + parentField + ") Var" + variableField + " <-- " + valueVar;
+                        break;
                 }
                 onHoldForSeconds(null);
 
@@ -853,7 +852,8 @@ public class PerformActions {
                     priorityTypeEnum = PriorityTypeEnum.getPriorityType(
                             priority.getPriorityType().toString());
                 } catch (Exception e) {
-                    System.out.println(String.format("The ENUM: was not defined!"));
+                    System.out.println(String.format(
+                            "The ENUM: \"" + priority.getPriorityType().toString() + "\" was not defined!"));
                     continue;
                 }
 
@@ -920,8 +920,10 @@ public class PerformActions {
                                     instructionReference.get().getValue());
                             isAttributeID = true;
                         }
-                        case coordinates, allAttributes -> {
+                        case coordinates, js_coordinates, cp_coordinates, allAttributes -> {
                             // These cases are placeholders and do not need additional handling
+                            System.out.println(
+                                    String.format("Locate by \"coordinates, js_coordinates, cp_coordinates\" "));
                         }
 
                         case ExecuteScript, createXPath, dynamic, jsoup -> {
@@ -1526,21 +1528,21 @@ public class PerformActions {
 
         if (isClickable && finalTextNested != null && !finalTextNested.trim().isEmpty()) {
             finalText = finalTextNested; // Use nested text if the element is clickable
-            mapOperators.put(fieldName, finalText);
+            mapOperators.put(fieldName.trim(), finalText.trim());
         } else if (textByhJS != null && !textByhJS.trim().isEmpty()) {
             finalText = textByhJS;
-            mapOperators.put(fieldName, finalText);
+            mapOperators.put(fieldName.trim(), finalText.trim());
         } else if (finalTextNested != null && !finalTextNested.trim().isEmpty()) {
             finalText = finalTextNested;
-            mapOperators.put(fieldName, finalText);
+            mapOperators.put(fieldName.trim(), finalText.trim());
         } else if (textAttribute != null && !textAttribute.trim().isEmpty()) {
             finalText = textAttribute;
-            mapOperators.put(fieldName, finalText);
+            mapOperators.put(fieldName.trim(), finalText.trim());
         } else if (textContext != null && !textContext.trim().isEmpty()) {
             finalText = textContext;
-            mapOperators.put(fieldName, finalText);
+            mapOperators.put(fieldName.trim(), finalText.trim());
         } else {
-            mapOperators.put(fieldName, "Failed to Load teh Text");
+            mapOperators.put(fieldName.trim(), "Failed to Load teh Text");
             ARLogger.getInstance(PerformActions.class)
                     .severe(String.format("Failed to retrieve text from element for: %s", fieldName));
         }
@@ -2308,7 +2310,8 @@ public class PerformActions {
                     .filter(f -> f.getId().equals(currentInstruction.getParentId()))
                     .findFirst()
                     .get()
-                    .getName();
+                    .getName()
+                    .trim();
         } catch (Exception ex) {
             return null;
         }
@@ -2333,7 +2336,8 @@ public class PerformActions {
                     .filter(f -> f.getId().equals(currentInstruction.getVariableId()))
                     .findFirst()
                     .map(v -> {
-                        return v.getId() + "-" + String.valueOf(v.getType().charAt(0)) + v.getName();
+                        return v.getId() + "-" + String.valueOf(v.getType().charAt(0))
+                                + v.getName().trim();
                     })
                     .orElse(null);
         } catch (Exception ex) {
