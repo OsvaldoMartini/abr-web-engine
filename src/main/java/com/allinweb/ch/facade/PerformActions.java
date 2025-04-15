@@ -1285,10 +1285,19 @@ public class PerformActions {
     public void refreshPage() {
         this.currentDriver.navigate().refresh();
 
-        for (String handle : this.currentDriver.getWindowHandles()) {
-            this.currentDriver.switchTo().window(handle);
-            System.out.println("Window title: " + this.currentDriver.getTitle());
+        this.currentDriver.switchTo().defaultContent();
+        if (this.currentDriver.getWindowHandles().size() > 1) {
+            try {
+                this.currentDriver.switchTo().window(windowHandlesList.get(currentTabIndex));
+            } catch (Exception ignore) {
+
+            }
         }
+
+        //        for (String handle : this.currentDriver.getWindowHandles()) {
+        //            this.currentDriver.switchTo().window(handle);
+        //            System.out.println("Window title: " + this.currentDriver.getTitle());
+        //        }
 
         justCalledRefreshPage = true;
     }
@@ -3916,6 +3925,15 @@ public class PerformActions {
     public WebElement findWebElement(TargetElement targetFind) {
 
         WebElement elementFound = null;
+
+        this.currentDriver.switchTo().defaultContent();
+        if (this.currentDriver.getWindowHandles().size() > 1) {
+            try {
+                this.currentDriver.switchTo().window(windowHandlesList.get(currentTabIndex));
+            } catch (Exception ignore) {
+
+            }
+        }
 
         try {
 

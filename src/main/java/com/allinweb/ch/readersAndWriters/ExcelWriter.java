@@ -183,7 +183,7 @@ public class ExcelWriter {
                             case ARConstants.SET_VALUE -> "SET VALUE";
                             case ARConstants.GET_VALUE -> "GET VALUE";
                             case ARConstants.CHECK_VALUE -> "CHECK VALUE";
-                            case ARConstants.GOTO -> "GO TO";
+                            case ARConstants.GOTO -> "GOTO";
                             case ARConstants.IF -> "IF";
                             case ARConstants.ELSE -> "ELSE";
                             case ARConstants.ENDIF -> "ENDIF";
