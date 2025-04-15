@@ -5,6 +5,7 @@ import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
+import com.allinweb.ch.component.model.RowStatus;
 import com.allinweb.ch.component.model.VariableLoadDTO;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformActions;
@@ -43,9 +44,9 @@ public class Engine {
     private static Map<String, String> mapExport;
     private static List<VariableLoadDTO> variablesLoaded;
 
+    private static RowStatus rowStatus = new RowStatus();
+
     private static List<BotJobLoadDTO> botLoadJobs = new ArrayList<>();
-    static List<InstructionLoadDTO> instructionsExecuted = new ArrayList<>();
-    static List<Integer> executedSuccess = new ArrayList<>();
 
     private static final ARPropertyManager managerProps;
     private static final PerformMessage performMessage;
@@ -324,6 +325,7 @@ public class Engine {
 
             // Execute All Blocks starting from executeSpecificBlock if Defined
             // int executeSpecificBlock = comboBoxBlocks.getValue().getVarId();
+            String sessionRowStatus = "botJobTasks-" + botJobId;
 
             mapOperators = new HashMap<>();
             mapExport = new LinkedHashMap<>();
@@ -615,6 +617,32 @@ public class Engine {
 
                             if (mapIgnore.contains(currentInstruction.getId() + "-" + currentInstruction.getName())) {
                                 continue;
+                            }
+
+                            // sendMessageJson(int homeBankingId, String sessionId, String msg1, String msg2)
+                            String jsonStatus;
+                            if (rowStatus.getInstructionId() == null) {
+                                rowStatus.setInstructionId(currentInstruction.getId());
+                                rowStatus.setColor("#fcba03"); // deep carmine yellow
+                                //                                jsonStatus = gson.toJson(rowStatus);
+                                //                                sendMessageJson(homeBanking.getId(), sessionRowStatus,
+                                // jsonStatus, "rowStatus");
+                            } else {
+                                // Previous
+                                rowStatus.setColor("#1d9c06"); // green
+                                //                                jsonStatus = gson.toJson(rowStatus);
+                                //                                sendMessageJson(homeBanking.getId(), sessionRowStatus,
+                                // jsonStatus, "rowStatus");
+                                try {
+                                    Thread.sleep(300);
+                                } catch (Exception e) {
+                                }
+                                // Current
+                                rowStatus.setInstructionId(currentInstruction.getId());
+                                rowStatus.setColor("#fcba03"); // deep carmine green
+                                //                                jsonStatus = gson.toJson(rowStatus);
+                                //                                sendMessageJson(homeBanking.getId(), sessionRowStatus,
+                                // jsonStatus, "rowStatus");
                             }
 
                             //                        String[] operation =
