@@ -744,7 +744,9 @@ public class Engine {
                                     success = false;
                                 } else if (!mapLoops.containsKey(msgInstruction.getKey())) {
                                     jumpLoopError = false;
-                                    mapLoops.put(msgInstruction.getKey(), Integer.valueOf(msgInstruction.getValue()));
+                                    String[] parts = msgInstruction.getValue().split(":"); // Split by ':'
+                                    mapLoops.put(msgInstruction.getKey(), Integer.valueOf(parts[1])); // Loop Times
+                                    mapRefresh.put(msgInstruction.getKey(), Integer.valueOf(parts[0])); // Wait Time
                                 } else if (mapLoops.containsKey(msgInstruction.getKey())) {
                                     // Updates the msgInstruction
                                     msgInstruction = new Pair<>(
@@ -978,6 +980,11 @@ public class Engine {
                                     }
 
                                 } else if (jumpLoop) {
+
+                                    if (mapRefresh.containsKey(parentFieldLoop)) {
+                                        int timerLoop = mapRefresh.get(parentFieldLoop);
+                                        performActions.onHoldInSeconds(timerLoop);
+                                    }
 
                                     if (mapLoops.containsKey(parentFieldLoop)) {
 
