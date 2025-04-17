@@ -81,6 +81,10 @@ public class Engine {
 
         managerProps.loadProperties();
 
+        for (String arg : arguments) {
+            ARLogger.getInstance(Engine.class).fine("Argument: " + arg);
+        }
+
         List<String> missingProperties =
                 checkProperties(ARPropertyManager.getInstance().getProperties());
 
