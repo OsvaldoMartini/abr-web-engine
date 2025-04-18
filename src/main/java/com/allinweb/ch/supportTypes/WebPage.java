@@ -63,9 +63,9 @@
 //        //        this.driver = initDriver(driverType);
 //        if (waitForPage == null) {
 //            String updateTimeout =
-//                    ARPropertyManager.getInstance().getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
+//                    arPropertyManager.getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
 //            String interactionTimeout =
-//                    ARPropertyManager.getInstance().getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
+//                    arPropertyManager.getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
 //            waitForPage = new WebDriverWait(driver, Duration.ofSeconds(Integer.parseInt(updateTimeout)));
 //            waitForAction = new WebDriverWait(driver, Duration.ofSeconds(Integer.parseInt(interactionTimeout)));
 //        }
@@ -931,7 +931,7 @@
 //                return "HOLD" + "->" + instructionSeconds + " seconds";
 //            } else {
 //                String stopSeconds =
-//                        ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DEFAULT_INSTRUCTION_STOP_SECONDS);
+//                        arPropertyManager.getProperty(ARPropertyEnum.DEFAULT_INSTRUCTION_STOP_SECONDS);
 //                wait(fromSecondsToMilliseconds(TimeUnit.SECONDS, Integer.parseInt(stopSeconds)));
 //                return "HOLD" + "->" + stopSeconds + " seconds";
 //            }

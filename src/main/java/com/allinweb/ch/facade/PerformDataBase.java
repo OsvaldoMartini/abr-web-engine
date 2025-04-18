@@ -40,7 +40,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
-import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.hibernate.Session;
@@ -48,6 +47,35 @@ import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
 
 public class PerformDataBase {
+
+    // Static final variable to hold the singleton instance
+    protected static PerformDataBase instance;
+
+    private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
+    // Private constructor to prevent instantiation
+    private PerformDataBase() {
+        // Initialize if necessary
+    }
+
+    // Public method to access the singleton instance
+    public static PerformDataBase getInstance() {
+        if (instance == null) {
+            synchronized (PerformDataBase.class) {
+                if (instance == null) {
+                    instance = new PerformDataBase();
+                }
+            }
+        }
+        return instance;
+    }
+
+    private static final ARPropertyManager arPropertyManager;
+    private static final PerformMessage performMessage;
+
+    static {
+        performMessage = PerformMessage.getInstance();
+        arPropertyManager = ARPropertyManager.getInstance();
+    }
 
     private static String previousDB;
 
@@ -78,25 +106,8 @@ public class PerformDataBase {
 
     private Gson gson = new Gson();
 
-    // Static final variable to hold the singleton instance
-    protected static final SingletonSupplier<PerformDataBase> instance = () -> new PerformDataBase();
-
-    private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
-    // Private constructor to prevent instantiation
-    private PerformDataBase() {
-        // Initialize if necessary
-    }
-
-    private static PerformMessage performMessage;
-
-    public void initialize(PerformMessage performMessage, String databaseType) {
-        this.performMessage = performMessage;
+    public void initialize(String databaseType) {
         this.previousDB = databaseType;
-    }
-
-    // Public method to access the singleton instance
-    public static PerformDataBase getInstance() {
-        return instance.get();
     }
 
     public static Connection getConn() {
@@ -119,8 +130,7 @@ public class PerformDataBase {
     }
 
     public static void changeDbConnection() {
-        String dataBaseType = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE);
-
+        String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
         //        if (Strings.isNullOrEmpty(previousDB) || (previousDB != null && !previousDB.equals(dataBaseType))) {
         closeConnection();
         previousDB = dataBaseType;
@@ -136,7 +146,7 @@ public class PerformDataBase {
         } else {
             POSTGRES_DB = false;
 
-            String dbPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
+            String dbPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_DB);
             String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
 
             File dbFile = new File(dbPath + ARConstants.FILE_NAME_DB);
@@ -144,15 +154,15 @@ public class PerformDataBase {
                 initializeMainDatabaseAccess(dbUrl, dbFile);
             } else {
                 ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format("Database '%s' already exists!", dbFile.getName()));
+                        .info(String.format("Database '%s' detected!", dbFile.getName()));
             }
         }
         //        }
     }
 
     public static void changeDbConnectionHibernate() {
-        String priorityPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_PRIORITY);
-        String dataBaseType = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE);
+        String priorityPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_PRIORITY);
+        String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
 
         if (Strings.isNullOrEmpty(previousDB) || (previousDB != null && !previousDB.equals(dataBaseType))) {
             closeConnection();
@@ -185,7 +195,7 @@ public class PerformDataBase {
                 } else {
 
                     try {
-                        String dbPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
+                        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_DB);
                         if (!dbPath.isBlank()) {
                             File dbFolder = new File(dbPath);
                             dbFolder.mkdirs();
@@ -206,7 +216,7 @@ public class PerformDataBase {
     }
 
     public static Connection getConnection() {
-        String dataBaseType = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE);
+        String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
 
         if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
             POSTGRES_DB = true;
@@ -217,7 +227,7 @@ public class PerformDataBase {
         try {
             if (conn == null || conn.isClosed()) {
                 if (!POSTGRES_DB) {
-                    String dbPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
+                    String dbPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_DB);
                     String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
                     ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + dbUrl);
                     conn = DriverManager.getConnection(dbUrl);
@@ -2962,11 +2972,12 @@ public class PerformDataBase {
         } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class)
                     .warning(String.format(
-                            "Instruction NOT SAVED\nid: %d Name: %s Actions: %s Operations: %s",
+                            "Instruction NOT SAVED id: %d Name: %s Actions: %s Operations: %s",
                             instructionLoad.getId(),
                             instructionLoad.getName(),
                             instructionLoad.getActions(),
                             instructionLoad.getOperation()));
+            ARLogger.getInstance(PerformDataBase.class).warning(error.getMessage());
             return -1;
         }
     }
@@ -3341,23 +3352,21 @@ public class PerformDataBase {
             }
 
             int finalResponse = response;
-            Platform.runLater(() -> {
-                if (isShowAlert) {
-                    if (finalResponse > -1) {
+            if (isShowAlert) {
+                if (finalResponse > -1) {
 
-                        ARLogger.getInstance(PerformDataBase.class)
-                                .info(String.format(
-                                        "\"Component\" Instruction: \"%s\"\nhas been added successfully!",
-                                        instruction.getName()));
-                    } else {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .info(String.format(
+                                    "\"Component\" Instruction: \"%s\" has been added successfully!",
+                                    instruction.getName()));
+                } else {
 
-                        ARLogger.getInstance(PerformDataBase.class)
-                                .severe(String.format(
-                                        "Error Add New \"Component\" Instruction: \"%s\"\nCannot be saved!",
-                                        instruction.getName()));
-                    }
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .severe(String.format(
+                                    "Error Add New \"Component\" Instruction: \"%s\" Cannot be saved!",
+                                    instruction.getName()));
                 }
-            });
+            }
 
             if (response > -1) {
                 return response;

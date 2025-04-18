@@ -26,6 +26,12 @@ public class ExcelReader {
 
     public ExcelReader() {}
 
+    private static final ARPropertyManager arPropertyManager;
+
+    static {
+        arPropertyManager = ARPropertyManager.getInstance();
+    }
+
     public ExtractedData extractData(String paymentsFilePath, List<String> allActions) throws Exception {
         // Initialize the extracted data
         ExtractedData extractedDataWithMissingFields = new ExtractedData();
@@ -157,7 +163,7 @@ public class ExcelReader {
         String paymentsFileName = paymentsFile.getName();
         int lastPeriodPos = paymentsFileName.lastIndexOf('.');
         paymentsFileName = paymentsFileName.substring(0, lastPeriodPos);
-        String logDirectory = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_LOG);
+        String logDirectory = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_LOG);
         String logFilePath = logDirectory + "\\" + paymentsFileName + ARConstants.FILE_FORMAT_LOG;
 
         File logFile = null;

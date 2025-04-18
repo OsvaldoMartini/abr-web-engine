@@ -48,7 +48,7 @@ public class Engine {
 
     private static List<BotJobLoadDTO> botLoadJobs = new ArrayList<>();
 
-    private static final ARPropertyManager managerProps;
+    private static final ARPropertyManager arPropertyManager;
     private static final PerformMessage performMessage;
     private static final PerformDataBase performDataBase;
     private static final PerformActions performActions;
@@ -57,7 +57,7 @@ public class Engine {
 
     // Static block to initialize
     static {
-        managerProps = ARPropertyManager.getInstance();
+        arPropertyManager = ARPropertyManager.getInstance();
         performMessage = PerformMessage.getInstance();
         performDataBase = PerformDataBase.getInstance();
         performActions = PerformActions.getInstance();
@@ -74,19 +74,13 @@ public class Engine {
         if (arguments.contains("-c")) {
             int configurationValueIndex = arguments.indexOf("-c") + 1;
             String configurationValue = arguments.get(configurationValueIndex);
-            ARPropertyManager.setConfigurationFileName(configurationValue);
+            System.setProperty("ARWebConfig", configurationValue);
+            arPropertyManager.loadProperties();
         }
 
         Labels.initializeLabelsInSpecLang(language);
 
-        managerProps.loadProperties();
-
-        for (String arg : arguments) {
-            ARLogger.getInstance(Engine.class).fine("Argument: " + arg);
-        }
-
-        List<String> missingProperties =
-                checkProperties(ARPropertyManager.getInstance().getProperties());
+        List<String> missingProperties = checkProperties(arPropertyManager.getProperties());
 
         if (!missingProperties.isEmpty()) {
 
@@ -102,17 +96,19 @@ public class Engine {
                     : "";
 
             performMessage.errorMessage(
-                    "I cannot Execute Web Scanner", "Missing required properties: ", part1, part2, part3, 0);
+                    "I cannot Execute Engine", "Missing required properties: ", part1, part2, part3, 0);
             return;
         }
 
-        performDataBase.changeDbConnection();
+        //        for (String arg : arguments) {
+        //            ARLogger.getInstance(Engine.class).fine("Argument: " + arg);
+        //        }
 
         //        repository = new Repository(sessionFactory);
 
         try {
-            baseLogFile = new File(
-                    managerProps.getProperty(ARPropertyEnum.FOLDER_PATH_LOG) + ARConstants.FILE_NAME_ENGINE_BASE_LOG);
+            baseLogFile = new File(arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_LOG)
+                    + ARConstants.FILE_NAME_ENGINE_BASE_LOG);
         } catch (Exception e) {
             ARLogger.getInstance(Engine.class).severe("baseLogFile Error: " + e.getMessage());
         }
@@ -128,6 +124,10 @@ public class Engine {
         } catch (Exception e) {
             System.err.println("LookAndFeel setting failed.");
         }
+
+        String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
+        performDataBase.initialize(dataBaseType);
+        performDataBase.changeDbConnection();
 
         try {
             startParametersInterpreter(args);
@@ -240,7 +240,7 @@ public class Engine {
 
         try {
 
-            //            String browser = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.BROWSER);
+            //            String browser = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
             //            WebPage webPage = new WebPage(
             //                    browser,
             //                    homeBankingDTO.getUrl(),
@@ -250,8 +250,8 @@ public class Engine {
 
             currentARWebDriver = new ARWebDriver();
 
-            String browserType = managerProps.getProperty(ARPropertyEnum.BROWSER);
-            String webDriverPath = managerProps.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+            String browserType = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
+            String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
 
             currentARWebDriver.openDriver(
                     browserType, webDriverPath, homeBanking.getUrl(), homeBanking.getOptionsConfig(), null, false, 0);
@@ -284,8 +284,9 @@ public class Engine {
                 }
             }
             if (performActions.waitForPage == null) {
-                String updateTimeout = managerProps.getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
-                String interactionTimeout = managerProps.getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
+                String updateTimeout = arPropertyManager.getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
+                String interactionTimeout =
+                        arPropertyManager.getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
                 performActions.waitForPage = new WebDriverWait(
                         currentARWebDriver.getCurrentDriver(), Duration.ofSeconds(Integer.parseInt(updateTimeout)));
                 performActions.waitForAction = new WebDriverWait(
@@ -1990,27 +1991,6 @@ public class Engine {
                         !executedInstructionOrderNumbers.contains(instruction.getInstructionOrderNumber()))
                 .collect(Collectors.toList());
     }
-
-    //    private void fillUpCurretLocators(InstructionLoadDTO currentInstruction) {
-    //        for (InstructionReferenceLoadDTO reference : currentInstruction.getInstructionReferenceLoadDTOList()) {
-    //            switch (reference.getReferenceType()) {
-    //                case "absolutXPath":
-    //                    absolutXPathTextField.setText(reference.getValue());
-    //                    break;
-    //                case "currentXPath":
-    //                    currentXPathTextField.setText(reference.getValue());
-    //                    break;
-    //                case "coords":
-    //                    coordsTextField.setText(reference.getValue());
-    //                    break;
-    //                case "customXPath":
-    //                    customXPathTextField.setText(reference.getValue());
-    //                    break;
-    //                default:
-    //                    System.out.println("Unknown reference type: " + reference.getReferenceType());
-    //            }
-    //        }
-    //    }
 
     public static List<String> checkProperties(Properties properties) {
         String[] requiredProperties = {

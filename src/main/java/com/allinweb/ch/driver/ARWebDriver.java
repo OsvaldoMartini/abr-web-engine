@@ -4,7 +4,6 @@ import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementScriptFactory;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.facade.PerformPreLoad;
-import com.allinweb.ch.facade.SingletonSupplier;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
@@ -44,15 +43,22 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 public class ARWebDriver {
 
     // Static final variable to hold the singleton instance
-    protected static final SingletonSupplier<ARWebDriver> instance = () -> new ARWebDriver();
-
-    // Public method to access the singleton instance
-    public static ARWebDriver getInstance() {
-        return instance.get();
-    }
+    protected static ARWebDriver instance;
 
     // Private constructor to prevent instantiation
     public ARWebDriver() {}
+
+    // Public method to access the singleton instance
+    public static ARWebDriver getInstance() {
+        if (instance == null) {
+            synchronized (ARWebDriver.class) {
+                if (instance == null) {
+                    instance = new ARWebDriver();
+                }
+            }
+        }
+        return instance;
+    }
 
     private List<WebDriver> webDriverList = new ArrayList<>();
     private PerformMessage performMessage;
@@ -61,6 +67,12 @@ public class ARWebDriver {
     private String edgeVersion;
     private String webDriverEdgeVersion;
     private String webDriverPath;
+
+    private static final ARPropertyManager arPropertyManager;
+
+    static {
+        arPropertyManager = ARPropertyManager.getInstance();
+    }
 
     public void initialize(
             ObservableList<WebDriver> webDriverList, PerformMessage performMessage, PerformPreLoad performPreLoad) {
@@ -204,14 +216,14 @@ public class ARWebDriver {
 
         ARLogger.getInstance(ARWebDriver.class).fine("Going to call WebDriver for \n" + url);
 
-        ARPropertyManager managerProps = ARPropertyManager.getInstance();
+        ARPropertyManager managerProps = arPropertyManager;
 
         if (Strings.isNullOrEmpty(webDriverPath)) {
             ARLogger.getInstance(ARWebDriver.class).fine("URL IS EMPTY");
         }
 
         //        if (driver == null) {
-        String logFolder = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_LOG);
+        String logFolder = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_LOG);
         try {
             switch (browserType) {
                 case ARConstants.CHROME -> {

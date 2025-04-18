@@ -13,20 +13,40 @@ import javax.swing.*;
 
 public class ARPriorities {
 
+    protected static ARPriorities instance;
+
+    // Private constructor to prevent instantiation
+    private ARPriorities() {
+        // Initialize if necessary
+    }
+
+    // Public method to access the singleton instance
+    public static ARPriorities getInstance() {
+        if (instance == null) {
+            synchronized (ARPriorities.class) {
+                if (instance == null) {
+                    instance = new ARPriorities();
+                }
+            }
+        }
+        return instance;
+    }
+
     private static String searchConfigTemplate =
             "#numero priorità, categoria, identificativo\n" + "1,ByXPath,//a[@href],a[href]\n"
                     + "2,ByLabels,label,spam,div,p\n"
                     + "3,attribute,martini-id";
     // Static final variable to hold the singleton instance
-    protected static SingletonSupplier<ARPriorities> instance = () -> new ARPriorities();
+
     public static Properties properties;
     public static List<Priority> priorityList;
     public static List<SearchConfig> searchList;
     private Integer jobId;
 
-    // Public method to access the singleton instance
-    public static ARPriorities getInstance() {
-        return instance.get();
+    private static final ARPropertyManager arPropertyManager;
+
+    static {
+        arPropertyManager = ARPropertyManager.getInstance();
     }
 
     // Public method to access the singleton instance
@@ -34,14 +54,8 @@ public class ARPriorities {
         instance = null;
     }
 
-    // Private constructor to prevent instantiation
-    private ARPriorities() {
-
-        //        loadPriorities();
-    }
-
     public void loadPriorities() {
-        String priorityPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_PRIORITY);
+        String priorityPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_PRIORITY);
         if (priorityPath == null || priorityPath.isBlank()) {
             JOptionPane.showMessageDialog(
                     null,

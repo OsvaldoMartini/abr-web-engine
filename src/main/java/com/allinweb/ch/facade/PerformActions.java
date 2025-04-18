@@ -76,13 +76,34 @@ import org.openqa.selenium.support.ui.WebDriverWait;
  * @version 1.0
  */
 public class PerformActions {
+    // Static final variable to hold the singleton instance
+    protected static PerformActions instance;
+
+    // Private constructor to prevent instantiation
+    private PerformActions() {
+        // Initialize if necessary
+    }
+
+    // Public method to access the singleton instance
+    public static PerformActions getInstance() {
+        if (instance == null) {
+            synchronized (PerformActions.class) {
+                if (instance == null) {
+                    instance = new PerformActions();
+                }
+            }
+        }
+        return instance;
+    }
 
     private static final PerformMessage performMessage;
     private static final PerformDataBase performDataBase;
     private static final IframeInputLocator iframeInputLocator;
+    private static final ARPropertyManager arPropertyManager;
     private BooleanProperty interceptBotJob = new SimpleBooleanProperty(false);
 
     static {
+        arPropertyManager = ARPropertyManager.getInstance();
         performMessage = PerformMessage.getInstance();
         performDataBase = PerformDataBase.getInstance();
         iframeInputLocator = IframeInputLocator.getInstance();
@@ -125,23 +146,10 @@ public class PerformActions {
     private static final int MAX_LENGTH = 30;
     private static final Random RANDOM = new Random();
 
-    // Static final variable to hold the singleton instance
-    protected static final SingletonSupplier<PerformActions> instance = () -> new PerformActions();
-
     private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
-
-    // Private constructor to prevent instantiation
-    private PerformActions() {
-        // Initialize if necessary
-    }
 
     public void initialize(ARPriorities arPriorities) {
         this.arPriorities = arPriorities;
-    }
-
-    // Public method to access the singleton instance
-    public static PerformActions getInstance() {
-        return instance.get();
     }
 
     public WebElement searchElement(InstructionLoadDTO instruction, int botJobId, boolean forceCoordinates) {
@@ -244,7 +252,7 @@ public class PerformActions {
 
                             instructionElement.clear();
                             clearElement(instructionElement);
-                            clearValueAtCoordinates(savedCoordinates);
+                            //                            clearValueAtCoordinates(savedCoordinates);
 
                             passed = insertInElement(
                                     byPassNotFound,
@@ -1162,8 +1170,7 @@ public class PerformActions {
                 wait(fromSecondsToMilliseconds(TimeUnit.SECONDS, instructionSeconds));
                 return "HOLD" + "->" + instructionSeconds + " seconds";
             } else {
-                String stopSeconds =
-                        ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DEFAULT_INSTRUCTION_STOP_SECONDS);
+                String stopSeconds = arPropertyManager.getProperty(ARPropertyEnum.DEFAULT_INSTRUCTION_STOP_SECONDS);
                 wait(fromSecondsToMilliseconds(TimeUnit.SECONDS, Integer.parseInt(stopSeconds)));
                 return "HOLD" + "->" + stopSeconds + " seconds";
             }
@@ -2462,7 +2469,7 @@ public class PerformActions {
         }
 
         // Save the content as an array of strings to a new file
-        String htmlPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_EXPORT);
+        String htmlPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_EXPORT);
         try (FileWriter writer = new FileWriter(htmlPath + "/" + type + ".json")) {
             // Convert the list of strings to a JSON-like array format
             writer.write(htmlArray.stream()

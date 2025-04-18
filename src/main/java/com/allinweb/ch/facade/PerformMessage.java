@@ -37,8 +37,9 @@ import javax.swing.*;
  * @version 1.0
  */
 public class PerformMessage {
+
     // Static final variable to hold the singleton instance
-    protected static final SingletonSupplier<PerformMessage> instance = () -> new PerformMessage();
+    protected static PerformMessage instance;
 
     // Private constructor to prevent instantiation
     private PerformMessage() {
@@ -47,7 +48,20 @@ public class PerformMessage {
 
     // Public method to access the singleton instance
     public static PerformMessage getInstance() {
-        return instance.get();
+        if (instance == null) {
+            synchronized (PerformMessage.class) {
+                if (instance == null) {
+                    instance = new PerformMessage();
+                }
+            }
+        }
+        return instance;
+    }
+
+    private static final ARPropertyManager arPropertyManager;
+
+    static {
+        arPropertyManager = ARPropertyManager.getInstance();
     }
 
     public void initializePerformMessages() {}
@@ -840,7 +854,7 @@ public class PerformMessage {
 
     public void outputJson(List<InstructionLoadDTO> blockLoopInstructions, String fileName) {
         // Get the directory path from ARPropertyManager
-        String jsonPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
+        String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_DB);
 
         List<InstructionLoadDTO> updatedList = new ArrayList<>(); // Create a new list for updated instructions
 
@@ -933,7 +947,7 @@ public class PerformMessage {
 
     public void outputJsonElementDTO(ElementDTO[] elementDTO) {
         // Get the directory path from ARPropertyManager
-        String jsonPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
+        String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_DB);
 
         // Define Gson ExclusionStrategy to ignore specific fields
         ExclusionStrategy strategy = new ExclusionStrategy() {

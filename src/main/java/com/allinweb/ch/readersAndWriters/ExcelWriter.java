@@ -37,6 +37,12 @@ public class ExcelWriter {
     private String botJobName;
     private static WebDriver webDriver;
 
+    private static final ARPropertyManager arPropertyManager;
+
+    static {
+        arPropertyManager = ARPropertyManager.getInstance();
+    }
+
     private static int CURRENT_ROW_INDEX = 0;
 
     public ExcelWriter(String botJobName, WebDriver webDriver, boolean isFullPath) {
@@ -394,7 +400,7 @@ public class ExcelWriter {
 
             if (!isFullPath) {
                 fileNamePath = "\\" + fileName + ARConstants.FILE_FORMAT_EXCEL;
-                fullPath = ARPropertyManager.getInstance().getProperty(property) + fileNamePath;
+                fullPath = arPropertyManager.getProperty(property) + fileNamePath;
             } else {
                 fullPath = fileName;
             }

@@ -1,5 +1,6 @@
 package com.allinweb.ch.util;
 
+import com.allinweb.ch.facade.PerformMessage;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -8,34 +9,47 @@ import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
-import javax.swing.JOptionPane;
 
 public class ARLogger {
     private static final Object lock = new Object();
     private static volatile ARLogger instance;
     private static FileHandler handler;
 
+    private static PerformMessage performMessage;
+    private static ARPropertyManager arPropertyManager;
+
+    static {
+        performMessage = PerformMessage.getInstance();
+        arPropertyManager = arPropertyManager;
+    }
+
     private Logger logger;
 
     private ARLogger() {
-        String logPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_LOG);
+        String logPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_LOG);
 
         if (logPath == null || logPath.isBlank()) {
-            JOptionPane.showMessageDialog(
-                    null,
-                    "The configuration of the log path has not been set. Please set the configuration for the log path.",
-                    "Log Configuration Not Set",
-                    JOptionPane.WARNING_MESSAGE);
+            performMessage.errorMessage(
+                    "Warning: Log Path Configuration Missing",
+                    "<span style='color: #FFA000; font-weight: bold; font-size: 1.1em;'>Log path configuration not set!</span> ⚠️",
+                    "<span style='color: #E65100;'>Please specify the desired log path in the application settings.</span><br>",
+                    "<span style='font-weight: bold;'>Current (invalid) configuration:</span> "
+                            + "<span style='font-style: italic;'>" + logPath + "</span>",
+                    "<span style='font-style: italic;'>Without a valid log path, the application might not be able to record important events.</span>",
+                    0);
+
             return;
         }
 
         File logDirectory = new File(logPath);
         if (!logDirectory.exists() && !logDirectory.mkdirs()) {
-            JOptionPane.showMessageDialog(
-                    null,
-                    "Failed to create log directory at: " + logPath,
+            performMessage.errorMessage(
                     "Log Directory Creation Failed",
-                    JOptionPane.ERROR_MESSAGE);
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Unable to create log directory!</span> 📁❌",
+                    "<span style='color: #E65100; font-weight: bold;'>Failed at this location:</span> ",
+                    "<span style='font-weight: bold;'>" + "logDirectory" + "</span>",
+                    "<span style='font-style: italic;'>Verify write permissions and the validity of the specified path. The application needs to create this directory to function correctly.</span>",
+                    0);
             return;
         }
 
@@ -49,12 +63,15 @@ public class ARLogger {
             System.setOut(printStream);
             System.setErr(printStream);
 
-        } catch (IOException e) {
-            JOptionPane.showMessageDialog(
-                    null,
-                    "An error occurred during the creation of the logger -> Cause: " + e.getMessage(),
-                    "Error in Logger Creation",
-                    JOptionPane.ERROR_MESSAGE);
+        } catch (IOException error) {
+            performMessage.errorMessage(
+                    "Error Creating Log Directory",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create log directory!</span> 📁",
+                    "<span style='color: #E65100; font-weight: bold;'>Attempted location:</span> <span style='font-weight: bold;'>"
+                            + logPath + ARConstants.FILE_NAME_ENGINE_RUN_LOG + "</span>",
+                    "<span style='font-style: italic;'>Please ensure the application has the necessary write permissions for the specified directory. Check the path for validity.</span>",
+                    "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
+                    0);
         }
     }
 
@@ -62,6 +79,7 @@ public class ARLogger {
         if (instance == null) {
             synchronized (lock) {
                 if (instance == null) {
+                    arPropertyManager = ARPropertyManager.getInstance();
                     instance = new ARLogger();
                 }
             }
