@@ -42,7 +42,7 @@ public class ARPropertyManager {
 
     @Getter
     @Setter
-    private static String configurationFileName;
+    private String configurationFileName;
 
     public void loadProperties() {
         configurationFileName = System.getProperty("ARWebConfig");

@@ -74,7 +74,13 @@ public class Engine {
         if (arguments.contains("-c")) {
             int configurationValueIndex = arguments.indexOf("-c") + 1;
             String configurationValue = arguments.get(configurationValueIndex);
-            System.setProperty("ARWebConfig", configurationValue);
+            try {
+                System.setProperty("ARWebConfig", configurationValue);
+            } catch (Exception ignore) {
+
+            }
+            // Prevention if  System.setProperty(...) has no permission access
+            arPropertyManager.setConfigurationFileName(configurationValue);
             arPropertyManager.loadProperties();
         }
 

@@ -99,6 +99,7 @@ public class ARConstants {
     public static final String ICON_WAIT = "/wait.png";
     public static final String ICON_PAUSE = "/pause3.png";
     public static final String ICON_CLICK = "/click.png";
+    public static final String ICON_LINK = "/links-icon.png";
     public static final String ICON_OUTPUT = "/output1.png";
     public static final String ICON_HIDDEN = "/hidden-black.png";
     public static final String ICON_INSERT = "/input_field.png";

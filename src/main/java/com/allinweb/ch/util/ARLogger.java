@@ -15,12 +15,12 @@ public class ARLogger {
     private static volatile ARLogger instance;
     private static FileHandler handler;
 
-    private static PerformMessage performMessage;
-    private static ARPropertyManager arPropertyManager;
+    private static final PerformMessage performMessage;
+    private static final ARPropertyManager arPropertyManager;
 
     static {
         performMessage = PerformMessage.getInstance();
-        arPropertyManager = arPropertyManager;
+        arPropertyManager = ARPropertyManager.getInstance();
     }
 
     private Logger logger;
@@ -79,7 +79,6 @@ public class ARLogger {
         if (instance == null) {
             synchronized (lock) {
                 if (instance == null) {
-                    arPropertyManager = ARPropertyManager.getInstance();
                     instance = new ARLogger();
                 }
             }

@@ -1781,7 +1781,7 @@ public class PerformPreLoad {
   }
 
   // Set up the interval to call the function every 5 seconds (5000 milliseconds)
-  setInterval(restoreOriginalStyles, 3000);
+  setInterval(restoreOriginalStyles, 5000);
 
   // startCollectingElements(window.searchTerms);
   // init("Initiate");

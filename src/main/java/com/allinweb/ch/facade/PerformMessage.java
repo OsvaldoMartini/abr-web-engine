@@ -573,7 +573,7 @@ public class PerformMessage {
      */
     public ARConstants.DialogModal showCustomModalDialogDragWin11(
             String title,
-            String message,
+            String message1,
             String message2,
             String message3,
             String message4,
@@ -609,12 +609,25 @@ public class PerformMessage {
                 BorderFactory.createEmptyBorder(20, 20, 20, 20))); // Padding
         panel.setLayout(new BorderLayout());
 
+        //                    Type	Emoji/Icon	Example Code
+        //                    Success	✅	System.out.println("✅ Java version is valid.");
+        //                    Info	ℹ️	System.out.println("ℹ️ Running version check...");
+        //                    Warning	⚠️	System.out.println("⚠️ Java version might be outdated.");
+        //                    Error	❌	System.out.println("❌ Java version is too old.");
+        //                    Stop	🛑	System.out.println("🛑 Application cannot continue.");
+        //                    Bug/Debug	🐛	System.out.println("🐛 Debug mode enabled.");
+        //                    Time	⏱️	System.out.println("⏱️ Checking environment...");
+        //                    Rocket/Start	🚀	System.out.println("🚀 Starting process...");
+        //                    Lock	🔒	System.out.println("🔒 Secure mode enabled.");
+        //                    Folder	📂	System.out.println("📂 Loading files...");
+        //                    Checkmark	✔️	System.out.println("✔️ All checks passed.");
+
         // Build the message
         String titleMessage = "<html><br><span style='color: blue;'>"
                 + "<span  style='font-size: 14px; font-weight: bold;'>" + title
                 + "</span><br>------------------------------<br>";
 
-        String concatenateMsg = "<span style='color: blue;'>" + message;
+        String concatenateMsg = "<span style='color: blue;'>" + message1;
         if (message2 != null) {
             concatenateMsg +=
                     "</span><br>------------------------------<br><span style='color: blue;'>" + message2 + "</span>";
