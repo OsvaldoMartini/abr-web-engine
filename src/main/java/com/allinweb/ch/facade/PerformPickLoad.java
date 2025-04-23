@@ -1,7 +1,5 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.driver.ARWebDriver;
-import com.allinweb.ch.util.ARPriorities;
 import com.allinweb.ch.util.ErrorMessage;
 import java.util.Arrays;
 import java.util.List;
@@ -16,27 +14,25 @@ import org.openqa.selenium.WebDriver;
  */
 public class PerformPickLoad {
 
-    private ARPriorities arPriorities;
-    private ARWebDriver arWebDriver;
-    private static JavascriptExecutor jsExecutor;
-
-    // Static final variable to hold the singleton instance
-    protected static final SingletonSupplier<PerformPickLoad> instance = () -> new PerformPickLoad();
+    protected static volatile PerformPickLoad instance;
 
     // Private constructor to prevent instantiation
     private PerformPickLoad() {
         // Initialize if necessary
     }
 
-    public void initializePerformPickLoad(ARPriorities arPriorities, ARWebDriver arWebDriver) {
-        this.arPriorities = arPriorities;
-        this.arWebDriver = arWebDriver;
+    public static PerformPickLoad getInstance() {
+        if (instance == null) {
+            synchronized (PerformPickLoad.class) {
+                if (instance == null) {
+                    instance = new PerformPickLoad();
+                }
+            }
+        }
+        return instance;
     }
 
-    // Public method to access the singleton instance
-    public static PerformPickLoad getInstance() {
-        return instance.get();
-    }
+    private static JavascriptExecutor jsExecutor;
 
     public ErrorMessage dynamicHoverPickElementsDTO(
             WebDriver driver, String currentUrl, String[] dataArray, boolean searchHiddenFields, int port) {

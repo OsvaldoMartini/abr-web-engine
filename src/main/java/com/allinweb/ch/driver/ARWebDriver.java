@@ -43,7 +43,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 public class ARWebDriver {
 
     // Static final variable to hold the singleton instance
-    protected static ARWebDriver instance;
+    protected static volatile ARWebDriver instance;
 
     // Private constructor to prevent instantiation
     public ARWebDriver() {}

@@ -13,24 +13,31 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 
 public class IframeInputLocator {
 
-    private WebDriver driver;
-    private Map<WebElement, List<WebElement>> iframeElementsMap;
+    // Public method to access the singleton instance
+    private static volatile IframeInputLocator instance;
 
-    // Static final variable to hold the singleton instance
-    protected static final SingletonSupplier<IframeInputLocator> instance = () -> new IframeInputLocator();
+    // Public method to access the singleton instance
+    public static IframeInputLocator getInstance() {
+        if (instance == null) {
+            synchronized (IframeInputLocator.class) {
+                if (instance == null) {
+                    instance = new IframeInputLocator();
+                }
+            }
+        }
+        return instance;
+    }
 
     private IframeInputLocator() {
         // Initialize if necessary
     }
 
+    private WebDriver driver;
+    private Map<WebElement, List<WebElement>> iframeElementsMap;
+
     public void initializeIframeInputLocator(Map<WebElement, List<WebElement>> iframeElementsMap, WebDriver drive) {
         this.driver = drive;
         this.iframeElementsMap = iframeElementsMap;
-    }
-
-    // Public method to access the singleton instance
-    public static IframeInputLocator getInstance() {
-        return instance.get();
     }
 
     public IframeInputLocator(WebDriver driver) {

@@ -14,19 +14,25 @@ import org.openqa.selenium.WebDriver;
  */
 public class PerformPreLoad {
 
-    private static JavascriptExecutor jsExecutor;
+    protected static volatile PerformPreLoad instance;
 
-    protected static final SingletonSupplier<PerformPreLoad> instance = () -> new PerformPreLoad();
-
+    // Private constructor to prevent instantiation
     private PerformPreLoad() {
         // Initialize if necessary
     }
 
-    public void initializePerformPreLoad() {}
-
     public static PerformPreLoad getInstance() {
-        return instance.get();
+        if (instance == null) {
+            synchronized (PerformPreLoad.class) {
+                if (instance == null) {
+                    instance = new PerformPreLoad();
+                }
+            }
+        }
+        return instance;
     }
+
+    private static JavascriptExecutor jsExecutor;
 
     // "scannerTool", "scannerGrid", "searchTerms"
     public ErrorMessage dynamicLoadElementsDTO(

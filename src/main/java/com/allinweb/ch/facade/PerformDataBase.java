@@ -49,7 +49,7 @@ import org.hibernate.cfg.Configuration;
 public class PerformDataBase {
 
     // Static final variable to hold the singleton instance
-    protected static PerformDataBase instance;
+    protected static volatile PerformDataBase instance;
 
     private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
     // Private constructor to prevent instantiation

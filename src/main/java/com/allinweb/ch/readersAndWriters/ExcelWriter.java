@@ -27,6 +27,12 @@ import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.WebDriver;
 
 public class ExcelWriter {
+    private static final ARPropertyManager arPropertyManager;
+
+    static {
+        arPropertyManager = ARPropertyManager.getInstance();
+    }
+
     private static final int INSTRUCTION_FIELDS_ROW_INDEX = 1;
     private static final int EXECUTION_TIMES_COLUMN_INDEX = 11;
 
@@ -36,12 +42,6 @@ public class ExcelWriter {
     private final Map<String, ManagedExcel> managedExcelMap = new HashMap<>();
     private String botJobName;
     private static WebDriver webDriver;
-
-    private static final ARPropertyManager arPropertyManager;
-
-    static {
-        arPropertyManager = ARPropertyManager.getInstance();
-    }
 
     private static int CURRENT_ROW_INDEX = 0;
 

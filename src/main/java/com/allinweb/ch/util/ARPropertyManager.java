@@ -9,7 +9,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 public class ARPropertyManager {
-    protected static ARPropertyManager instance;
+    protected static volatile ARPropertyManager instance;
 
     // Private constructor to prevent instantiation
     private ARPropertyManager() {

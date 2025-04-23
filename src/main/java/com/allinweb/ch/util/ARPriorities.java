@@ -13,7 +13,7 @@ import javax.swing.*;
 
 public class ARPriorities {
 
-    protected static ARPriorities instance;
+    protected static volatile ARPriorities instance;
 
     // Private constructor to prevent instantiation
     private ARPriorities() {

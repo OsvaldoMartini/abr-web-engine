@@ -11,9 +11,32 @@ import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
 public class ARLogger {
-    private static final Object lock = new Object();
     private static volatile ARLogger instance;
+    private static final Object lock = new Object();
     private static FileHandler handler;
+
+    public static <T> ARLogger getInstance(Class<T> forClazz) {
+        if (instance == null) {
+            synchronized (lock) {
+                if (instance == null) {
+                    instance = new ARLogger();
+                }
+            }
+        }
+        instance.setLoggingClass(forClazz);
+        return instance;
+    }
+
+    private void setLoggingClass(Class<?> clazz) {
+        logger = Logger.getLogger(clazz.getName());
+
+        // Check if the handler has already been added to avoid duplication
+        if (logger.getHandlers().length == 0 && handler != null) {
+            logger.addHandler(handler);
+        }
+
+        logger.setLevel(Level.ALL);
+    }
 
     private static final PerformMessage performMessage;
     private static final ARPropertyManager arPropertyManager;
@@ -73,29 +96,6 @@ public class ARLogger {
                     "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
                     0);
         }
-    }
-
-    public static <T> ARLogger getInstance(Class<T> forClazz) {
-        if (instance == null) {
-            synchronized (lock) {
-                if (instance == null) {
-                    instance = new ARLogger();
-                }
-            }
-        }
-        instance.setLoggingClass(forClazz);
-        return instance;
-    }
-
-    private void setLoggingClass(Class<?> clazz) {
-        logger = Logger.getLogger(clazz.getName());
-
-        // Check if the handler has already been added to avoid duplication
-        if (logger.getHandlers().length == 0 && handler != null) {
-            logger.addHandler(handler);
-        }
-
-        logger.setLevel(Level.ALL);
     }
 
     public void info(String msg) {

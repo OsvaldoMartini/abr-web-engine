@@ -39,7 +39,7 @@ import javax.swing.*;
 public class PerformMessage {
 
     // Static final variable to hold the singleton instance
-    protected static PerformMessage instance;
+    protected static volatile PerformMessage instance;
 
     // Private constructor to prevent instantiation
     private PerformMessage() {

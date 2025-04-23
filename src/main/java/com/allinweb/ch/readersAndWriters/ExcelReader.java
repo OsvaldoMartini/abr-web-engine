@@ -18,6 +18,12 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 public class ExcelReader {
 
+    private static final ARPropertyManager arPropertyManager;
+
+    static {
+        arPropertyManager = ARPropertyManager.getInstance();
+    }
+
     private static final int EXCEL_DATA_COLUMN_INTESTATION_ROW = 1;
 
     private static String executed = "EXECUTED";
@@ -25,12 +31,6 @@ public class ExcelReader {
     private static String OUTCOME = "outcome";
 
     public ExcelReader() {}
-
-    private static final ARPropertyManager arPropertyManager;
-
-    static {
-        arPropertyManager = ARPropertyManager.getInstance();
-    }
 
     public ExtractedData extractData(String paymentsFilePath, List<String> allActions) throws Exception {
         // Initialize the extracted data

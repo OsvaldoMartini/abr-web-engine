@@ -77,7 +77,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
  */
 public class PerformActions {
     // Static final variable to hold the singleton instance
-    protected static PerformActions instance;
+    protected static volatile PerformActions instance;
 
     // Private constructor to prevent instantiation
     private PerformActions() {
