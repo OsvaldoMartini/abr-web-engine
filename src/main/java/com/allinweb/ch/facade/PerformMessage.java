@@ -865,9 +865,9 @@ public class PerformMessage {
         }
     }
 
-    public void outputJson(List<InstructionLoadDTO> blockLoopInstructions, String fileName) {
+    public void outputJson(List<InstructionLoadDTO> blockLoopInstructions, String fileName, boolean genTestData) {
         // Get the directory path from ARPropertyManager
-        String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_DB);
+        String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_LOG);
 
         List<InstructionLoadDTO> updatedList = new ArrayList<>(); // Create a new list for updated instructions
 
@@ -875,17 +875,21 @@ public class PerformMessage {
             // Create a new InstructionLoadDTO object to avoid modifying the original
             InstructionLoadDTO updatedInstruction = new InstructionLoadDTO();
 
+            int genData = 0;
+            if (genTestData) {
+                genData = 1000;
+            }
             // Copy original fields and add 1000 where necessary
-            updatedInstruction.setHomeBankingId(instruction.getHomeBankingId() + 1000);
-            updatedInstruction.setId(instruction.getId() + 1000);
-            updatedInstruction.setBotJobId(instruction.getBotJobId() + 1000);
-            updatedInstruction.setBlockId(instruction.getBlockId() + 1000);
+            updatedInstruction.setHomeBankingId(instruction.getHomeBankingId() + genData);
+            updatedInstruction.setId(instruction.getId() + genData);
+            updatedInstruction.setBotJobId(instruction.getBotJobId() + genData);
+            updatedInstruction.setBlockId(instruction.getBlockId() + genData);
             updatedInstruction.setBlockOrderNumber(
                     instruction.getBlockOrderNumber()); // Copy without change (if needed)
 
             // Add 1000 to parentId if it's greater than 0
             if (instruction.getParentId() > 0) {
-                updatedInstruction.setParentId(instruction.getParentId() + 1000);
+                updatedInstruction.setParentId(instruction.getParentId() + genData);
             } else {
                 updatedInstruction.setParentId(instruction.getParentId()); // Keep original if not greater than 0
             }
@@ -960,7 +964,7 @@ public class PerformMessage {
 
     public void outputJsonElementDTO(ElementDTO[] elementDTO) {
         // Get the directory path from ARPropertyManager
-        String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_DB);
+        String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_LOG);
 
         // Define Gson ExclusionStrategy to ignore specific fields
         ExclusionStrategy strategy = new ExclusionStrategy() {
