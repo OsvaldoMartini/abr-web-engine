@@ -235,12 +235,13 @@ public class Engine {
         } catch (Exception e) {
 
             performMessage.errorMessage(
-                    "Excel Error",
-                    "Could Not Execute Excel File",
-                    "Check All Excel Columns and Values!",
-                    null,
-                    null,
+                    "Excel File Error",
+                    "<span style='color: #000080; font-weight: bold; font-size: 14px;'>Check All Excel Columns and Values!</span>",
+                    "<span style='color: #000080; font-weight: bold;'></span>",
+                    "<span style='font-style: italic;'>Details:</span>",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Error loading Excel Rows.  Maybe it is better to re-generate the file.</span>",
                     0);
+
             //            Platform.exit();
         }
 

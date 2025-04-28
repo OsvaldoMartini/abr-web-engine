@@ -3,7 +3,6 @@ package com.allinweb.ch.driver;
 import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementScriptFactory;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.facade.PerformPreLoad;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
@@ -61,24 +60,21 @@ public class ARWebDriver {
     }
 
     private List<WebDriver> webDriverList = new ArrayList<>();
-    private PerformMessage performMessage;
-    private PerformPreLoad performPreLoad;
     private WebDriver currentDriver;
     private String edgeVersion;
     private String webDriverEdgeVersion;
     private String webDriverPath;
 
     private static final ARPropertyManager arPropertyManager;
+    private static final PerformMessage performMessage;
 
     static {
         arPropertyManager = ARPropertyManager.getInstance();
+        performMessage = PerformMessage.getInstance();
     }
 
-    public void initialize(
-            ObservableList<WebDriver> webDriverList, PerformMessage performMessage, PerformPreLoad performPreLoad) {
+    public void initialize(ObservableList<WebDriver> webDriverList) {
         this.webDriverList = webDriverList;
-        this.performMessage = performMessage;
-        this.performPreLoad = performPreLoad;
     }
 
     private final WebElementScriptFactory scriptFactory = new WebElementScriptFactory();

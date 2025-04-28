@@ -201,6 +201,10 @@ public class PerformDataBase {
                     conn.setReadOnly(false);
                 }
                 // Increment the open connection counter
+                if (getOpenConnectionsCount() > 10) {
+                    this.openConnections = 0;
+                }
+
                 incrementOpenConnections();
             }
         } catch (SQLException error) {
