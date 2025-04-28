@@ -1159,6 +1159,31 @@ public class PerformCloneLoad {
     //console.log(event.data);
   });
 
+
+  window.addEventListener("beforeunload", function (event) {
+    if (wSocket && wSocket.readyState === WebSocket.OPEN) {
+      const message = {
+        type: "CLOSE_BROWSER",
+        sessionId: `scannerReceiver-${window.homeBankingId}`,
+        operationId: "closeBrowser",
+        homeBankingId: window.homeBankingId,
+        details: window.allElementInfo, // Send allElementInfo
+      };
+
+      // Convert the JSON message to a buffer
+      const base64Message = btoa(
+        unescape(encodeURIComponent(JSON.stringify(message)))
+      );
+      // Convert the buffer to a Base64 string
+      wSocket.send(base64Message);
+
+      alreadySent = true;
+      window.allElementInfo = [];
+      window.elementInfoMap.clear();
+      window.revertSearchInjections();
+    }
+  });
+
   // window.cloneTerms = null; // Invalidating the function
 })(
   arguments[0],

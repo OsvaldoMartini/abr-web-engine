@@ -1789,6 +1789,31 @@ public class PerformPreLoad {
   // Set up the interval to call the function every 5 seconds (5000 milliseconds)
   setInterval(restoreOriginalStyles, 5000);
 
+
+  window.addEventListener("beforeunload", function (event) {
+    if (wSocket && wSocket.readyState === WebSocket.OPEN) {
+      const message = {
+        type: "CLOSE_BROWSER",
+        sessionId: `scannerReceiver-${window.homeBankingId}`,
+        operationId: "closeBrowser",
+        homeBankingId: window.homeBankingId,
+        details: window.allElementInfo, // Send allElementInfo
+      };
+
+      // Convert the JSON message to a buffer
+      const base64Message = btoa(
+        unescape(encodeURIComponent(JSON.stringify(message)))
+      );
+      // Convert the buffer to a Base64 string
+      wSocket.send(base64Message);
+
+      alreadySent = true;
+      window.allElementInfo = [];
+      window.elementInfoMap.clear();
+      window.revertSearchInjections();
+    }
+  });
+
   // startCollectingElements(window.searchTerms);
   // init("Initiate");
   // window.initSearchTerms = null; // Invalidating the function

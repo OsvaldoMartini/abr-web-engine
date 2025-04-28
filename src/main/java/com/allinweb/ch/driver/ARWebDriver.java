@@ -323,9 +323,9 @@ public class ARWebDriver {
                     .executeScript("return document.readyState")
                     .equals("complete"));
 
-        } catch (Exception e) {
+        } catch (Exception error) {
 
-            String errorMessage = e.getMessage();
+            String errorMessage = error.getMessage();
             ARLogger.getInstance(ARWebDriver.class)
                     .fine("An error has occurred during driver.get(url) Load " + errorMessage);
 
@@ -342,8 +342,31 @@ public class ARWebDriver {
             }
 
             // Pass a meaningful message for further actions
-            performMessage.errorMessage(
-                    "Error Open URL", messageChunks[0], messageChunks[1], messageChunks[2], messageChunks[3], 0);
+            //            performMessage.errorMessage(
+            //                    "Error Open URL", messageChunks[0], messageChunks[1], messageChunks[2],
+            // messageChunks[3], 0);
+            if (error.getMessage().contains("session deleted as the browser has closed the connection")
+                    || error.getMessage().contains("Expected condition failed: waiting for com")) {
+                performMessage.errorMessage(
+                        "Interruption Calling SCAN",
+                        "<span style='font-style: italic;'>Session deleted as the browser has closed the connection!</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>WebDriver path:</span> <span style='font-weight: bold;'>"
+                                + webDriverPath + "</span>",
+                        "<span style='font-style: italic;'>Please close and Re-Open the Scanner Tool.</span>",
+                        "<span style='font-style: italic;'>Details: " + "Web Browser was closed before the Scanner Tool"
+                                + "</span>",
+                        0);
+            } else {
+                performMessage.errorMessage(
+                        "Access WebDriver",
+                        "<span style='font-style: italic;'>The WebDriver data directory is probably already in use.</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>WebDriver path:</span> <span style='font-weight: bold;'>"
+                                + webDriverPath + "</span>",
+                        "<span style='font-style: italic;'>Please close all instances of the installer first.</span>",
+                        "<span style='font-style: italic;'>Details: " + "Please close all possible Browser Instances"
+                                + "</span>",
+                        0);
+            }
 
             // Example: print or log the chunks if needed
             for (String chunk : messageChunks) {

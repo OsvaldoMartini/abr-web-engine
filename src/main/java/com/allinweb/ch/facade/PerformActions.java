@@ -138,7 +138,10 @@ public class PerformActions {
     public static Wait<WebDriver> waitForPage;
     public static Wait<WebDriver> waitForAction;
 
+    @Getter
+    @Setter
     private boolean justCalledRefreshPage = false;
+
     private static JavascriptExecutor jsExecutor;
 
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -1290,6 +1293,8 @@ public class PerformActions {
     }
 
     public void refreshPage() {
+        justCalledRefreshPage = true;
+
         this.currentDriver.navigate().refresh();
 
         this.currentDriver.switchTo().defaultContent();
@@ -1305,8 +1310,6 @@ public class PerformActions {
         //            this.currentDriver.switchTo().window(handle);
         //            System.out.println("Window title: " + this.currentDriver.getTitle());
         //        }
-
-        justCalledRefreshPage = true;
     }
 
     private boolean insertInElement(
