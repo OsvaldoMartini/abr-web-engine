@@ -219,7 +219,7 @@ public class ARWebDriver {
         }
 
         //        if (driver == null) {
-        String logFolder = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_LOG);
+        String logFolder = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
         try {
             switch (browserType) {
                 case ARConstants.CHROME -> {
@@ -358,15 +358,15 @@ public class ARWebDriver {
                         "<span style='font-style: italic;'>The WebDriver data directory is probably already in use.</span>",
                         "<span style='color: #E65100; font-weight: bold;'>WebDriver path:</span> <span style='font-weight: bold;'>"
                                 + webDriverPath + "</span>",
-                        "<span style='font-style: italic;'>Please close all instances of the installer first.</span>",
                         "<span style='font-style: italic;'>Details: " + "Please close all possible Browser Instances"
                                 + "</span>",
+                        "<span style='font-style: italic;'>Check/close all instances of the installer first.</span>",
                         0);
             }
 
             // Example: print or log the chunks if needed
             for (String chunk : messageChunks) {
-                ARLogger.getInstance(ARWebDriver.class).fine("Error chunk: " + chunk);
+                System.out.println("Browser response : " + chunk);
             }
             return null;
         }
@@ -376,8 +376,11 @@ public class ARWebDriver {
     private EdgeOptions buildOptionsEdge(String[] optionsConfigLines, String logFolder) {
         EdgeOptions optionsEdge = new EdgeOptions();
         // Options Config
-        optionsEdge.addArguments("--user-data-dir=" + System.getProperty("java.io.tmpdir") + "/edge-profile-"
-                + System.currentTimeMillis());
+        optionsEdge.addArguments(
+                "--user-data-dir=" + System.getProperty("java.io.tmpdir") + "/edge-profile-"
+                        + System.currentTimeMillis(),
+                "--ignore-certificate-errors");
+
         for (String line : optionsConfigLines) {
             if (line.startsWith("#")) {
                 ARLogger.getInstance(ARWebDriver.class).fine("COMMENTED OPTIONS: " + line);

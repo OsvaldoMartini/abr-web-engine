@@ -96,7 +96,10 @@ public class PerformDataBase {
     public final String USERNAME = "postgres"; // your database username
     public final String PASSWORD = "martini"; // your database password
 
+    @Getter
     private ObservableList<VariableUserDTO> variablesList = FXCollections.observableArrayList();
+
+    @Getter
     private ObservableList<ComboBoxVars> webPageItems = FXCollections.observableArrayList();
 
     private List<BotJobLoadDTO> botJobLoadList = new ArrayList<>();
@@ -153,7 +156,7 @@ public class PerformDataBase {
         } else {
             POSTGRES_DB = false;
 
-            String dbPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_DB);
+            String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
             String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
 
             File dbFile = new File(dbPath + ARConstants.FILE_NAME_DB);
@@ -168,7 +171,8 @@ public class PerformDataBase {
     }
 
     public Connection getConnection() {
-        ARLogger.getInstance(PerformDataBase.class).info("Open Connections Count() : " + getOpenConnectionsCount());
+        //        ARLogger.getInstance(PerformDataBase.class).info("Open Connections Count() : " +
+        // getOpenConnectionsCount());
 
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
 
@@ -187,7 +191,7 @@ public class PerformDataBase {
 
             if (conn == null || conn.isClosed()) {
                 if (!POSTGRES_DB) {
-                    String dbPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_DB);
+                    String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
                     String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
                     ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + dbUrl);
                     conn = DriverManager.getConnection(dbUrl);
@@ -651,9 +655,10 @@ public class PerformDataBase {
             // Execute the update statement and check if any rows were affected
             int rowsAffected = stmt.executeUpdate(deleteSQL);
             if (rowsAffected > 0) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format(
-                                "The %d Nulls Blocks successfully deleted from botJobId %d.", rowsAffected, botJobId));
+                //                ARLogger.getInstance(PerformDataBase.class)
+                //                        .info(String.format(
+                //                                "The %d Nulls Blocks successfully deleted from botJobId %d.",
+                // rowsAffected, botJobId));
             }
 
         } catch (SQLException e) {
@@ -1763,229 +1768,6 @@ public class PerformDataBase {
         return botJobLoadList;
     }
 
-    //    public  List<BotJobLoadDTO> loadBlockAll(int botJobId) {
-    //        String query = "SELECT bj.id AS bot_job_id, bj.name AS bot_job_name, "
-    //                + " b.id AS block_id, b.block_order_number, b.name AS block_name, "
-    //                + " b.description AS block_description, b.type_id, "
-    //                + " bli.id AS instruction_id, bli.instruction_order_number, "
-    //                + " bli.actions, bli.name AS instruction_name, bli.xpath, bli.coordinates, bli.iframe_xpath,
-    // bli.description AS
-    // instruction_description, "
-    //                + " bli.optional, bli.block_marked, bli.default_value, bli.action_custom_max_wait_sec, "
-    //                + " bli.on_hold_seconds, bli.codified, bli.export_to_abr, "
-    //                + " irl.reference_type, irl.value, "
-    //                + "  bli.operation, bli.parent_id, "
-    //                + "  b.export_file, b.active, b.wait "
-    //                + " FROM bot_job bj "
-    //                + " LEFT JOIN block b ON b.bot_job_id = bj.id "
-    //                + " JOIN instruction bli ON bli.block_id = b.id "
-    //                + " LEFT JOIN reference irl ON irl.instruction_id = bli.id "
-    //                + " where bot_job_id = " + botJobId
-    //                + "  ORDER BY bj.id, b.block_order_number, bli.instruction_order_number, irl.id ASC";
-    //
-    //        try (Statement stmt = getConnection().createStatement();
-    //             ResultSet rs = stmt.executeQuery(query)) {
-    //
-    //            Map<Integer, BotJobLoadDTO> botJobMap = new HashMap<>();
-    //            Map<Integer, BlockLoadDTO> blockMap = new HashMap<>();
-    //            Map<Integer, InstructionLoadDTO> instructionMap = new HashMap<>();
-    //
-    //            botJobLoadList.clear();
-    //
-    //            while (rs.next()) {
-    //                botJobId = rs.getInt("bot_job_id");
-    //                BotJobLoadDTO botJobDTO = botJobMap.get(botJobId);
-    //
-    //                if (botJobDTO == null) {
-    //                    botJobDTO = new BotJobLoadDTO();
-    //                    botJobDTO.setId(botJobId);
-    //                    botJobDTO.setName(rs.getString("bot_job_name"));
-    //                    botJobDTO.setBlockLoadDTOList(new ArrayList<>());
-    //                    botJobMap.put(botJobId, botJobDTO);
-    //                    botJobLoadList.add(botJobDTO);
-    //                }
-    //
-    //                int blockId = rs.getInt("block_id");
-    //                BlockLoadDTO blockDTO = blockMap.get(blockId);
-    //
-    //                if (blockDTO == null) {
-    //                    blockDTO = new BlockLoadDTO();
-    //                    blockDTO.setId(blockId);
-    //                    blockDTO.setBlockOrderNumber(rs.getInt("block_order_number"));
-    //                    blockDTO.setName(rs.getString("block_name"));
-    //                    blockDTO.setDescription(rs.getString("block_description"));
-    //                    blockDTO.setTypeId(rs.getInt("type_id"));
-    //                    blockDTO.setActive(rs.getBoolean("active"));
-    //                    blockDTO.setWait(rs.getInt("wait"));
-    //                    blockDTO.setExportFile(rs.getString("export_file"));
-    //                    blockDTO.setBotJobId(botJobDTO.getId());
-    //                    blockDTO.setBotJobName(botJobDTO.getName());
-    //
-    //                    blockDTO.setInstructionLoadDTOS(new ArrayList<>());
-    //                    botJobDTO.getBlockLoadDTOList().add(blockDTO);
-    //                    blockMap.put(blockId, blockDTO);
-    //                }
-    //
-    //                int instructionId = rs.getInt("instruction_id");
-    //                InstructionLoadDTO instruction = instructionMap.get(instructionId);
-    //
-    //                if (instruction == null) {
-    //                    instruction = new InstructionLoadDTO();
-    //                    instruction.setId(instructionId);
-    //                    instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
-    //                    instruction.setActions(rs.getString("actions"));
-    //                    instruction.setName(rs.getString("instruction_name"));
-    //                    instruction.setPath(rs.getString("xpath"));
-    //                    instruction.setCoordinates(rs.getString("coordinates"));
-    //                    instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
-    //                    instruction.setIFrameXPath(rs.getString("iframe_xpath"));
-
-    //                    instruction.setTagName(rs.getString("tag_name"));
-    //                    instruction.setShadowHost(rs.getString("shadow_host"));
-    //                    instruction.setShadowRoot(rs.getString("shadow_root"));
-    //                    instruction.setCssSelector(rs.getString("css_selector"));
-
-    //                    instruction.setDescription(rs.getString("instruction_description"));
-    //                    instruction.setOptional(rs.getBoolean("optional"));
-    //                    instruction.setBlockMarked(rs.getBoolean("block_marked"));
-    //                    instruction.setDefaultValue(rs.getString("default_value"));
-    //                    instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
-    //                    instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
-    //                    instruction.setCodified(rs.getBoolean("codified"));
-    //                    instruction.setExportToAR(rs.getBoolean("export_to_abr"));
-    //                     instruction.setInstructionActive(rs.getBoolean("active"));
-    //                    instruction.setOperation(rs.getString("operation"));
-    //                    instruction.setParentId(rs.getInt("parent_id"));
-    //
-    //                    instruction.setInstructionReferenceLoadDTOList(new ArrayList<>());
-    //                    blockDTO.getInstructionLoadDTOS().add(instruction);
-    //                    instructionMap.put(instructionId, instruction);
-    //                }
-    //
-    //                String referenceType = rs.getString("reference_type");
-    //                if (referenceType != null) {
-    //                    InstructionReferenceLoadDTO reference = new InstructionReferenceLoadDTO();
-    //                    reference.setReferenceType(referenceType);
-    //                    reference.setValue(rs.getString("value"));
-    //                    instruction.getInstructionReferenceLoadDTOList().add(reference);
-    //                }
-    //            }
-    //        } catch (SQLException e) {
-    //            ARLogger.getInstance(PerformDataBase.class).severe("loadBlockAll Error: " + e.getMessage());
-    //        }
-    //
-    //        return botJobLoadList;
-    //    }
-
-    //    private void addInstruction(
-    //            String name, String operation, Integer variableId, Integer parentId, RowMoveDTO rowMoveDTO) {
-    //
-    //        // Create and show alert inside Platform.runLater
-    //        Platform.runLater(() -> {
-    //            // Create a label to display the instruction
-    //            javafx.scene.control.Label newInstruction = new Label("\"" + name + "\" -> \"" + operation + "\"");
-    //            newInstruction.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");;
-    //
-    //            StackPane stackPane = new StackPane(newInstruction);
-    //            stackPane.setPadding(new Insets(20));
-    //
-    //            Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
-    //            alert.setHeaderText("Are you sure you want to Add the Instruction to the Bot-Job?");
-    //            alert.getDialogPane().setContent(stackPane);
-    //
-    //            Optional<ButtonType> result = alert.showAndWait();
-    //            if (result.isPresent() && result.get() == ButtonType.YES) {
-    //                List<BlockLoopInstructionLoadDTO> instructionList = null;
-    //                BotJobDTO botJob =
-    //                        getEntityById(BotJobDTO.class, rowMoveDTO.getBotJobId());
-    //
-    //                List<BlockDTO> matchingBlocks = null;
-    //                if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
-    //                    int targetBlockId = rowMoveDTO.getUpdatedRows().get(0).getBlockId();
-    //
-    //                    matchingBlocks = botJob.getBlocks().stream()
-    //                            .filter(block -> block.getId() == targetBlockId)
-    //                            .collect(Collectors.toList());
-    //
-    //                    if (!matchingBlocks.isEmpty()) {
-    //                        instructionList = matchingBlocks.get(0).getBlockLoopInstructions();
-    //                    } else {
-    //                        instructionList = botJob.getBlocks().get(0).getBlockLoopInstructions();
-    //                    }
-    //                }
-    //
-    //                List<BlockLoopInstructionLoadDTO> finalInstructionList = instructionList;
-    //                List<BlockDTO> finalMatchingBlocks = matchingBlocks;
-    //
-    //                Task<Void> waitTask = new Task<>() {
-    //                    @Override
-    //                    protected Void call() throws Exception {
-    //                        try {
-    //                            BlockLoopInstructionLoadDTO instruction = new BlockLoopInstructionLoadDTO();
-    //                            instruction.setName(name);
-    //                            instruction.setDescription("loop desc");
-    //                            instruction.setOperation(operation);
-    //                            instruction.setVariableId(variableId);
-    //                            instruction.setParentId(parentId);
-    //                            instruction.setCodified(false);
-    //                            instruction.setExportToAR(true);
-    //                            if (rowMoveDTO != null
-    //                                    && rowMoveDTO.getUpdatedRows().size() > 0) {
-    //                                instruction.setInstructionOrderNumber(
-    //                                        rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber());
-    //                            } else {
-    //                                instruction.setInstructionOrderNumber(finalInstructionList.size());
-    //                            }
-    //                            instruction.setOptional(false);
-    //                            if (name.equalsIgnoreCase("setValue")) {
-    //                                instruction.setActions(ARConstants.SET_VALUE);
-    //                            } else if (name.equalsIgnoreCase("getValue")) {
-    //                                instruction.setActions(ARConstants.GET_VALUE);
-    //                            } else if (name.equalsIgnoreCase("check")) {
-    //                                instruction.setActions(ARConstants.CHECK_VALUE);
-    //                            } else if (name.equalsIgnoreCase("ExcelWrite")) {
-    //                                instruction.setActions(ARConstants.EXTRACT_FIELD);
-    //                            } else if (name.equalsIgnoreCase("GoTo")) {
-    //                                instruction.setActions(ARConstants.GOTO);
-    //                            } else if (name.equalsIgnoreCase("IF")) {
-    //                                instruction.setActions(ARConstants.IF);
-    //                            }
-    //                            instruction.setActionCustomMaxWaitSec(30);
-    //                            instruction.setOnHoldSeconds(1);
-    //                            if (finalMatchingBlocks != null) {
-    //                                instruction.setBlock(finalMatchingBlocks.get(0));
-    //                            } else {
-    //                                instruction.setBlock(botJob.getBlocks().get(0));
-    //                            }
-    //                            instruction.setExportToAR(false);
-    //
-    //                            // Wrap the persistence in a try-catch block
-    //                            try {
-    //                                addEntity(instruction, BlockLoopInstructionLoadDTO.class);
-    //                            } catch (Exception e) {
-    //                                System.err.println("Error while saving instruction: " + e.getMessage());
-    //                                System.out.println(e.getMessage());
-    //                            }
-    //
-    //                            // Move the UI update to the JavaFX Application Thread
-    //                            Platform.runLater(() -> {
-    //                                new ARAlertScene(
-    //                                        Alert.AlertType.INFORMATION,
-    //                                        "Instruction Added",
-    //                                        "Instruction " + instruction.getName() + " has been added successfully",
-    //                                        ButtonType.OK);
-    //                            });
-    //                        } catch (Exception ex) {
-    //                            ex.printStackTrace(); // Handle any exception
-    //                        }
-    //                        return null;
-    //                    }
-    //                };
-    //                new Thread(waitTask).start();
-    //            }
-    //        });
-    //    }
-
     public boolean reorderInstructions(List<InstructionLoadDTO> rowList) {
         int orderNumber = 1;
 
@@ -2689,90 +2471,6 @@ public class PerformDataBase {
         return false;
     }
 
-    //    private void loadBotJobComplex(BotJobDTO botJob) {
-    //        String selectSQL =
-    //                " SELECT bot.ID botId, bot.Name botName, blk.ID blockId, blk.Name blockName,
-    // blk.block_order_number, "
-    //                        + " blockInstr.id blockInstrId, blockInstr.instruction_order_number
-    // instructionOrderNumber, blockInstr.actions, "
-    //                        + " instr.id instId, instr.reference_type, instr.value"
-    //                        + " FROM reference instr "
-    //                        + " join instruction blockInstr on blockInstr.id = instr.instruction_id"
-    //                        + " join bot_job bot on active = 1 and bot.id = " + botJob.getId()
-    //                        + " join block blk on blk.bot_job_id = bot.id "
-    //                        + " order by blockInstr.id, blockInstr.instruction_order_number, instr.id";
-    //        try (Statement stmt = getConnection().createStatement();
-    //                ResultSet rs = stmt.executeQuery(selectSQL)) {
-    //
-    //            List<ReferenceDTO> instructions = new ArrayList<>();
-    //
-    //            while (rs.next()) {
-    //                String botId = rs.getString("botId");
-    //                String botName = rs.getString("botName");
-    //                String blockId = rs.getString("blockId");
-    //                String blockName = rs.getString("blockName");
-    //                String blockOrderNumber = rs.getString("block_order_number");
-    //
-    //                String blockInstrId = rs.getString("blockInstrId");
-    //                String instructionOrderNumber = rs.getString("instructionOrderNumber");
-    //                String actions = rs.getString("actions");
-    //
-    //                String instId = rs.getString("instId");
-    //                String referenceType = rs.getString("reference_type");
-    //                String value = rs.getString("value");
-    //
-    //                if (botJob.getId() == Integer.parseInt(botId)) {
-    //                    for (BlockDTO block : botJob.getBlocks()) {
-    //                        if (block.getId() == Integer.parseInt(blockId)) {
-    //                            boolean exist = false;
-    //                            for (InstructionLoadDTO blockInstruction : block.getBlockLoopInstructionLoadDTOS()) {
-    //                                if (blockInstruction.getId() == Integer.parseInt(blockInstrId)) {
-    //                                    for (ReferenceDTO instructionReference :
-    //                                            blockInstruction.getInstructionReferenceDTOList()) {
-    //                                        if (instructionReference.getId() == Integer.parseInt(instId)
-    //                                                && instructionReference
-    //                                                        .getReferenceType()
-    //                                                        .equalsIgnoreCase(referenceType)
-    //                                                && instructionReference
-    //                                                        .getValue()
-    //                                                        .equalsIgnoreCase(value)) {
-    //                                            exist = true;
-    //                                            break;
-    //                                        }
-    //                                    }
-    //                                    if (!exist) {
-    //                                        ReferenceDTO inst = new ReferenceDTO();
-    //                                        inst.setId(Integer.parseInt(instId));
-    //                                        inst.setReferenceType(referenceType);
-    //                                        inst.setValue(value);
-    //                                        instructions.add(inst);
-    //                                        break;
-    //                                    }
-    //                                }
-    //                                if (exist) {
-    //                                    break;
-    //                                }
-    //                            }
-    //                        }
-    //                    }
-    //                }
-    //
-    //                //                System.out.println(String.format(
-    //                //                        "%s  %s  %s  %s  %s   %s   %s   %s",
-    //                //                        botId, botName, blockId, blockName, blockOrderNumber, referenceType,
-    // value));
-    //
-    //                //               databaseUserDto = new DatabaseUserDTO(
-    //                //                        id, jobs, name, url, priority, searchConfig, optionsConfig, username,
-    //                // password);
-    //            }
-    //        } catch (SQLException e) {
-    //            System.out.println(e.getMessage());
-    //        }
-    //        //        jobUserList.clear();
-    //        //        loadBotJobData();
-    //    }
-
     public List<BlockLoadDTO> loadBlocksByBotJobId(int botJobId) {
         // SQL query to get the blocks for a specific bot job
         String query = "SELECT " + "b.id AS block_id, "
@@ -3172,7 +2870,6 @@ public class PerformDataBase {
             Integer instructionId,
             Integer parentId,
             RowMoveDTO rowMoveDTO,
-            BotJobLoadDTO botJob,
             boolean isShowAlert,
             boolean updateRow,
             boolean blockIdChanged) {
@@ -3270,13 +2967,11 @@ public class PerformDataBase {
         instruction.setActionCustomMaxWaitSec(30);
         instruction.setOnHoldSeconds(onHold);
 
-        // Define where to get the BojJobId
+        // Define where to get the BlockId
+        instruction.setBlockId(rowMoveDTO.getBotJobId());
+
         if (finalMatchingBlocks != null && !finalMatchingBlocks.isEmpty()) {
             instruction.setBlockId(finalMatchingBlocks.get(0).getId());
-        } else if (botJob != null
-                && botJob.getBlockLoadDTOList() != null
-                && !botJob.getBlockLoadDTOList().isEmpty()) {
-            instruction.setBlockId(botJob.getBotJobId());
         } else {
 
             BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
@@ -3313,9 +3008,9 @@ public class PerformDataBase {
                 currentBlockId = instruction.getBlockId();
             }
             if (!updateRow) {
-                response = insertInstruction(instruction, botJob.getId(), currentBlockId);
+                response = insertInstruction(instruction, rowMoveDTO.getBotJobId(), currentBlockId);
             } else {
-                response = updateInstruction(instruction, botJob.getId(), currentBlockId);
+                response = updateInstruction(instruction, rowMoveDTO.getBotJobId(), currentBlockId);
             }
 
             if (!updateRow || blockIdChanged) {

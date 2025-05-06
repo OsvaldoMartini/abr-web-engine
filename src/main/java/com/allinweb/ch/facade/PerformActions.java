@@ -1173,7 +1173,7 @@ public class PerformActions {
                 wait(fromSecondsToMilliseconds(TimeUnit.SECONDS, instructionSeconds));
                 return "HOLD" + "->" + instructionSeconds + " seconds";
             } else {
-                String stopSeconds = arPropertyManager.getProperty(ARPropertyEnum.DEFAULT_INSTRUCTION_STOP_SECONDS);
+                String stopSeconds = arPropertyManager.getProperty(ARPropertyEnum.INSTRUCTION_STOP_SECONDS);
                 wait(fromSecondsToMilliseconds(TimeUnit.SECONDS, Integer.parseInt(stopSeconds)));
                 return "HOLD" + "->" + stopSeconds + " seconds";
             }
@@ -2472,7 +2472,7 @@ public class PerformActions {
         }
 
         // Save the content as an array of strings to a new file
-        String htmlPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_EXPORT);
+        String htmlPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXPORT);
         try (FileWriter writer = new FileWriter(htmlPath + "/" + type + ".json")) {
             // Convert the list of strings to a JSON-like array format
             writer.write(htmlArray.stream()
@@ -3531,7 +3531,7 @@ public class PerformActions {
                 //                } else  if (tagNameDefined.equalsIgnoreCase("input")) {
                 //                    target.setTagType(WebElementTagNameEnum.OUTPUT);
                 //                }
-                target = setElementText(target, target.getTagName(), ARConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
+                target = setElementText(target, target.getTagName(), ARConstants.VALUE_NO_IDENTIFICATION);
             }
 
         } catch (Exception e) {
@@ -3919,8 +3919,8 @@ public class PerformActions {
             if (newBlockId < 0) {
                 performMessage.errorMessage(
                         "Error Creating new Block",
-                        "Verify the Bot Job Name if have any",
-                        "Check if you already have a Bot Job Created!",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Verify the Bot Job Name if you have any</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>Check if you already have a Bot Job Created!</span>",
                         null,
                         null,
                         0);

@@ -49,7 +49,7 @@ public class ARLogger {
     private Logger logger;
 
     private ARLogger() {
-        String logPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_LOG);
+        String logPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
 
         if (logPath == null || logPath.isBlank()) {
             performMessage.errorMessage(

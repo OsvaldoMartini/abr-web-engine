@@ -11,6 +11,8 @@ import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.license.LicenceVal;
+import com.allinweb.ch.license.LicenseManager;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.util.*;
@@ -23,17 +25,15 @@ import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import javafx.scene.control.Alert;
 import javafx.util.Pair;
 import javax.swing.*;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 public class Engine {
+    private static String defaultConfigurationFileName = ARConstants.USER_PATH + ARConstants.FILE_NAME_CONFIGURATION;
+    private static boolean isEnabledLicence = true;
+
     private static SimpleDateFormat dateFormatter;
     static final String EXECUTE_JOB = "execute/j";
 
@@ -81,7 +81,34 @@ public class Engine {
             }
             // Prevention if  System.setProperty(...) has no permission access
             arPropertyManager.setConfigurationFileName(configurationValue);
-            arPropertyManager.loadProperties();
+
+            File configurationFile = new File(configurationValue);
+            try (FileInputStream conf = new FileInputStream(configurationFile)) {
+                arPropertyManager.loadProperties(conf);
+                licenseControl();
+            } catch (Exception error) {
+                arPropertyManager.createDefaultProperties(configurationFile, error);
+                licenseControl();
+            }
+
+            ARLogger.getInstance(Engine.class).fine("Configuration file path: " + configurationValue);
+        } else {
+            try {
+                System.setProperty("ARWebConfig", defaultConfigurationFileName);
+            } catch (Exception ignore) {
+
+            }
+            arPropertyManager.setConfigurationFileName(defaultConfigurationFileName);
+            File configurationFile = new File(defaultConfigurationFileName);
+            try (FileInputStream conf = new FileInputStream(configurationFile)) {
+                arPropertyManager.loadProperties(conf);
+                licenseControl();
+            } catch (Exception error) {
+                arPropertyManager.createDefaultProperties(configurationFile, error);
+                licenseControl();
+            }
+
+            ARLogger.getInstance(Engine.class).fine("Configuration file path: " + defaultConfigurationFileName);
         }
 
         Labels.initializeLabelsInSpecLang(language);
@@ -106,15 +133,9 @@ public class Engine {
             return;
         }
 
-        //        for (String arg : arguments) {
-        //            ARLogger.getInstance(Engine.class).fine("Argument: " + arg);
-        //        }
-
-        //        repository = new Repository(sessionFactory);
-
         try {
-            baseLogFile = new File(arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_LOG)
-                    + ARConstants.FILE_NAME_ENGINE_BASE_LOG);
+            baseLogFile = new File(
+                    arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG) + ARConstants.FILE_NAME_ENGINE_BASE_LOG);
         } catch (Exception e) {
             ARLogger.getInstance(Engine.class).severe("baseLogFile Error: " + e.getMessage());
         }
@@ -714,7 +735,7 @@ public class Engine {
                             }
 
                             // Case for Inputs
-                            String valueInsert = "No Data Found";
+                            String valueInsert = "CHANGE ME";
                             if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
                                 String reference = actions[2];
                                 valueInsert = dataExcel.get(reference);
@@ -1649,7 +1670,7 @@ public class Engine {
                                 currentInstruction.getActions().split(ARConstants.ACTIONS_AND_PATHS_SPLITTER);
 
                         // Case for Inputs
-                        String valueInsert = "No Data Found";
+                        String valueInsert = "CHANGE ME";
                         if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
                             String reference = actions[2];
                             valueInsert = dataExcel.get(reference);
@@ -1865,45 +1886,41 @@ public class Engine {
         } catch (Throwable t) {
             //            ABRLogger.getInstance(Engine.class).severe("Error Executing JOB \n" + t.getMessage());
 
+            String browser = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
+            String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
             if (t.getMessage().contains("Current browser version")) {
-                String[] lines = t.getMessage().split("\n");
-                String msg1 = "";
-                String msg2 = "";
 
-                for (String line : lines) {
-                    int indexMessage = line.indexOf("Message: ");
-                    if (indexMessage != -1) {
-                        msg1 = line.substring(indexMessage + "Message: ".length());
-                    }
+                ARLogger.getInstance(Engine.class).severe("Error Open URL: " + t.getMessage());
 
-                    int indexBrowserVersion = line.indexOf("Current browser version");
-                    if (indexBrowserVersion != -1) {
-                        msg2 = line.substring(indexBrowserVersion);
-                    }
-                }
+                performMessage.errorMessage(
+                        "WebDriver Version Incompatibility",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>WebDriver version might be incompatible.</span>",
+                        //                        "<span style='font-style: italic;'>The current WebDriver version may
+                        // not be compatible with the installed browser.</span>",
+                        "<span style='font-weight: bold;'>Please verify the following:</span>",
+                        "<ul>" + "   <li>The installed browser version: <span style='font-weight: bold;'>"
+                                + browser + "</span></li>"
+                                + "   <li>The WebDriver path: <span style='font-weight: bold;'>"
+                                + webDriverPath + "</span></li>"
+                                + "   <li>Ensure the WebDriver version is the correct one for your browser version.</li>"
+                                + "</ul>",
+                        "<span style='font-style: italic;'>Refer to your browser's documentation or the WebDriver's release notes for compatibility information.</span>",
+                        0);
 
-                ARLogger.getInstance(Engine.class).severe("Error Open URL: \n" + msg1 + "\n" + msg2);
-
-                performMessage.errorMessage("Error WebDriver Version", msg1, msg2, null, null, 260);
             } else {
-                String errorMessage = t.getMessage();
-                String msg1 = "";
-                String msg2 = "";
-                String searchWord = "because";
-                int index = errorMessage.indexOf(searchWord);
-
-                if (index != -1) {
-                    msg1 = errorMessage.substring(0, index).trim();
-                    msg2 = errorMessage.substring(index).trim(); // Includes "because"
-                } else {
-                    // If "because" is not found, put the whole message in msg1 and leave msg2 empty
-                    msg1 = errorMessage.trim();
-                }
-
-                ARLogger.getInstance(Engine.class)
-                        .severe("Error Open URL: \n" + msg1 + "\n--- " + searchWord + " ---\n" + msg2);
-
-                performMessage.errorMessage("Error Details:", msg1, searchWord + " " + msg2, null, null, 0);
+                performMessage.errorMessage(
+                        "WebDriver Access Issue",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to access WebDriver.</span>",
+                        //                        "<span style='font-style: italic;'>It appears the WebDriver data
+                        // directory might be locked by another process.</span>",
+                        "<span style='font-weight: bold;'>Please ensure the following:</span>",
+                        "<ul>" + "   <li>No other instances of the browser or WebDriver are currently running.</li>"
+                                + "   <li>The specified WebDriver path is correct and accessible: <span style='font-weight: bold;'>"
+                                + webDriverPath + "</span></li>"
+                                + "   <li>The configured browser is: <span style='font-weight: bold;'>"
+                                + browser + "</span></li>" + "</ul>",
+                        "<span style='font-style: italic;'>If the issue persists, try closing all related browser processes and restarting the application.</span>",
+                        0);
             }
 
             return false;
@@ -1930,7 +1947,6 @@ public class Engine {
     }
 
     private static void printBaseLog(File logFile, String timeStamp, String msg) {
-        String resultMsg;
         String log = String.join(ARConstants.FIELDS_SEPARATOR, timeStamp, msg);
 
         try {
@@ -1940,63 +1956,6 @@ public class Engine {
         } catch (Exception e) {
             ARLogger.getInstance(Engine.class).severe("printBaseLog Error: " + e.getMessage());
         }
-    }
-
-    private static void printLogExcel(String timeStamp, File logExcel, Map<String, String> data, boolean result) {
-        String resultMsg = result ? ARConstants.SUCCESS : ARConstants.FAIL;
-
-        try {
-            Workbook logExcelWorkbook = WorkbookFactory.create(logExcel);
-            Sheet logSheet = logExcelWorkbook.getSheetAt(0);
-            int maxColumn = logSheet.getRow(0).getLastCellNum();
-            int newRowIndex = logSheet.getLastRowNum() + 1;
-
-            Row newLogRow = logSheet.createRow(newRowIndex);
-
-            String[] paymentToArray = data.values().toArray(String[]::new);
-            for (int i = 0; i < maxColumn; i++) {
-                newLogRow.createCell(i).setCellValue(paymentToArray[i]);
-            }
-
-            FileOutputStream outputStream = new FileOutputStream(logExcel);
-            logExcelWorkbook.write(outputStream);
-            logExcelWorkbook.close();
-
-        } catch (Exception e) {
-            ARLogger.getInstance(Engine.class).severe("printLogExcel Error: " + e.getMessage());
-        }
-    }
-
-    private static void showAlertInfo(String title, String header, String content) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle(title);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.showAndWait();
-    }
-
-    private void showAlertError(String title, String header, String content) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle(title);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.showAndWait();
-    }
-
-    public static List<InstructionLoadDTO> getUnexecutedInstructions(
-            List<InstructionLoadDTO> instructionsExecuted, List<InstructionLoadDTO> otherList) {
-        // Create a set of instructionOrderNumbers from instructionsExecuted
-        Set<Integer> executedInstructionOrderNumbers = instructionsExecuted.stream()
-                .map(InstructionLoadDTO::getInstructionOrderNumber)
-                .collect(Collectors.toSet());
-
-        // Filter the otherList to get instructions where executed is false and not in executedInstructionOrderNumbers
-        return otherList.stream()
-                //                .filter(instruction -> instruction.getExecuted() != null &&
-                // !instruction.getExecuted())
-                .filter(instruction ->
-                        !executedInstructionOrderNumbers.contains(instruction.getInstructionOrderNumber()))
-                .collect(Collectors.toList());
     }
 
     public static List<String> checkProperties(Properties properties) {
@@ -2060,5 +2019,52 @@ public class Engine {
         String currentKey = msgInstruction.getKey();
         String updatedKey = failedMessage + " - " + currentKey;
         return new Pair<>(updatedKey, msgInstruction.getValue());
+    }
+
+    private static void licenseControl() {
+        if (isEnabledLicence) {
+            if (!checkLicense()) {
+                System.exit(0);
+            }
+        }
+    }
+
+    private static boolean checkLicense() {
+        try {
+            String licensePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LICENSE);
+            if (Strings.isNullOrEmpty(licensePath)) {
+                licensePath = System.getProperty("user.dir");
+            }
+
+            LicenceVal licenseStatus = LicenseManager.checkLicenseFile(licensePath);
+
+            String msgValid = "The license file is valid and the application is authorized for use.";
+            String msgNextStep = "You can now proceed with normal application usage.";
+
+            String msgColor = "#0277BD";
+            if (!licenseStatus.equals(LicenceVal.VALID)) {
+                msgValid = "The license file is not valid and the application is not authorized for use.";
+                msgNextStep = "Application access is restricted. Please obtain a valid license to continue.";
+                msgColor = "#C62828"; // Soft, elegant red tone
+
+                performMessage.showCustomModalDialogDragWin11(
+                        "License Status Verification",
+                        "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>License status has been successfully verified.</span>",
+                        "<span style='color: " + msgColor + "; font-weight: bold;'>" + msgValid + "</span>",
+                        "<span style='font-style: italic;'>" + msgNextStep + "</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>Current license status:</span> <span style='font-weight: bold;'>"
+                                + licenseStatus.getStaus() + "</span>",
+                        false,
+                        "OK",
+                        null,
+                        0);
+                return false;
+            }
+            return true;
+        } catch (Exception error) {
+            ARLogger.getInstance(Engine.class)
+                    .severe("Cannot read/validate the License path/file. Error: " + error.getMessage());
+            return false;
+        }
     }
 }

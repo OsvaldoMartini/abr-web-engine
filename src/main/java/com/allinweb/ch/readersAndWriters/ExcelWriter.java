@@ -390,9 +390,9 @@ public class ExcelWriter {
         public ManagedExcel(String fileName, String purpose, boolean create, boolean isFullPath) {
             ARPropertyEnum property =
                     switch (purpose) {
-                        case "report" -> ARPropertyEnum.FOLDER_PATH_REPORT;
-                        case "excel" -> ARPropertyEnum.FOLDER_PATH_EXCEL;
-                        case "export" -> ARPropertyEnum.FOLDER_PATH_EXPORT;
+                        case "report" -> ARPropertyEnum.PATH_REPORT;
+                        case "excel" -> ARPropertyEnum.PATH_EXCEL;
+                        case "export" -> ARPropertyEnum.PATH_EXPORT;
                         default -> throw new UnsupportedOperationException("Purpose: " + purpose + " not supported");
                     };
             String fileNamePath = "";

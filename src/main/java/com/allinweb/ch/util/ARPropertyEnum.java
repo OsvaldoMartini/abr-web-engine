@@ -1,17 +1,18 @@
 package com.allinweb.ch.util;
 
 public enum ARPropertyEnum {
+    PATH_LICENSE("path_license"),
     DATABASE_TYPE("data_base"),
     PORT_SOCKET("port_socket"),
-    FOLDER_PATH_EXCEL("path_excel"),
-    FOLDER_PATH_EXPORT("path_export"),
+    PATH_EXCEL("path_excel"),
+    PATH_EXPORT("path_export"),
     //    FILE_NAME_EXPORT("file_name_export"),
-    FOLDER_PATH_LOG("path_log"),
-    FOLDER_PATH_JAVA("path_java"),
-    FOLDER_PATH_JAVA_FX("path_java_fx"),
-    FOLDER_PATH_DB("path_db"),
-    FOLDER_PATH_REPORT("path_report"),
-    FOLDER_PATH_PRIORITY("path_priority"),
+    PATH_LOG("path_log"),
+    PATH_JAVA("path_java"),
+    PATH_JAVA_FX("path_java_fx"),
+    PATH_DB("path_db"),
+    PATH_REPORT("path_report"),
+    PATH_PRIORITY("path_priority"),
     PATH_ENGINE("path_engine"),
     PATH_WEBDRIVER("path_web_driver"),
     LOG_LEVEL("log_level"),
@@ -23,7 +24,7 @@ public enum ARPropertyEnum {
     WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC("page_update_timeout_sec"),
     WEBDRIVER_INTERACTION_TIMEOUT_SEC("interaction_timeout_sec"),
     WEBDRIVER_EXT_REFERENCE("ext_reference"),
-    DEFAULT_INSTRUCTION_STOP_SECONDS("default_instruction_stop_seconds");
+    INSTRUCTION_STOP_SECONDS("default_instruction_stop_seconds");
 
     private String value; // this must not be final even if suggested doing so
 

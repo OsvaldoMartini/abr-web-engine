@@ -40,19 +40,19 @@ public class ARConstants {
     public static final String ID = "id";
 
     // DEFAULT VALUES
-    public static final String DEFAULT_NAME_ENGINE = "\\AR_Web_Engine.jar";
-    public static final String DEFAULT_NAME_SCANNER = "\\AR_Web_Scanner.jar";
-    public static final String DEFAULT_NAME_LAUNCHER = "\\AR_Web_Launcher.jar";
-    public static final String DEFAULT_NAME_JAVA_EXECUTABLE = "\\java.exe";
+    public static final String NAME_ENGINE = "\\AR_Web_Engine.jar";
+    public static final String NAME_SCANNER = "\\AR_Web_Scanner.jar";
+    public static final String NAME_LAUNCHER = "\\AR_Web_Launcher.jar";
+    public static final String NAME_JAVA_EXECUTABLE = "\\java.exe";
 
-    public static final String DEFAULT_PATH_EXCEL = "\\excel";
-    public static final String DEFAULT_PATH_LOG = "\\log";
-    public static final String DEFAULT_PATH_JAVA = "\\java";
-    public static final String DEFAULT_PATH_DB = "\\db";
-    public static final String DEFAULT_PATH_REPORT = "\\report";
-    public static final String DEFAULT_PATH_JAVA_FX = "\\javaFX";
+    public static final String PATH_EXCEL = "\\excel";
+    public static final String PATH_LOG = "\\log";
+    public static final String PATH_JAVA = "\\java";
+    public static final String PATH_DB = "\\db";
+    public static final String PATH_REPORT = "\\report";
+    public static final String PATH_JAVA_FX = "\\javaFX";
 
-    public static final String DEFAULT_VALUE_NO_IDENTIFICATION = "No significant identification found";
+    public static final String VALUE_NO_IDENTIFICATION = "No significant identification found";
     public static final String TO_IGNORE = "TO IGNORE";
 
     public static final String FOLDER_BIN = "\\bin";
@@ -73,11 +73,12 @@ public class ARConstants {
     public static final String FILE_NAME_CONFIGURATION = "\\config\\configuration.properties";
     public static final String FILE_NAME_PRIORITIES = "\\priorities.properties";
     public static final String FILE_NAME_DB = "\\database.mdb";
-    public static final String CURRENT_PATH = System.getProperty("user.dir");
+    public static final String USER_PATH = System.getProperty("user.dir");
 
     // ICON FILE NAMES
     public static final String ICON_APPLICATION = "/AR_icon.png";
     public static final String ICON_DIRECTORY = "/directory.png";
+    public static final String ICON_BURN = "/burn.png";
     public static final String ICON_REFRESH = "/refresh.png";
     public static final String ICON_REFRESH_ONLY = "/refresh-only.png";
     public static final String ICON_REFRESH_LOOP = "/refresh-loop.png";

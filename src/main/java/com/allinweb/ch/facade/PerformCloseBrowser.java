@@ -32,10 +32,17 @@ public class PerformCloseBrowser {
     private static JavascriptExecutor jsExecutor;
 
     public ErrorMessage dynamicCloseBrowser(
-            WebDriver driver, int port, String sessionId, String destination, String operationId, int homeBankingId) {
+            WebDriver driver,
+            int port,
+            String sessionId,
+            String destination,
+            String operationId,
+            int homeBankingId,
+            String urlTarget) {
         try {
             jsExecutor = (JavascriptExecutor) driver;
-            jsExecutor.executeScript(jsCloseBrowserInject, port, sessionId, destination, operationId, homeBankingId);
+            jsExecutor.executeScript(
+                    jsCloseBrowserInject, port, sessionId, destination, operationId, homeBankingId, urlTarget);
             return null;
         } catch (Exception error) {
             return new ErrorMessage("Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage());
@@ -44,8 +51,16 @@ public class PerformCloseBrowser {
 
     private String jsCloseBrowserInject =
             """
-// CLOSE BROWSER IN USE (SENDER: scannerTool) -> scannerGrid
-(function (socketPort, sessionId, destination, operationId, homeBankingId) {
+// CLOSE BROWSER IN USE CSP (SENDER: scannerTool) -> scannerGrid
+(function (
+  socketPort,
+  sessionId,
+  destination,
+  operationId,
+  homeBankingId,
+  targetOriginURL,
+  trustedOriginURL
+) {
   let pingIntervalId = null;
   let attempts = 0;
   let maxAttempts = 100;
@@ -57,6 +72,48 @@ public class PerformCloseBrowser {
   window.homeBankingId = homeBankingId;
   window.sessionId = `${sessionId}-${homeBankingId}`;
 
+  function logCSPDirectives() {
+    const csp = document.querySelector(
+      "meta[http-equiv='Content-Security-Policy']"
+    );
+    if (csp) {
+      console.log("Content Security Policy:", csp.content);
+      const directives = csp.content.split(";").map((d) => d.trim());
+      const connectSrcDirective = directives.find((d) =>
+        d.startsWith("connect-src")
+      );
+      if (connectSrcDirective) {
+        console.log("connect-src:", connectSrcDirective);
+      } else {
+        // Check if default-src might apply to connections
+        const defaultSrcDirective = directives.find((d) =>
+          d.startsWith("default-src")
+        );
+        if (defaultSrcDirective) {
+          console.log(
+            "connect-src not explicitly set. Falling back to default-src:",
+            defaultSrcDirective
+          );
+        } else {
+          console.log(
+            "connect-src not explicitly set, and no default-src found."
+          );
+        }
+      }
+    } else {
+      // Check for CSP in HTTP headers (this is more complex and often requires a server request)
+      // For a client-side script, you might not have direct access to these headers easily.
+      // One potential (but less clean) way could involve a dummy fetch request and inspecting the headers.
+      // However, this can be complex and might trigger CORS issues.
+      console.log(
+        "Content Security Policy meta tag not found. CSP might be set via HTTP headers."
+      );
+    }
+  }
+
+  // Call this function early in your script's execution
+  logCSPDirectives();
+
   function connectWebSocket() {
     if (attempts >= maxAttempts) {
       //console.error("Reached maximum reconnection attempts. Stopping.");
@@ -66,7 +123,7 @@ public class PerformCloseBrowser {
     try {
       //console.log(`Attempt ${attempts + 1} to connect to WebSocket...`);
       wSocket = new WebSocket(
-        `ws://localhost:${socketPort}/websocket?sessionId=${window.sessionId}`
+        `wss://localhost:${socketPort}/websocket?sessionId=${window.sessionId}`
       );
 
       wSocket.onopen = () => {
@@ -191,7 +248,7 @@ public class PerformCloseBrowser {
       };
 
       wSocket.onerror = (error) => {
-        //console.error("WebSocket error:", error);
+        console.error("WebSocket error:", error);
       };
 
       wSocket.onclose = () => {
@@ -208,7 +265,7 @@ public class PerformCloseBrowser {
         }
       };
     } catch (initError) {
-      //console.error("Failed to initialize WebSocket:", initError);
+      console.error("Failed to initialize WebSocket:", initError);
     }
   }
 
@@ -233,7 +290,7 @@ public class PerformCloseBrowser {
     pingIntervalId = setInterval(() => {
       if (wSocket && wSocket.readyState === WebSocket.OPEN) {
         const pingMessage = {
-          type: "ping-close-browser",
+          type: "ping-close-browser-csp",
           sessionId: window.sessionId,
           timestamp: new Date().toISOString(),
         };
@@ -250,8 +307,6 @@ public class PerformCloseBrowser {
       }
     }, 15000); // 15 seconds
   }
-
-  connectWebSocket();
 
   window.addEventListener("beforeunload", function (event) {
     // event.preventDefault();
@@ -281,9 +336,35 @@ public class PerformCloseBrowser {
     }
   });
 
-  // window.cloneTerms = null; // Invalidating the function
-})(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
-// })(56023, "closeBrowser", "scannerReceiver-2", "closeBrowser", 2);
+  window.postMessage({ type: "myMessage", data: "some data" }, targetOriginURL);
 
-            """;
+  window.addEventListener("message", function (event) {
+    if (event.origin !== trustedOriginURL) return; // check the origin
+    //console.log(event.data);
+  });
+
+  connectWebSocket();
+
+  // window.cloneTerms = null; // Invalidating the function
+})(
+  arguments[0],
+  arguments[1],
+  arguments[2],
+  arguments[3],
+  arguments[4],
+  arguments[5],
+  arguments[6]
+);
+// })(
+//   61757,
+//   "closeBrowser",
+//   "scannerReceiver-2",
+//   "closeBrowser",
+//   2,
+//   "https://www.tradingview.com/",
+//   "https://www.tradingview.com/"
+//   // "https://www.bloomberg.com/",
+//   // "https://www.bloomberg.com/"
+// );
+""";
 }

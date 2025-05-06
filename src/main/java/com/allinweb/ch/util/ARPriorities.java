@@ -55,7 +55,7 @@ public class ARPriorities {
     }
 
     public void loadPriorities() {
-        String priorityPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_PRIORITY);
+        String priorityPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_PRIORITY);
         if (priorityPath == null || priorityPath.isBlank()) {
             JOptionPane.showMessageDialog(
                     null,
