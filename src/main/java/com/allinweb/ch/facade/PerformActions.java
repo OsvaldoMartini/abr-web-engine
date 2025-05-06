@@ -35,6 +35,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -4018,5 +4019,26 @@ public class PerformActions {
             performMessage.couldNotFindElement("Could not find element with CSS Selector: " + cssSelector);
         }
         return element;
+    }
+
+    public Map<String, String> removeCurrencySymbols(Map<String, String> mapExport) {
+        // Use LinkedHashMap to preserve the insertion order
+        Map<String, String> cleanedMap = new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : mapExport.entrySet()) {
+            String key = entry.getKey();
+            String value = entry.getValue();
+            String cleanedValue = removeAllCurrencySymbols(value);
+            cleanedMap.put(key, cleanedValue);
+        }
+        return cleanedMap;
+    }
+
+    private String removeAllCurrencySymbols(String text) {
+        if (text == null || text.isEmpty()) {
+            return text;
+        }
+        // Define a regular expression to match common European, British, and Dollar symbols
+        // You might need to add more symbols based on your specific needs.
+        return text.replaceAll("[€£\\$\\p{Sc}]", "").trim();
     }
 }

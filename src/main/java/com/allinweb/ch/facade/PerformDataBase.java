@@ -5469,6 +5469,8 @@ public class PerformDataBase {
 
         selectSQL += " GROUP BY vars.id, vars.type, vars.Name, vars.value";
 
+        selectSQL += " ORDER BY vars.id";
+
         try (Statement stmt = getConnection().createStatement(); // Assuming you have getConnection() method
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
 
@@ -5497,6 +5499,8 @@ public class PerformDataBase {
                         + "WHERE vars.bot_job_id = " + botJobId;
 
         selectSQL += " GROUP BY vars.id, vars.type, vars.Name, vars.value";
+
+        selectSQL += " ORDER BY vars.id";
 
         try (Statement stmt = getConnection().createStatement(); // Assuming you have getConnection() method
                 ResultSet rs = stmt.executeQuery(selectSQL)) {

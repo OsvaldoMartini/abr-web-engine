@@ -1430,7 +1430,8 @@ public class Engine {
                                                     && excelFieldName
                                                             .toLowerCase()
                                                             .endsWith(".csv")) {
-                                                writerExport.writeMapToCSV(mapExport, excelFieldName);
+                                                mapExport = performActions.removeCurrencySymbols(mapExport);
+                                                writerExport.writeMapToCSV(mapExport, excelFieldName, "|");
                                             } else {
                                                 writerExport.insertFieldNameAndValueLastColumn(
                                                         mapExport, exportIndex - 1);

@@ -83,10 +83,10 @@ public class ExcelWriter {
             }
         }
 
-        public static void writeMapToCSV(Map<String, String> mapExport, String filePath) {
+        public static void writeMapToCSV(Map<String, String> mapExport, String filePath, String delimiterCSV) {
             try (FileWriter writer = new FileWriter(filePath)) {
                 // Write the keys (first row)
-                String keys = String.join(",", mapExport.keySet());
+                String keys = String.join(delimiterCSV, mapExport.keySet());
                 writer.write(keys + "\n");
 
                 // Write the values (second row, corresponding to the keys)
@@ -94,7 +94,7 @@ public class ExcelWriter {
                 boolean first = true;
                 for (String key : mapExport.keySet()) {
                     if (!first) {
-                        valuesBuilder.append(",");
+                        valuesBuilder.append(delimiterCSV);
                     }
                     valuesBuilder.append(mapExport.get(key));
                     first = false;
