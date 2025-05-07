@@ -582,6 +582,25 @@ public class PerformMessage {
             String secondButton,
             int height) {
 
+        return showCustomModalDialogDragWin11Timer(
+                title, message1, message2, message3, message4, redMsg, firstButton, secondButton, height, 0);
+    }
+
+    /**
+     * Creates a styled button with Windows 11 theme
+     */
+    public ARConstants.DialogModal showCustomModalDialogDragWin11Timer(
+            String title,
+            String message1,
+            String message2,
+            String message3,
+            String message4,
+            boolean redMsg,
+            String firstButton,
+            String secondButton,
+            int height,
+            int seconds) {
+
         // Create a JDialog as a custom modal message dialog
         JDialog dialog = new JDialog((Frame) null, title, true); // Modal dialog
         dialog.setUndecorated(true); // Remove the default border
@@ -650,6 +669,15 @@ public class PerformMessage {
         if (redMsg) {
             concatenateMsg = concatenateMsg.replaceAll("blue", "#D32F2F");
         }
+
+        // Add timer message if seconds is greater than 0
+        if (seconds > 0) {
+            concatenateMsg = concatenateMsg.replace(
+                    "</html>",
+                    "<br>------------------------------<br><span style='color: green; font-weight:bold;'>The Browser is going to close in "
+                            + seconds + " seconds!</span></html>");
+        }
+
         concatenateMsg = titleMessage + concatenateMsg;
 
         // Create a JLabel to display the formatted message
@@ -685,6 +713,17 @@ public class PerformMessage {
                 status[0] = ARConstants.DialogModal.STOP;
             });
             buttonPanel.add(stopButton);
+
+            if (seconds > 0) {
+                // Use a Timer to trigger the Stop button action after the specified delay
+                Timer timer = new Timer(seconds * 1000, e -> {
+                    // Simulate a click on the Stop button
+                    stopButton.getActionListeners()[0].actionPerformed(
+                            new ActionEvent(stopButton, ActionEvent.ACTION_PERFORMED, null));
+                });
+                timer.setRepeats(false); // Make sure the timer only runs once
+                timer.start();
+            }
         }
 
         panel.add(buttonPanel, BorderLayout.SOUTH);

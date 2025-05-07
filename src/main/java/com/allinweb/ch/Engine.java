@@ -1820,7 +1820,7 @@ public class Engine {
 
                 System.out.println(String.format("Success: %s Last Execution: %s", botJobName, resultActions));
 
-                respModal = performMessage.showCustomModalDialogDragWin11(
+                respModal = performMessage.showCustomModalDialogDragWin11Timer(
                         "Bot-Job Finished - successfully",
                         botJobName,
                         "Last Execution:",
@@ -1829,7 +1829,8 @@ public class Engine {
                         false,
                         "OK",
                         "Close Browser",
-                        300);
+                        300,
+                        5);
 
             } else {
                 baseLogString = botLoadJobs.get(0).getName()
@@ -1840,7 +1841,7 @@ public class Engine {
                         + resultActions;
 
                 if (webElementWork) {
-                    respModal = performMessage.showCustomModalDialogDragWin11(
+                    respModal = performMessage.showCustomModalDialogDragWin11Timer(
                             "Failed finding element (5 attempts).",
                             "Use \"Force Coordinates\" in some cases.",
                             !Strings.isNullOrEmpty(failedMessage) ? failedMessage : "Failed:",
@@ -1849,10 +1850,11 @@ public class Engine {
                             true,
                             "OK",
                             "Close Browser",
-                            350);
+                            350,
+                            5);
                 } else {
 
-                    respModal = performMessage.showCustomModalDialogDragWin11(
+                    respModal = performMessage.showCustomModalDialogDragWin11Timer(
                             "Process Execution Terminated",
                             !Strings.isNullOrEmpty(failedMessage) ? failedMessage : "Failed:",
                             "Last Execution:",
@@ -1861,7 +1863,8 @@ public class Engine {
                             true,
                             "OK",
                             "Close Browser",
-                            350);
+                            350,
+                            5);
                 }
 
                 System.out.println(String.format("Failed: %s Last Execution: %s", botJobName, resultActions));
