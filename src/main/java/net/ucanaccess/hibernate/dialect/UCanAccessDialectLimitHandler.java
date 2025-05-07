@@ -31,6 +31,7 @@ public class UCanAccessDialectLimitHandler implements LimitHandler {
     public int bindLimitParametersAtEndOfQuery(RowSelection selection, PreparedStatement statement, int index)
             throws SQLException {
         // (not used)
+        System.out.println("bindLimitParametersAtEndOfQuery");
         return 0;
     }
 
@@ -38,27 +39,31 @@ public class UCanAccessDialectLimitHandler implements LimitHandler {
     public int bindLimitParametersAtStartOfQuery(RowSelection selection, PreparedStatement statement, int index)
             throws SQLException {
         // (not used)
+        System.out.println("bindLimitParametersAtStartOfQuery");
         return 0;
     }
 
     @Override
     public String processSql(String sql, RowSelection selection) {
-        System.out.println(sql);
+        System.out.println("processSql:" + sql);
         return String.format("%s limit %d offset %d", sql, selection.getMaxRows(), selection.getFirstRow());
     }
 
     @Override
     public void setMaxRows(RowSelection selection, PreparedStatement statement) throws SQLException {
         // (not used)
+        System.out.println("setMaxRows:");
     }
 
     @Override
     public boolean supportsLimit() {
+        System.out.println("supportsLimit");
         return true;
     }
 
     @Override
     public boolean supportsLimitOffset() {
+        System.out.println("supportsLimitOffset");
         return true;
     }
 }

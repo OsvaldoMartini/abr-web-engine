@@ -35,7 +35,7 @@ import org.hibernate.type.StandardBasicTypes;
 public class UCanAccessDialect extends SQLServerDialect {
     public UCanAccessDialect() {
         super();
-
+        System.out.println("UCanAccessDialect");
         // lets UCanAccess determine if it is working with Hibernate
         System.setProperty(this.getClass().getName() + ".isActive", "true");
 
@@ -82,7 +82,7 @@ public class UCanAccessDialect extends SQLServerDialect {
     public boolean supportsSequences() {
         // TODO Hibernate bug? It does call this method, but then it tries to
         // use Sequences anyway.
-        // System.out.println("-> Hibernate is checking support for Sequences.");
+        System.out.println("Hibernate is checking support for Sequences.");
         return false;
     }
 
@@ -100,11 +100,13 @@ public class UCanAccessDialect extends SQLServerDialect {
 
     @Override
     public String applyLocksToSql(String sql, LockOptions aliasedLockOptions, Map<String, String[]> keyColumnNames) {
+        System.out.println("applyLocksToSql");
         return sql;
     }
 
     @Override
     public String appendLockHint(LockOptions lockOptions, String tableName) {
+        System.out.println("appendLockHint");
         return super.appendLockHint(lockOptions.setLockMode(LockMode.NONE), tableName);
     }
 }

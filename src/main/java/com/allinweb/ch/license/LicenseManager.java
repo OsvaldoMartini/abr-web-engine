@@ -147,7 +147,7 @@ public class LicenseManager {
         String[] parts = decryptedContent.split("\\|");
         if (parts.length != 4) return LicenceVal.MISSING; // Invalid data format
 
-        System.out.println(parts);
+        //        System.out.println("License:" + parts);
 
         String pcID = parts[0];
         String domainName = parts[1];

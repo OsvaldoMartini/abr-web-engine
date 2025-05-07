@@ -588,7 +588,7 @@ public class PerformActions {
                     priorityTypeEnum = PriorityTypeEnum.getPriorityType(
                             priority.getPriorityType().toString());
                 } catch (Exception e) {
-                    System.out.println(String.format("The ENUM: was not defined!"));
+                    System.out.println("The ENUM: was not defined!");
                     continue;
                 }
                 if (priorityTypeEnum == null) {
@@ -864,7 +864,8 @@ public class PerformActions {
                     priorityTypeEnum = PriorityTypeEnum.getPriorityType(
                             priority.getPriorityType().toString());
                 } catch (Exception e) {
-                    System.out.println("The ENUM: \"" + priority.getPriorityType().toString() + "\" was not defined!");
+                    System.out.println(
+                            "The ENUM: \"" + priority.getPriorityType().toString() + "\" was not defined!");
                     continue;
                 }
 
