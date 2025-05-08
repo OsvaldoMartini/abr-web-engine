@@ -13,6 +13,7 @@ public class ComboBoxVars {
     private final Integer varId;
     private final String tagType;
     private final Integer orderNumber;
+    private final String localFormat;
 
     public ComboBoxVars(
             String text,
@@ -22,7 +23,8 @@ public class ComboBoxVars {
             Integer parentId,
             Integer varId,
             String tagType,
-            Integer orderNumber) {
+            Integer orderNumber,
+            String localFormat) {
         this.text = text;
         this.value = value;
         this.instructionId = instructionId;
@@ -31,5 +33,6 @@ public class ComboBoxVars {
         this.varId = varId;
         this.tagType = tagType;
         this.orderNumber = orderNumber;
+        this.localFormat = localFormat;
     }
 }

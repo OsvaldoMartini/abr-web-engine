@@ -588,7 +588,7 @@ public class PerformActions {
                     priorityTypeEnum = PriorityTypeEnum.getPriorityType(
                             priority.getPriorityType().toString());
                 } catch (Exception e) {
-                    System.out.println("The ENUM: was not defined!");
+                    System.out.println(String.format("The ENUM: was not defined!"));
                     continue;
                 }
                 if (priorityTypeEnum == null) {
@@ -2365,6 +2365,20 @@ public class PerformActions {
         }
     }
 
+    public String getInstructionVariableFormat(
+            InstructionLoadDTO currentInstruction, List<VariableLoadDTO> variableLoad) {
+        try {
+            return variableLoad.stream()
+                    .filter(f -> f.getId().equals(currentInstruction.getVariableId()))
+                    .findFirst()
+                    .map(v -> {
+                        return v.getLocalFormat().trim();
+                    })
+                    .orElse(null);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
     // It Must be Greater than CurrentIndex
     // Ir Predicts if is going to have multiple ENSEIFs
     public int searchMapConditional(
@@ -4033,12 +4047,67 @@ public class PerformActions {
         return cleanedMap;
     }
 
-    private String removeAllCurrencySymbols(String text) {
-        if (text == null || text.isEmpty()) {
-            return text;
+    /**
+     * Removes all characters that are not numbers or the decimal separator.
+     *
+     * @param input The string to clean.
+     * @return A cleaned version of the string.
+     */
+    public String removeAllCurrencySymbols(String input) {
+        // Remove all non-numeric and non-decimal characters (e.g., $, €, etc.)
+        return input.replaceAll("[^0-9.,]", "");
+    }
+
+    public String formatLocalNumber(String numberString, String localFormat) {
+        try {
+            String decimalPart = "";
+            String integerPart = "";
+
+            // Find last occurrence of "," or "." as decimal separator
+            int decimalIndex = Math.max(numberString.lastIndexOf(','), numberString.lastIndexOf('.'));
+            if (decimalIndex != -1) {
+                decimalPart = numberString.substring(decimalIndex + 1);
+                integerPart = numberString.substring(0, decimalIndex).replaceAll("[^0-9]", "");
+            } else {
+                integerPart = numberString.replaceAll("[^0-9]", "");
+            }
+
+            // Determine formatting style
+            String groupingSeparator;
+            String decimalSeparator;
+
+            if ("US".equalsIgnoreCase(localFormat)) {
+                groupingSeparator = ",";
+                decimalSeparator = ".";
+            } else if ("EU".equalsIgnoreCase(localFormat)) {
+                groupingSeparator = ".";
+                decimalSeparator = ",";
+            } else { // Default
+                groupingSeparator = ",";
+                decimalSeparator = ".";
+            }
+
+            // Rebuild integer part with grouping
+            String groupedInteger = insertGroupingSeparators(integerPart, groupingSeparator);
+
+            return decimalPart.isEmpty() ? groupedInteger : groupedInteger + decimalSeparator + decimalPart;
+
+        } catch (Exception e) {
+            System.err.println("Error formatting number: " + numberString + " - " + e.getMessage());
+            return numberString;
         }
-        // Define a regular expression to match common European, British, and Dollar symbols
-        // You might need to add more symbols based on your specific needs.
-        return text.replaceAll("[€£\\$\\p{Sc}]", "").trim();
+    }
+
+    private static String insertGroupingSeparators(String number, String separator) {
+        StringBuilder sb = new StringBuilder();
+        int count = 0;
+        for (int i = number.length() - 1; i >= 0; i--) {
+            sb.insert(0, number.charAt(i));
+            count++;
+            if (count % 3 == 0 && i != 0) {
+                sb.insert(0, separator);
+            }
+        }
+        return sb.toString();
     }
 }

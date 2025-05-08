@@ -13,17 +13,26 @@ public class VariableUserDTO {
     private IntegerProperty botJobId;
     private IntegerProperty parentId;
     private StringProperty usedVars;
+    private StringProperty localFormat;
 
     public VariableUserDTO() {}
 
     public VariableUserDTO(
-            Integer id, String type, String name, String value, Integer botJobId, Integer parentId, String usedVars) {
+            Integer id,
+            String type,
+            String name,
+            String value,
+            Integer botJobId,
+            Integer parentId,
+            String localFormat,
+            String usedVars) {
         this.id = new SimpleIntegerProperty(id);
         this.type = new SimpleStringProperty(type);
         this.name = new SimpleStringProperty(name);
         this.value = new SimpleStringProperty(value);
         this.botJobId = new SimpleIntegerProperty(botJobId);
         this.parentId = new SimpleIntegerProperty(parentId);
+        this.localFormat = new SimpleStringProperty(localFormat);
         this.usedVars = new SimpleStringProperty(usedVars);
     }
 
@@ -118,5 +127,17 @@ public class VariableUserDTO {
 
     public void setUsedVars(String usedVars) {
         this.usedVars.set(usedVars);
+    }
+
+    public String getLocalFormat() {
+        return localFormat.get();
+    }
+
+    public StringProperty localFormatProperty() {
+        return localFormat;
+    }
+
+    public void setLocalFormat(String localFormat) {
+        this.localFormat.set(localFormat);
     }
 }

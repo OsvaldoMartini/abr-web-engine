@@ -23,6 +23,7 @@ import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import java.io.File;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -3153,8 +3154,8 @@ public class PerformDataBase {
                         && !actions.equalsIgnoreCase(ARConstants.GET_VALUE)
                         && !actions.equalsIgnoreCase(ARConstants.CHECK_VALUE)
                         && !actions.equalsIgnoreCase(ARConstants.HOLD)) {
-                    webPageItems.add(
-                            new ComboBoxVars("(" + id + ")" + name, name, id, blockId, -1, -1, tagName, orderNumber));
+                    webPageItems.add(new ComboBoxVars(
+                            "(" + id + ")" + name, name, id, blockId, -1, -1, tagName, orderNumber, null));
                 }
             }
         } catch (SQLException e) {
@@ -3333,7 +3334,8 @@ public class PerformDataBase {
         String idColumn = targetTable.equals("component_variable") ? "home_banking_id" : "bot_job_id";
 
         // Build the base query
-        String query = "SELECT var.id, var.name, var.type, var.value, var.instruction_id, var." + idColumn;
+        String query =
+                "SELECT var.id, var.name, var.type, var.value, var.instruction_id, var.local_format, var." + idColumn;
 
         // Adjust the query based on oldBlockId
         query += " FROM " + targetTable + " var";
@@ -3385,9 +3387,10 @@ public class PerformDataBase {
                 String type = rs.getString("type");
                 String name = rs.getString("name");
                 String value = rs.getString("value");
+                String localFormat = rs.getString("local_format");
                 //                int usedVars = rs.getInt("UsedVars");
-                variableDTOList.add(
-                        new VariableLoadDTO(id, homeBankingId, botJobId, instructionId, type, name, value, 0));
+                variableDTOList.add(new VariableLoadDTO(
+                        id, homeBankingId, botJobId, instructionId, type, name, value, localFormat, 0));
             }
         }
 
@@ -4903,6 +4906,68 @@ public class PerformDataBase {
                 }
     }
 
+    public void updateTableAccess(String dbUrl, File dbFile) {
+        //        try {
+        //            String url = "jdbc:odbc:Driver={Microsoft Access Driver (*.mdb,
+        // *.accdb)};DBQ=path_to_your_access_db.accdb";
+        //            Connection conn = DriverManager.getConnection(url);
+        //        } catch (SQLException error) {
+        //            System.out.println("initializeDatabase\nError: " + error.getMessage());
+        //        }
+
+        try (Connection conn = DriverManager.getConnection(dbUrl)) {
+            try (Statement stmt = conn.createStatement()) {
+                DatabaseMetaData dbMeta = conn.getMetaData();
+                ResultSet rs = dbMeta.getColumns(null, null, "variable", "local_format");
+
+                if (!rs.next()) {
+                    // Column does not exist, so add it
+                    //                    String addLocalFormatColumnSQL = "ALTER TABLE variable ADD COLUMN local_format
+                    // TEXT;";
+                    //                    String addLocalFormatColumnSQL = "ALTER TABLE variable ADD COLUMN local_format
+                    // MEMO;";
+                    String addLocalFormatColumnSQL = "ALTER TABLE variable ADD COLUMN local_format VARCHAR(255);";
+                    stmt.executeUpdate(addLocalFormatColumnSQL);
+
+                    System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
+                    System.out.println(String.format("Updates %s", "variable ADD COLUMN local_format"));
+                } else {
+                    System.out.println(String.format("Database %s no need updates!", dbFile.getName()));
+                }
+
+                rs = dbMeta.getColumns(null, null, "component_variable", "local_format");
+
+                if (!rs.next()) {
+                    // Column does not exist, so add it
+                    //                    String addLocalFormatColumnSQL = "ALTER TABLE variable ADD COLUMN local_format
+                    // TEXT;";
+                    //                    String addLocalFormatColumnSQL = "ALTER TABLE variable ADD COLUMN local_format
+                    // MEMO;";
+                    String addLocalFormatColumnSQL =
+                            "ALTER TABLE component_variable ADD COLUMN local_format VARCHAR(255);";
+                    stmt.executeUpdate(addLocalFormatColumnSQL);
+
+                    System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
+                    System.out.println(String.format("Updates %s", "component_variable ADD COLUMN local_format"));
+                } else {
+                    System.out.println(String.format("Database %s no need updates!", dbFile.getName()));
+                }
+
+                //                // TEST FOR DROPPING COLUMNS
+                //                rs = dbMeta.getColumns(null, null, "variable", "local_format");
+                //                if (rs.next()) {
+                //                    // Column exists, so drop it
+                //                    String dropColumnSQL = "ALTER TABLE variable DROP COLUMN local_format;";
+                //                    stmt.executeUpdate(dropColumnSQL);
+                //                }
+
+                rs.close();
+            }
+        } catch (SQLException error) {
+            System.out.println("initializeDatabase\nError: " + error.getMessage());
+        }
+    }
+
     public void initializeMainDatabaseAccess(String dbUrl, File dbFile) {
 
         try (Connection conn = DriverManager.getConnection(dbUrl)) {
@@ -5458,16 +5523,17 @@ public class PerformDataBase {
 
     public ObservableList<VariableUserDTO> loadAllVariablesByCriteria(int botJobId, int parentId) {
         variablesList.clear();
-        String selectSQL = "SELECT vars.id, vars.type, vars.name, vars.value, COUNT(blk.variable_id) UsedVars "
-                + "FROM variable vars "
-                + "LEFT JOIN instruction blk ON blk.variable_id = vars.id "
-                + "WHERE vars.bot_job_id = " + botJobId;
+        String selectSQL =
+                "SELECT vars.id, vars.type, vars.name, vars.value, vars.local_format, COUNT(blk.variable_id) UsedVars "
+                        + "FROM variable vars "
+                        + "LEFT JOIN instruction blk ON blk.variable_id = vars.id "
+                        + "WHERE vars.bot_job_id = " + botJobId;
 
         if (parentId != -1) { // Check if instructionId is provided (not -1)
             selectSQL += " AND instruction_id = " + parentId;
         }
 
-        selectSQL += " GROUP BY vars.id, vars.type, vars.Name, vars.value";
+        selectSQL += " GROUP BY vars.id, vars.type, vars.Name, vars.value, vars.local_format";
 
         selectSQL += " ORDER BY vars.id";
 
@@ -5479,13 +5545,15 @@ public class PerformDataBase {
                 String type = rs.getString("type");
                 String name = rs.getString("name");
                 String value = rs.getString("value");
+                String localFormat = rs.getString("local_format");
                 String usedVars = rs.getString("UsedVars");
-                variablesList.add(new VariableUserDTO(id, type, name, value, botJobId, parentId, usedVars));
+                variablesList.add(
+                        new VariableUserDTO(id, type, name, value, botJobId, parentId, localFormat, usedVars));
             }
             return variablesList;
         } catch (SQLException e) {
             // Handle the exception properly (log, throw, etc.)
-            ARLogger.getInstance(PerformDataBase.class).severe("loadAllVariblesByCriteria  \nError: " + e.getMessage());
+            ARLogger.getInstance(PerformDataBase.class).severe("loadAllVariblesByCriteria. Error: " + e.getMessage());
         }
         return null;
     }
@@ -5493,7 +5561,7 @@ public class PerformDataBase {
     public List<VariableLoadDTO> loadAllVariables(int botJobId) {
         List<VariableLoadDTO> variablesLoadList = new ArrayList<>();
         String selectSQL =
-                "SELECT vars.id, instruction_id, vars.type, vars.name, vars.value, COUNT(blk.variable_id) UsedVars "
+                "SELECT vars.id, instruction_id, vars.type, vars.name, vars.value, vars.local_format, COUNT(blk.variable_id) UsedVars "
                         + "FROM variable vars "
                         + "LEFT JOIN instruction blk ON blk.variable_id = vars.id "
                         + "WHERE vars.bot_job_id = " + botJobId;
@@ -5511,13 +5579,14 @@ public class PerformDataBase {
                 String type = rs.getString("type");
                 String name = rs.getString("name");
                 String value = rs.getString("value");
+                String localFormat = rs.getString("local_format");
                 Integer usedVars = rs.getInt("UsedVars");
                 variablesLoadList.add(
-                        new VariableLoadDTO(id, -1, botJobId, instructionId, type, name, value, usedVars));
+                        new VariableLoadDTO(id, -1, botJobId, instructionId, type, name, value, localFormat, usedVars));
             }
             return variablesLoadList;
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("loadAllVariables  \nError: " + error.getMessage());
+            ARLogger.getInstance(PerformDataBase.class).severe("loadAllVariables. Error: " + error.getMessage());
         }
         return null;
     }
@@ -5530,9 +5599,8 @@ public class PerformDataBase {
             while (rs.next()) {
                 return rs.getInt("max_id");
             }
-        } catch (SQLException e) {
-            //            performMessage.errorMessage(
-            //                    "Error loading Next Id Data", "Could Not Load the Next Id Data", null, null, null, 0);
+        } catch (SQLException error) {
+            System.out.println(error.getMessage());
         }
         return null;
     }
@@ -5543,26 +5611,20 @@ public class PerformDataBase {
         //        AlterSeq(hashCode);
         //        Integer hashCode = generateID();
 
-        String insertSQL = "INSERT INTO variable (ID, type, Name, Value, bot_job_id, instruction_id) VALUES ( "
-                + hashCode + ","
-                + "'" + user.getType() + "', "
-                + "'" + user.getName() + "', "
-                + "'" + user.getValue() + "', "
-                + "'" + user.getBotJobId() + "', "
-                + "'" + user.getParentId() + "')";
+        String insertSQL =
+                "INSERT INTO variable (ID, type, Name, Value, bot_job_id, instruction_id, local_format) VALUES ( "
+                        + hashCode + ","
+                        + "'" + user.getType() + "', "
+                        + "'" + user.getName() + "', "
+                        + "'" + user.getValue() + "', "
+                        + "'" + user.getBotJobId() + "', "
+                        + "'" + user.getParentId() + "', "
+                        + "'" + user.getLocalFormat() + "')";
         try (Statement stmt = getConnection().createStatement()) {
             stmt.executeUpdate(insertSQL);
             System.out.println("Data saved successfully.");
-        } catch (SQLException e) {
-            //            performMessage.errorMessage(
-            //                    "Error Inserting new Variable",
-            //                    String.format("The '%s' cannot be inserted!", user.getName()),
-            //                    e.getMessage(),
-            //                    null,
-            //                    null,
-            //                    0);
-
-            return;
+        } catch (SQLException error) {
+            System.out.println(error.getMessage());
         }
     }
 
@@ -5570,7 +5632,8 @@ public class PerformDataBase {
         //        try {
         String updateSQL = "UPDATE variable SET Name = '" + user.getName() + "', "
                 + " type = '" + user.getType() + "', "
-                + " value = '" + user.getValue() + "' "
+                + " value = '" + user.getValue() + "', "
+                + " local_format = '" + user.getLocalFormat() + "' "
                 + " WHERE ID = " + userId;
         try (Statement stmt = getConnection().createStatement()) {
             int rowsAffected = stmt.executeUpdate(updateSQL);
@@ -5579,20 +5642,9 @@ public class PerformDataBase {
             } else {
                 System.out.println("No matching record found to update.");
             }
-        } catch (SQLException e) {
-            //            performMessage.errorMessage(
-            //                    "MAX CHARACTERS LIMIT FOR ACCESS",
-            //                    String.format("The '%s' cannot be updated.", user.getName()),
-            //                    e.getMessage(),
-            //                    null,
-            //                    null,
-            //                    0);
-
-            return;
+        } catch (SQLException error) {
+            System.out.println(error.getMessage());
         }
-        //        } catch (NumberFormatException e) {
-        //            System.out.println("Invalid ID format.");
-        //        }
     }
 
     public void deleteUserData(String Id) {
@@ -5606,67 +5658,11 @@ public class PerformDataBase {
                 } else {
                     System.out.println("No matching record found to delete.");
                 }
-            } catch (SQLException e) {
-                //                performMessage.errorMessage(
-                //                        "Error Deleting",
-                //                        String.format("Cannot be deleted id: '%s'", Id),
-                //                        e.getMessage(),
-                //                        null,
-                //                        null,
-                //                        0);
+            } catch (SQLException error) {
+                System.out.println(error.getMessage());
             }
-        } catch (NumberFormatException e) {
-            //            performMessage.errorMessage(
-            //                    "Invalid ID format.", String.format("The id: '%s' is in invalid format!", Id), null,
-            // null, null, 0);
-        }
-    }
-
-    private Integer loadNexIdData() {
-        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM variable";
-        try (Statement stmt = getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                return rs.getInt("max_id");
-            }
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-        }
-        return null;
-    }
-
-    private void loadJobVariables(RowMoveDTO rowMoveDTO, int instructionId) {
-        variablesList.clear();
-        String selectSQL = " SELECT vars.id, vars.type, vars.name, vars.value, COUNT(blk.variable_id) UsedVars "
-                + " FROM variable vars "
-                + " left join instruction blk on blk.variable_id = vars.id "
-                + " where vars.bot_job_id = " + rowMoveDTO.getBotJobId()
-                + " and  instruction_id = " + instructionId
-                + " group by vars.id, vars.type, vars.Name, vars.value ";
-        try (Statement stmt = getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                Integer id = rs.getInt("ID");
-                String type = rs.getString("type");
-                String name = rs.getString("name");
-                String value = rs.getString("value");
-                String usedVars = rs.getString("UsedVars");
-                variablesList.add(
-                        new VariableUserDTO(id, type, name, value, rowMoveDTO.getBotJobId(), instructionId, usedVars));
-            }
-        } catch (SQLException e) {
-            //            performMessage.errorMessage(
-            //                    "Error loading Variables", "Could Not Load the Variables", e.getMessage(), null, null,
-            // 0);
-        }
-    }
-
-    public void dataBaseInUse(String errorMessage) {
-        if (errorMessage.contains("UCAExc:::5.0.1") && errorMessage.contains("The table data is read only")) {
-
-            performMessage.errorMessage(
-                    "Database In Use", "The database is currently in use by another application", null, null, null, 0);
+        } catch (NumberFormatException error) {
+            System.out.println(error.getMessage());
         }
     }
 }

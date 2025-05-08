@@ -645,6 +645,7 @@ public class Engine {
                             String parentField = null;
                             String parentFieldLoop = null;
                             String variableField = null;
+                            String localFormat = null;
                             String fieldName = null;
                             int parentId = currentInstruction.getParentId();
 
@@ -914,6 +915,8 @@ public class Engine {
                                 parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
                                 variableField =
                                         performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
+                                localFormat = performActions.getInstructionVariableFormat(
+                                        currentInstruction, variablesLoaded);
                                 if (variableField == null) {
                                     variableField = "Not Variable defined";
                                 }
@@ -1278,6 +1281,12 @@ public class Engine {
                                             success = false;
                                         } else {
                                             success = true;
+                                            if (!Strings.isNullOrEmpty(localFormat)) {
+                                                String valueTo = mapOperators.get(variableField);
+                                                valueTo = performActions.removeAllCurrencySymbols(valueTo);
+                                                valueTo = performActions.formatLocalNumber(valueTo, localFormat);
+                                                mapOperators.put(variableField, valueTo);
+                                            }
                                         }
                                     }
 
@@ -1430,7 +1439,6 @@ public class Engine {
                                                     && excelFieldName
                                                             .toLowerCase()
                                                             .endsWith(".csv")) {
-                                                mapExport = performActions.removeCurrencySymbols(mapExport);
                                                 writerExport.writeMapToCSV(mapExport, excelFieldName, "|");
                                             } else {
                                                 writerExport.insertFieldNameAndValueLastColumn(
