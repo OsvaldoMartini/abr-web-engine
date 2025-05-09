@@ -1001,7 +1001,7 @@ public class PerformMessage {
         }
     }
 
-    public void outputJsonElementDTO(ElementDTO[] elementDTO) {
+    public void outputJsonElementDTO(ElementDTO[] elementDTO, List<String> fieldsToExclude, String fileName) {
         // Get the directory path from ARPropertyManager
         String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
 
@@ -1009,10 +1009,8 @@ public class PerformMessage {
         ExclusionStrategy strategy = new ExclusionStrategy() {
             @Override
             public boolean shouldSkipField(FieldAttributes f) {
-                // Skip fields by name (e.g., 'botJobId', 'botJobName')
-                return f.getName().equals("optional")
-                        || f.getName().equals("blockMarked")
-                        || f.getName().equals("editMode");
+                // Skip fields if their name is in the list of fields to exclude
+                return fieldsToExclude.contains(f.getName());
             }
 
             @Override
@@ -1031,7 +1029,7 @@ public class PerformMessage {
         String jsonData = gson.toJson(elementDTO);
 
         // Create the file path
-        String outputFilePath = jsonPath + "/elementDTO.json";
+        String outputFilePath = jsonPath + "/" + fileName + ".json";
 
         // Write the JSON data to the file
         try (FileWriter writer = new FileWriter(outputFilePath)) {

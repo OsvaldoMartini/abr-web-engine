@@ -14,5 +14,6 @@ public class VariableLoadDTO {
     private String name;
     private String value;
     private String localFormat;
+    private String delimiter;
     private Integer usedVars;
 }

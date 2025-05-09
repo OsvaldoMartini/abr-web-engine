@@ -1,7 +1,10 @@
 package com.allinweb.ch.util;
 
 import com.allinweb.ch.facade.PerformMessage;
+import com.google.common.base.Strings;
 import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
 import lombok.Getter;
@@ -59,25 +62,58 @@ public class ARPropertyManager {
             String logPath = getProperty(ARPropertyEnum.PATH_LOG);
             if (logPath == null || logPath.isBlank()) {
                 performMessage.errorMessage(
-                        "Configuration Warning: Log Path Missing",
+                        "Configuration Warning: Log Path is Missing",
                         "<span style='color: #FFA000; font-weight: bold; font-size: 1.1em;'>Warning: Log path configuration not found!</span> ⚠️",
-                        "<span style='color: #F57C00; font-weight: bold;'>No custom log path set. Using default location:</span>",
-                        "<span style='font-weight: bold;'>C:\\ARWeb\\Logs</span>.",
+                        "<span style='color: #F57C00; font-weight: bold;'>Using default location:</span>",
+                        "<span style='font-weight: bold;'>C:\\ARWeb\\ARWeb\\Logs</span>.",
                         "<span style='font-style: italic;'>Consider configuring a specific log path for better organization and access to application logs.</span>",
                         0);
             }
 
-            File logDirectory = new File(logPath);
-            if (!logDirectory.exists() && !logDirectory.mkdirs()) {
+            if (logPath == null || logPath.isBlank()) {
+                logPath = "C:\\ARWeb\\ARWeb\\Logs";
+                setProperty(ARPropertyEnum.PATH_LOG.getValue(), logPath);
+                File logDirectory = new File(logPath);
+                if (!logDirectory.exists() && !logDirectory.mkdirs()) {
+                    performMessage.errorMessage(
+                            "Error: Log Directory Creation Failed",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create log directory!</span>",
+                            "<span style='color: #E65100; font-weight: bold;'>Attempted location:</span> <span style='font-weight: bold;'>"
+                                    + logPath + "</span>",
+                            "<span style='font-style: italic;'>Please ensure the application has the necessary permissions to create directories at the specified path. Check the path for validity.</span>",
+                            null,
+                            0);
+                }
+            }
+
+            String dataBasePath = getProperty(ARPropertyEnum.PATH_DB);
+            if (dataBasePath == null || dataBasePath.isBlank()) {
                 performMessage.errorMessage(
-                        "Error: Log Directory Creation Failed",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create log directory!</span>",
-                        "<span style='color: #E65100; font-weight: bold;'>Attempted location:</span> <span style='font-weight: bold;'>"
-                                + logPath + "</span>",
-                        "<span style='font-style: italic;'>Please ensure the application has the necessary permissions to create directories at the specified path. Check the path for validity.</span>",
-                        null,
+                        "Configuration Warning: Database Path is Missing",
+                        "<span style='color: #FFA000; font-weight: bold; font-size: 1.1em;'>Warning: Database path configuration not found!</span> ⚠️",
+                        "<span style='color: #F57C00; font-weight: bold;'>Using default location:</span>",
+                        "<span style='font-weight: bold;'>C:\\ARWeb\\ARWeb</span>.",
+                        "<span style='font-style: italic;'>Consider configuring a specific log path for better organization and access to application logs.</span>",
                         0);
             }
+
+            if (dataBasePath == null || dataBasePath.isBlank()) {
+                dataBasePath = "C:\\ARWeb\\ARWeb";
+                setProperty(ARPropertyEnum.PATH_DB.getValue(), dataBasePath);
+                File dbDirectory = new File(dataBasePath);
+                if (!dbDirectory.exists() && !dbDirectory.mkdirs()) {
+                    performMessage.errorMessage(
+                            "Error: Database Directory Creation Failed",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create database directory!</span>",
+                            "<span style='color: #E65100; font-weight: bold;'>Attempted location:</span> <span style='font-weight: bold;'>"
+                                    + dataBasePath + "</span>",
+                            "<span style='font-style: italic;'>Please ensure the application has the necessary permissions to create directories at the specified path. Check the path for validity.</span>",
+                            null,
+                            0);
+                }
+            }
+
+            missingMandatoryPats();
 
             //        } catch (Exception e) {
             //
@@ -135,15 +171,15 @@ public class ARPropertyManager {
         }
     }
 
-    public void createDefaultProperties(File configurationFile, Exception error) {
+    public void createDefaultProperties(File configurationFile) {
 
         performMessage.errorMessage(
-                configurationFileName, // Using configurationFileName as the title
+                "Creation of new \"ARWeb.config\" file", // Using configurationFileName as the title
                 "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Configuration file not found!</span>",
                 "<span style='color: #2E7D32; font-weight: bold;'>A new configuration file has been created at:</span>",
                 "<span style='font-weight: bold;'>" + configurationFileName + "</span>.", // Filename on a new line
                 "<span style='color: #E65100;'>Please set the necessary configuration values in this new file.</span><br><span style='font-style: italic;'>Details: "
-                        + error.getMessage() + "</span>",
+                        + "ARWeb.config" + "</span>",
                 0);
 
         boolean dirSuccess = configurationFile.mkdirs();
@@ -184,5 +220,70 @@ public class ARPropertyManager {
                     "<span style='font-style: italic;'>Details: " + ex.getMessage() + "</span>",
                     0);
         }
+    }
+
+    public List<String> checkProperties(Properties properties) {
+        String[] requiredProperties = {
+            "data_base",
+            "path_excel",
+            "path_log",
+            "path_java",
+            "path_java_fx",
+            "path_db",
+            "path_report",
+            "path_priority",
+            "path_engine",
+            "path_web_driver",
+            "log_level",
+            "browser"
+        };
+
+        List<String> missingPropertiesList = new ArrayList<>();
+
+        for (String propertyName : requiredProperties) {
+            if (!properties.containsKey(propertyName)) {
+                missingPropertiesList.add(propertyName);
+            }
+        }
+
+        return missingPropertiesList;
+    }
+
+    public boolean missingMandatoryPats() {
+        List<String> missingProperties = checkProperties(getProperties());
+
+        if (!missingProperties.isEmpty()) {
+
+            int totalMissing = missingProperties.size();
+            int partSize = (int) Math.ceil((double) totalMissing / 3); // Divide into 3 parts
+
+            String part1 = String.join(", ", missingProperties.subList(0, Math.min(partSize, totalMissing)));
+            String part2 = totalMissing > partSize
+                    ? String.join(", ", missingProperties.subList(partSize, Math.min(2 * partSize, totalMissing)))
+                    : "";
+            String part3 = totalMissing > 2 * partSize
+                    ? String.join(", ", missingProperties.subList(2 * partSize, totalMissing))
+                    : "";
+
+            if (!Strings.isNullOrEmpty(part1)) {
+                part1 = "<span style='color: #c0392b; font-weight: bold;'>" + part1 + "</span>";
+            }
+            if (!Strings.isNullOrEmpty(part1)) {
+                part2 = "<span style='color: #c0392b; font-weight: bold;'>" + part2 + "</span>";
+            }
+            if (!Strings.isNullOrEmpty(part1)) {
+                part3 = "<span style='color: #c0392b; font-weight: bold;'>" + part3 + "</span>";
+            }
+
+            performMessage.errorMessage(
+                    "Configuration Warning: Missing Mandatory Paths",
+                    "<span style='color: #FFA000; font-weight: bold; font-size: 1.1em;'>Consider configuring all paths that are missing!</span> ⚠️",
+                    part1,
+                    Strings.isNullOrEmpty(part2) ? null : part2,
+                    Strings.isNullOrEmpty(part3) ? null : part3,
+                    0);
+            return true;
+        }
+        return false;
     }
 }

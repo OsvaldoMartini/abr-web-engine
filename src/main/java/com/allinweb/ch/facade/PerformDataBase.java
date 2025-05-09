@@ -3335,7 +3335,8 @@ public class PerformDataBase {
 
         // Build the base query
         String query =
-                "SELECT var.id, var.name, var.type, var.value, var.instruction_id, var.local_format, var." + idColumn;
+                "SELECT var.id, var.name, var.type, var.value, var.instruction_id, var.local_format, var.delimiter, var."
+                        + idColumn;
 
         // Adjust the query based on oldBlockId
         query += " FROM " + targetTable + " var";
@@ -3388,9 +3389,10 @@ public class PerformDataBase {
                 String name = rs.getString("name");
                 String value = rs.getString("value");
                 String localFormat = rs.getString("local_format");
+                String delimiter = rs.getString("delimiter");
                 //                int usedVars = rs.getInt("UsedVars");
                 variableDTOList.add(new VariableLoadDTO(
-                        id, homeBankingId, botJobId, instructionId, type, name, value, localFormat, 0));
+                        id, homeBankingId, botJobId, instructionId, type, name, value, localFormat, delimiter, 0));
             }
         }
 
@@ -4953,6 +4955,32 @@ public class PerformDataBase {
                     System.out.println(String.format("Database %s no need updates!", dbFile.getName()));
                 }
 
+                // ADD DELIMITER COLUMN
+                rs = dbMeta.getColumns(null, null, "variable", "delimiter");
+
+                if (!rs.next()) {
+                    String addLocalFormatColumnSQL = "ALTER TABLE variable ADD COLUMN delimiter VARCHAR(255);";
+                    stmt.executeUpdate(addLocalFormatColumnSQL);
+
+                    System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
+                    System.out.println(String.format("Updates %s", "variable ADD COLUMN delimiter"));
+                } else {
+                    System.out.println(String.format("Database %s no need updates!", dbFile.getName()));
+                }
+
+                rs = dbMeta.getColumns(null, null, "component_variable", "delimiter");
+
+                if (!rs.next()) {
+                    String addLocalFormatColumnSQL =
+                            "ALTER TABLE component_variable ADD COLUMN delimiter VARCHAR(255);";
+                    stmt.executeUpdate(addLocalFormatColumnSQL);
+
+                    System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
+                    System.out.println(String.format("Updates %s", "component_variable ADD COLUMN delimiter"));
+                } else {
+                    System.out.println(String.format("Database %s no need updates!", dbFile.getName()));
+                }
+
                 //                // TEST FOR DROPPING COLUMNS
                 //                rs = dbMeta.getColumns(null, null, "variable", "local_format");
                 //                if (rs.next()) {
@@ -5524,7 +5552,7 @@ public class PerformDataBase {
     public ObservableList<VariableUserDTO> loadAllVariablesByCriteria(int botJobId, int parentId) {
         variablesList.clear();
         String selectSQL =
-                "SELECT vars.id, vars.type, vars.name, vars.value, vars.local_format, COUNT(blk.variable_id) UsedVars "
+                "SELECT vars.id, vars.type, vars.name, vars.value, vars.local_format, vars.delimiter, COUNT(blk.variable_id) UsedVars "
                         + "FROM variable vars "
                         + "LEFT JOIN instruction blk ON blk.variable_id = vars.id "
                         + "WHERE vars.bot_job_id = " + botJobId;
@@ -5533,7 +5561,7 @@ public class PerformDataBase {
             selectSQL += " AND instruction_id = " + parentId;
         }
 
-        selectSQL += " GROUP BY vars.id, vars.type, vars.Name, vars.value, vars.local_format";
+        selectSQL += " GROUP BY vars.id, vars.type, vars.Name, vars.value, vars.local_format, vars.delimiter";
 
         selectSQL += " ORDER BY vars.id";
 
@@ -5546,9 +5574,10 @@ public class PerformDataBase {
                 String name = rs.getString("name");
                 String value = rs.getString("value");
                 String localFormat = rs.getString("local_format");
+                String delimiter = rs.getString("delimiter");
                 String usedVars = rs.getString("UsedVars");
-                variablesList.add(
-                        new VariableUserDTO(id, type, name, value, botJobId, parentId, localFormat, usedVars));
+                variablesList.add(new VariableUserDTO(
+                        id, type, name, value, botJobId, parentId, localFormat, delimiter, usedVars));
             }
             return variablesList;
         } catch (SQLException e) {
@@ -5561,7 +5590,7 @@ public class PerformDataBase {
     public List<VariableLoadDTO> loadAllVariables(int botJobId) {
         List<VariableLoadDTO> variablesLoadList = new ArrayList<>();
         String selectSQL =
-                "SELECT vars.id, instruction_id, vars.type, vars.name, vars.value, vars.local_format, COUNT(blk.variable_id) UsedVars "
+                "SELECT vars.id, instruction_id, vars.type, vars.name, vars.value, vars.local_format, vars.delimiter COUNT(blk.variable_id) UsedVars "
                         + "FROM variable vars "
                         + "LEFT JOIN instruction blk ON blk.variable_id = vars.id "
                         + "WHERE vars.bot_job_id = " + botJobId;
@@ -5580,9 +5609,10 @@ public class PerformDataBase {
                 String name = rs.getString("name");
                 String value = rs.getString("value");
                 String localFormat = rs.getString("local_format");
+                String delimiter = rs.getString("delimiter");
                 Integer usedVars = rs.getInt("UsedVars");
-                variablesLoadList.add(
-                        new VariableLoadDTO(id, -1, botJobId, instructionId, type, name, value, localFormat, usedVars));
+                variablesLoadList.add(new VariableLoadDTO(
+                        id, -1, botJobId, instructionId, type, name, value, localFormat, delimiter, usedVars));
             }
             return variablesLoadList;
         } catch (SQLException error) {
@@ -5612,14 +5642,15 @@ public class PerformDataBase {
         //        Integer hashCode = generateID();
 
         String insertSQL =
-                "INSERT INTO variable (ID, type, Name, Value, bot_job_id, instruction_id, local_format) VALUES ( "
+                "INSERT INTO variable (ID, type, Name, Value, bot_job_id, instruction_id, local_format, delimiter) VALUES ( "
                         + hashCode + ","
                         + "'" + user.getType() + "', "
                         + "'" + user.getName() + "', "
                         + "'" + user.getValue() + "', "
                         + "'" + user.getBotJobId() + "', "
                         + "'" + user.getParentId() + "', "
-                        + "'" + user.getLocalFormat() + "')";
+                        + "'" + user.getLocalFormat() + "', "
+                        + "'" + user.getDelimiter() + "')";
         try (Statement stmt = getConnection().createStatement()) {
             stmt.executeUpdate(insertSQL);
             System.out.println("Data saved successfully.");
@@ -5633,7 +5664,8 @@ public class PerformDataBase {
         String updateSQL = "UPDATE variable SET Name = '" + user.getName() + "', "
                 + " type = '" + user.getType() + "', "
                 + " value = '" + user.getValue() + "', "
-                + " local_format = '" + user.getLocalFormat() + "' "
+                + " local_format = '" + user.getLocalFormat() + "', "
+                + " delimiter = '" + user.getDelimiter() + "' "
                 + " WHERE ID = " + userId;
         try (Statement stmt = getConnection().createStatement()) {
             int rowsAffected = stmt.executeUpdate(updateSQL);

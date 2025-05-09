@@ -2379,6 +2379,21 @@ public class PerformActions {
             return null;
         }
     }
+
+    public String getInstructionVariableDelimiter(
+            InstructionLoadDTO currentInstruction, List<VariableLoadDTO> variableLoad) {
+        try {
+            return variableLoad.stream()
+                    .filter(f -> f.getId().equals(currentInstruction.getVariableId()))
+                    .findFirst()
+                    .map(v -> {
+                        return v.getDelimiter().trim();
+                    })
+                    .orElse(null);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
     // It Must be Greater than CurrentIndex
     // Ir Predicts if is going to have multiple ENSEIFs
     public int searchMapConditional(

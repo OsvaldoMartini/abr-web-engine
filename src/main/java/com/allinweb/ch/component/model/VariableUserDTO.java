@@ -12,8 +12,9 @@ public class VariableUserDTO {
     private StringProperty value;
     private IntegerProperty botJobId;
     private IntegerProperty parentId;
-    private StringProperty usedVars;
     private StringProperty localFormat;
+    private StringProperty delimiter;
+    private StringProperty usedVars;
 
     public VariableUserDTO() {}
 
@@ -25,6 +26,7 @@ public class VariableUserDTO {
             Integer botJobId,
             Integer parentId,
             String localFormat,
+            String delimiter,
             String usedVars) {
         this.id = new SimpleIntegerProperty(id);
         this.type = new SimpleStringProperty(type);
@@ -33,6 +35,7 @@ public class VariableUserDTO {
         this.botJobId = new SimpleIntegerProperty(botJobId);
         this.parentId = new SimpleIntegerProperty(parentId);
         this.localFormat = new SimpleStringProperty(localFormat);
+        this.delimiter = new SimpleStringProperty(delimiter);
         this.usedVars = new SimpleStringProperty(usedVars);
     }
 
@@ -139,5 +142,17 @@ public class VariableUserDTO {
 
     public void setLocalFormat(String localFormat) {
         this.localFormat.set(localFormat);
+    }
+
+    public String getDelimiter() {
+        return delimiter.get();
+    }
+
+    public StringProperty delimiterProperty() {
+        return delimiter;
+    }
+
+    public void setDelimiter(String delimiter) {
+        this.delimiter.set(delimiter);
     }
 }
