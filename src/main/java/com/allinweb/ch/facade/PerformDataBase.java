@@ -5590,7 +5590,7 @@ public class PerformDataBase {
     public List<VariableLoadDTO> loadAllVariables(int botJobId) {
         List<VariableLoadDTO> variablesLoadList = new ArrayList<>();
         String selectSQL =
-                "SELECT vars.id, instruction_id, vars.type, vars.name, vars.value, vars.local_format, vars.delimiter COUNT(blk.variable_id) UsedVars "
+                "SELECT vars.id, instruction_id, vars.type, vars.name, vars.value, vars.local_format, vars.delimiter, COUNT(blk.variable_id) UsedVars "
                         + "FROM variable vars "
                         + "LEFT JOIN instruction blk ON blk.variable_id = vars.id "
                         + "WHERE vars.bot_job_id = " + botJobId;
