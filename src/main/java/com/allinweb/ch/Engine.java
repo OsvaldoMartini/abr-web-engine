@@ -226,12 +226,6 @@ public class Engine {
         }
 
         HomeBankingLoadDTO homeBanking = performDataBase.loadHomeBanking(homeBankingId);
-
-        if (homeBanking == null || StringUtils.isNullOrEmpty(homeBanking.getUrl())) {
-            ARLogger.getInstance(Engine.class).severe("Cannot find Home Banking Environment Id:" + homeBankingId);
-            return false;
-        }
-
         botLoadJobs = performDataBase.loadCompleteJobs(botJobId);
 
         if (botLoadJobs.size() < 1) {
@@ -239,10 +233,19 @@ public class Engine {
             return false;
         }
 
-        HomeUrlDTO homeUrlDTO = findMatchingHomeUrlDTO(botLoadJobs.get(0));
-        if (homeUrlDTO != null) {
-            botLoadJobs.get(0).setHomeUrlId(homeUrlDTO.getId());
-            homeBanking.setUrl(homeUrlDTO.getUrl());
+        if (homeBanking == null || StringUtils.isNullOrEmpty(homeBanking.getUrl())) {
+            ARLogger.getInstance(Engine.class).severe("Cannot find Home Banking Environment Id:" + homeBankingId);
+            return false;
+        }
+
+        BotJobLoadDTO botLoadJob = performDataBase.loadBotJobById(botJobId);
+        if (homeBanking != null) {
+            botLoadJob.setHomeBankingLoadDTO(homeBanking);
+            HomeUrlDTO homeUrlDTO = findMatchingHomeUrlDTO(botLoadJob);
+            if (homeUrlDTO != null) {
+                botLoadJob.setHomeUrlId(homeUrlDTO.getId());
+                homeBanking.setUrl(homeUrlDTO.getUrl());
+            }
         }
 
         List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
