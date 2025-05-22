@@ -109,6 +109,7 @@ public class ARConstants {
     public static final String ICON_iFRAME2 = "/iFrame2.png";
     public static final String ICON_UP = "/up.png";
     public static final String ICON_DOWN = "/down.png";
+    public static final String ICON_AI = "/AI-7.png";
     public static final String ICON_CROSS = "/cross.png";
     public static final String ICON_CROSS2 = "/cross2.png";
     public static final String ICON_BIN = "/Bin.png";

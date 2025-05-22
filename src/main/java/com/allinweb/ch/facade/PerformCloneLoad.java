@@ -101,7 +101,7 @@ public class PerformCloneLoad {
   window.destination = destination;
   window.operationId = operationId;
   window.homeBankingId = homeBankingId;
-  window.sessionId = `${sessionId}-${homeBankingId}`;
+  window.sessionId = `${sessionId}`; //-${homeBankingId}`;
 
   // Track the last hovered element to remove the border from it
   let lastHoveredElement = null;
@@ -115,7 +115,7 @@ public class PerformCloneLoad {
     try {
       //console.log(`Attempt ${attempts + 1} to connect to WebSocket...`);
       wSocket = new WebSocket(
-        `wss://localhost:${socketPort}/websocket?sessionId=${window.sessionId}`
+        `ws://localhost:${socketPort}/websocket?sessionId=${window.sessionId}`
       );
 
       wSocket.onopen = () => {
@@ -1160,29 +1160,29 @@ public class PerformCloneLoad {
   });
 
 
-  window.addEventListener("beforeunload", function (event) {
-    if (wSocket && wSocket.readyState === WebSocket.OPEN) {
-      const message = {
-        type: "CLOSE_BROWSER",
-        sessionId: `scannerReceiver-${window.homeBankingId}`,
-        operationId: "closeBrowser",
-        homeBankingId: window.homeBankingId,
-        details: window.allElementInfo, // Send allElementInfo
-      };
-
-      // Convert the JSON message to a buffer
-      const base64Message = btoa(
-        unescape(encodeURIComponent(JSON.stringify(message)))
-      );
-      // Convert the buffer to a Base64 string
-      wSocket.send(base64Message);
-
-      alreadySent = true;
-      window.allElementInfo = [];
-      window.elementInfoMap.clear();
-      window.revertSearchInjections();
-    }
-  });
+//  window.addEventListener("beforeunload", function (event) {
+//    if (wSocket && wSocket.readyState === WebSocket.OPEN) {
+//      const message = {
+//        type: "CLOSE_BROWSER",
+//        sessionId: `scannerReceiver`, //-${window.homeBankingId}`,
+//        operationId: "closeBrowser",
+//        homeBankingId: window.homeBankingId,
+//        details: window.allElementInfo, // Send allElementInfo
+//      };
+//
+//      // Convert the JSON message to a buffer
+//      const base64Message = btoa(
+//        unescape(encodeURIComponent(JSON.stringify(message)))
+//      );
+//      // Convert the buffer to a Base64 string
+//      wSocket.send(base64Message);
+//
+//      alreadySent = true;
+//      window.allElementInfo = [];
+//      window.elementInfoMap.clear();
+//      window.revertSearchInjections();
+//    }
+//  });
 
   // window.cloneTerms = null; // Invalidating the function
 })(

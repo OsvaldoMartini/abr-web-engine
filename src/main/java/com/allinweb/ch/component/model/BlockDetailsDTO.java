@@ -14,6 +14,7 @@ public class BlockDetailsDTO {
     private Integer wait;
     private Integer blockOrderNumber;
     private Integer botJobId;
+    private String botJobName;
     private Boolean forceOrder;
     private String exportFile;
     private String sessionId;

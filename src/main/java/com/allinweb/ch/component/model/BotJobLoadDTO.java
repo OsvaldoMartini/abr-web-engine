@@ -14,6 +14,7 @@ public class BotJobLoadDTO {
     private String blockName;
     private String blockDescription;
     private Integer homeBankingId;
+    private Integer homeUrlId;
     private Integer typeId;
     private boolean active;
     private List<BlockLoadDTO> blockLoadDTOList;

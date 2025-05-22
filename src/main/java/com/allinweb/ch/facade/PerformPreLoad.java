@@ -94,7 +94,7 @@ public class PerformPreLoad {
   window.destination = destination;
   window.operationId = operationId;
   window.homeBankingId = homeBankingId;
-  window.sessionId = `${sessionId}-${homeBankingId}`;
+  window.sessionId = `${sessionId}`; // -${homeBankingId}`;
   // var elementInfoSubmit = new Map();
 
   function connectWebSocket() {
@@ -106,7 +106,7 @@ public class PerformPreLoad {
     try {
       //console.log(`Attempt ${attempts + 1} to connect to WebSocket...`);
       wSocket = new WebSocket(
-        `wss://localhost:${socketPort}/websocket?sessionId=${window.sessionId}`
+        `ws://localhost:${socketPort}/websocket?sessionId=${window.sessionId}`
       );
 
       wSocket.onopen = () => {
@@ -1703,7 +1703,7 @@ public class PerformPreLoad {
     pingIntervalId = setInterval(() => {
       if (wSocket && wSocket.readyState === WebSocket.OPEN) {
         const pingMessage = {
-          type: "ping-hover",
+          type: "ping-search",
           sessionId: window.sessionId,
           timestamp: new Date().toISOString(),
         };
@@ -1772,7 +1772,7 @@ public class PerformPreLoad {
 
       // Paranoic
       if (hoveredXPathMap && hoveredXPathMap.size > 0) {
-        //console.log("hoveredXPathMap");
+        // console.log("hoveredXPathMap");
         hoveredXPathMap.forEach((xPath) => {
           const originalOutline = originalStyles.get(xPath);
           var element = findElementByXPath(xPath);
@@ -1789,30 +1789,33 @@ public class PerformPreLoad {
   // Set up the interval to call the function every 5 seconds (5000 milliseconds)
   setInterval(restoreOriginalStyles, 5000);
 
+  // window.addEventListener("beforeunload", function (event) {
+  //   // event.preventDefault();
+  //   // event.returnValue =
+  //   //   "⚠️ Warning: Closing this tab will terminate an active WebDriver session!";
 
-  window.addEventListener("beforeunload", function (event) {
-    if (wSocket && wSocket.readyState === WebSocket.OPEN) {
-      const message = {
-        type: "CLOSE_BROWSER",
-        sessionId: `scannerReceiver-${window.homeBankingId}`,
-        operationId: "closeBrowser",
-        homeBankingId: window.homeBankingId,
-        details: window.allElementInfo, // Send allElementInfo
-      };
+  //   if (wSocket && wSocket.readyState === WebSocket.OPEN) {
+  //     const message = {
+  //       type: "CLOSE_BROWSER",
+  //       sessionId: `scannerReceiver`, //-${window.homeBankingId}`,
+  //       operationId: "closeBrowser",
+  //       homeBankingId: window.homeBankingId,
+  //       details: window.allElementInfo, // Send allElementInfo
+  //     };
 
-      // Convert the JSON message to a buffer
-      const base64Message = btoa(
-        unescape(encodeURIComponent(JSON.stringify(message)))
-      );
-      // Convert the buffer to a Base64 string
-      wSocket.send(base64Message);
+  //     // Convert the JSON message to a buffer
+  //     const base64Message = btoa(
+  //       unescape(encodeURIComponent(JSON.stringify(message)))
+  //     );
+  //     // Convert the buffer to a Base64 string
+  //     wSocket.send(base64Message);
 
-      alreadySent = true;
-      window.allElementInfo = [];
-      window.elementInfoMap.clear();
-      window.revertSearchInjections();
-    }
-  });
+  //     alreadySent = true;
+  //     window.allElementInfo = [];
+  //     window.elementInfoMap.clear();
+  //     window.revertSearchInjections();
+  //   }
+  // });
 
   // startCollectingElements(window.searchTerms);
   // init("Initiate");
@@ -1826,5 +1829,15 @@ public class PerformPreLoad {
   arguments[5],
   arguments[6]
 );
+// })(
+//   ["button", "input", "label", "a", "select"],
+//   false,
+//   51069,
+//   "scannerTool",
+//   "scannerGrid",
+//   "searchTerms",
+//   2
+// );
+
             """;
 }

@@ -65,6 +65,10 @@ public class ARWebDriver {
     private String webDriverEdgeVersion;
     private String webDriverPath;
 
+    private EdgeOptions optionsEdge;
+    private ChromeOptions optionsChrome;
+    private FirefoxOptions optionsFirefox;
+
     private static final ARPropertyManager arPropertyManager;
     private static final PerformMessage performMessage;
 
@@ -254,8 +258,11 @@ public class ARWebDriver {
                     String userDataDir = System.getProperty("java.io.tmpdir") + File.separator + "edge-user-data-"
                             + UUID.randomUUID();
 
+                    if (optionsEdge == null) {
+                        optionsEdge = new EdgeOptions();
+                    }
+
                     // Configure EdgeOptions
-                    EdgeOptions optionsEdge = new EdgeOptions();
                     optionsEdge.addArguments("--user-data-dir=" + userDataDir);
                     optionsEdge.addArguments("data:,"); // This is the key to opening a blank page
 
@@ -284,11 +291,14 @@ public class ARWebDriver {
                         ARLogger.getInstance(ARWebDriver.class).fine("Web Driver NOT EXIST \n" + webDriverPath);
                     }
                     System.setProperty("webdriver.gecko.driver", webDriverPath);
-                    FirefoxOptions options = new FirefoxOptions();
+                    if (optionsFirefox == null) {
+                        optionsFirefox = new FirefoxOptions();
+                    }
+
                     //                      options.setBinary(webDriverPath);
                     //                    driver = new FirefoxDriver(options);
-                    if (options != null) {
-                        this.currentDriver = getDriverFireFox(options);
+                    if (optionsFirefox != null) {
+                        this.currentDriver = getDriverFireFox(optionsFirefox);
                         this.currentDriver.get("about:blank");
                     } else {
                         this.currentDriver = getDriverFireFox(null); // or pass options
@@ -300,8 +310,6 @@ public class ARWebDriver {
             throw new UnsupportedOperationException(error.getMessage());
         }
         //        }
-
-        this.currentDriver.manage().window().maximize();
 
         try {
             //            performPreLoad.dynamicLoadAlerts(driver, url, dataArray, searchHiddenFields, port);
@@ -370,6 +378,9 @@ public class ARWebDriver {
             }
             return null;
         }
+
+        this.currentDriver.manage().window().maximize();
+
         return this.currentDriver;
     }
 
@@ -436,7 +447,10 @@ public class ARWebDriver {
     }
 
     private ChromeOptions buildOptionsChrome(String[] optionsConfigLines, String logFolder) {
-        ChromeOptions optionsChrome = new ChromeOptions();
+        if (optionsChrome == null) {
+            optionsChrome = new ChromeOptions();
+        }
+
         optionsChrome.addArguments("--user-data-dir=" + System.getProperty("java.io.tmpdir") + "/edge-profile-"
                 + System.currentTimeMillis());
 

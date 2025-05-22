@@ -1,5 +1,6 @@
 package com.allinweb.ch.component.model;
 
+import java.util.List;
 import lombok.Data;
 
 @Data
@@ -15,4 +16,5 @@ public class HomeBankingLoadDTO {
     private String driverSession;
     private String username;
     private String password;
+    private List<HomeUrlDTO> homeUrlDTOS;
 }

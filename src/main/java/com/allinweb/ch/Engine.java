@@ -3,6 +3,7 @@ package com.allinweb.ch;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
+import com.allinweb.ch.component.model.HomeUrlDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.component.model.RowStatus;
@@ -236,6 +237,12 @@ public class Engine {
         if (botLoadJobs.size() < 1) {
             ARLogger.getInstance(Engine.class).severe("Cannot find Bot Jobs with this Id:" + botJobId);
             return false;
+        }
+
+        HomeUrlDTO homeUrlDTO = findMatchingHomeUrlDTO(botLoadJobs.get(0));
+        if (homeUrlDTO != null) {
+            botLoadJobs.get(0).setHomeUrlId(homeUrlDTO.getId());
+            homeBanking.setUrl(homeUrlDTO.getUrl());
         }
 
         List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
@@ -2084,5 +2091,19 @@ public class Engine {
                     .severe("Cannot read/validate the License path/file. Error: " + error.getMessage());
             return false;
         }
+    }
+
+    public static HomeUrlDTO findMatchingHomeUrlDTO(BotJobLoadDTO botJobLoadDTO) {
+        Integer targetHomeUrlId = botJobLoadDTO.getHomeUrlId();
+        HomeBankingLoadDTO homeBanking = botJobLoadDTO.getHomeBankingLoadDTO();
+
+        if (homeBanking != null && homeBanking.getHomeUrlDTOS() != null) {
+            return homeBanking.getHomeUrlDTOS().stream()
+                    .filter(dto -> dto.getId().equals(targetHomeUrlId))
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        return null;
     }
 }

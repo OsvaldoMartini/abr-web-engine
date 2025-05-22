@@ -70,7 +70,7 @@ public class PerformCloseBrowser {
   window.destination = destination;
   window.operationId = operationId;
   window.homeBankingId = homeBankingId;
-  window.sessionId = `${sessionId}-${homeBankingId}`;
+  window.sessionId = `${sessionId}`; //-${homeBankingId}`;
 
   function logCSPDirectives() {
     const csp = document.querySelector(
@@ -123,7 +123,7 @@ public class PerformCloseBrowser {
     try {
       //console.log(`Attempt ${attempts + 1} to connect to WebSocket...`);
       wSocket = new WebSocket(
-        `wss://localhost:${socketPort}/websocket?sessionId=${window.sessionId}`
+        `ws://localhost:${socketPort}/websocket?sessionId=${window.sessionId}`
       );
 
       wSocket.onopen = () => {
@@ -316,7 +316,7 @@ public class PerformCloseBrowser {
     if (wSocket && wSocket.readyState === WebSocket.OPEN) {
       const message = {
         type: "CLOSE_BROWSER",
-        sessionId: `scannerReceiver-${window.homeBankingId}`,
+        sessionId: `scannerReceiver`, //-${window.homeBankingId}`,
         operationId: "closeBrowser",
         homeBankingId: window.homeBankingId,
         details: window.allElementInfo, // Send allElementInfo
