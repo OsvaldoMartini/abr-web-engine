@@ -225,7 +225,9 @@ public class Engine {
             System.out.println("Running All Blocks");
         }
 
-        HomeBankingLoadDTO homeBanking = performDataBase.loadHomeBanking(homeBankingId);
+        List<HomeBankingLoadDTO> homeBankingList = performDataBase.loadHomeBanking(homeBankingId);
+        HomeBankingLoadDTO homeBanking = homeBankingList.isEmpty() ? null : homeBankingList.get(0);
+
         botLoadJobs = performDataBase.loadCompleteJobs(botJobId);
 
         if (botLoadJobs.size() < 1) {
@@ -2100,8 +2102,8 @@ public class Engine {
         Integer targetHomeUrlId = botJobLoadDTO.getHomeUrlId();
         HomeBankingLoadDTO homeBanking = botJobLoadDTO.getHomeBankingLoadDTO();
 
-        if (homeBanking != null && homeBanking.getHomeUrlDTOS() != null) {
-            return homeBanking.getHomeUrlDTOS().stream()
+        if (homeBanking != null && homeBanking.getHomeUrlDTOs() != null) {
+            return homeBanking.getHomeUrlDTOs().stream()
                     .filter(dto -> dto.getId().equals(targetHomeUrlId))
                     .findFirst()
                     .orElse(null);

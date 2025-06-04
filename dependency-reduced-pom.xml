@@ -1,59 +1,34 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>org.example</groupId>
+  <groupId>com.allinweb.ch</groupId>
   <artifactId>AR_Web_Engine</artifactId>
-  <name>Bancastato_Automation</name>
-  <version>release-001</version>
-  <url>http://www.example.com</url>
+  <name>ARS Allinweb Robotics Automation</name>
+  <version>4.5</version>
+  <url>http://www.allinweb.ch</url>
   <build>
-    <finalName>${project.artifactId}</finalName>
-<!--    <pluginManagement>-->
-<!--      <plugins>-->
-<!--        <plugin>-->
-<!--          <groupId>com.diffplug.spotless</groupId>-->
-<!--          <artifactId>spotless-maven-plugin</artifactId>-->
-<!--          <version>2.28.0</version>-->
-<!--        </plugin>-->
-<!--      </plugins>-->
-<!--    </pluginManagement>-->
+    <finalName>${project.artifactId}-${project.version}</finalName>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>com.diffplug.spotless</groupId>
+          <artifactId>spotless-maven-plugin</artifactId>
+          <version>2.44.3</version>
+        </plugin>
+      </plugins>
+    </pluginManagement>
     <plugins>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.1</version>
-      </plugin>
-      <plugin>
-        <groupId>net.masterthought</groupId>
-        <artifactId>maven-cucumber-reporting</artifactId>
-        <version>4.6.0</version>
-        <executions>
-          <execution>
-            <id>execution</id>
-            <phase>verify</phase>
-            <goals>
-              <goal>generate</goal>
-            </goals>
-            <configuration>
-              <projectName>LFC Automation Project</projectName>
-              <skip>false</skip>
-              <outputDirectory>target/cucumber-reports/advance-reports</outputDirectory>
-              <inputDirectory>${project.build.directory}/cucumber-reports</inputDirectory>
-              <jsonFiles>
-                <param>**/*.json</param>
-              </jsonFiles>
-              <classificationFiles>
-                <param>sample.properties</param>
-                <param>other.properties</param>
-              </classificationFiles>
-              <mergeFeaturesById>false</mergeFeaturesById>
-              <checkBuildResult>false</checkBuildResult>
-            </configuration>
-          </execution>
-        </executions>
+        <version>3.11.0</version>
+        <configuration>
+          <source>${maven.compiler.source}</source>
+          <target>${maven.compiler.target}</target>
+        </configuration>
       </plugin>
       <plugin>
         <artifactId>maven-shade-plugin</artifactId>
-        <version>3.3.0</version>
+        <version>3.5.1</version>
         <executions>
           <execution>
             <phase>package</phase>
@@ -66,30 +41,42 @@
                   <mainClass>com.allinweb.ch.Engine</mainClass>
                 </transformer>
               </transformers>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                  </excludes>
+                </filter>
+              </filters>
             </configuration>
           </execution>
         </executions>
       </plugin>
-<!--      <plugin>-->
-<!--        <groupId>com.diffplug.spotless</groupId>-->
-<!--        <artifactId>spotless-maven-plugin</artifactId>-->
-<!--        <executions>-->
-<!--          <execution>-->
-<!--            <phase>validate</phase>-->
-<!--            <goals>-->
-<!--              <goal>check</goal>-->
-<!--            </goals>-->
-<!--          </execution>-->
-<!--        </executions>-->
-<!--        <configuration>-->
-<!--          <java>-->
-<!--            <importOrder />-->
-<!--            <palantirJavaFormat>-->
-<!--              <version>2.28.0</version>-->
-<!--            </palantirJavaFormat>-->
-<!--          </java>-->
-<!--        </configuration>-->
-<!--      </plugin>-->
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>validate</phase>
+            <goals>
+              <goal>check</goal>
+              <goal>apply</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <java>
+            <removeUnusedImports />
+            <importOrder />
+            <palantirJavaFormat>
+              <version>2.28.0</version>
+            </palantirJavaFormat>
+          </java>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
   <dependencies>
@@ -104,6 +91,12 @@
           <groupId>org.hamcrest</groupId>
         </exclusion>
       </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>1.18.34</version>
+      <scope>provided</scope>
     </dependency>
   </dependencies>
   <properties>

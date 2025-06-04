@@ -47,10 +47,11 @@ public class ARConstants {
 
     public static final String PATH_EXCEL = "\\excel";
     public static final String PATH_LOG = "\\log";
-    public static final String PATH_JAVA = "\\java";
+    public static final String DB_URL = "\\java";
     public static final String PATH_DB = "\\db";
     public static final String PATH_REPORT = "\\report";
-    public static final String PATH_JAVA_FX = "\\javaFX";
+    public static final String DB_USER = "XXXXXX";
+    public static final String DB_PWD = "XXXXXX";
 
     public static final String VALUE_NO_IDENTIFICATION = "No significant identification found";
     public static final String TO_IGNORE = "TO IGNORE";
@@ -109,7 +110,7 @@ public class ARConstants {
     public static final String ICON_iFRAME2 = "/iFrame2.png";
     public static final String ICON_UP = "/up.png";
     public static final String ICON_DOWN = "/down.png";
-    public static final String ICON_AI = "/AI-7.png";
+    public static final String ICON_AI = "/AI-1.png";
     public static final String ICON_CROSS = "/cross.png";
     public static final String ICON_CROSS2 = "/cross2.png";
     public static final String ICON_BIN = "/Bin.png";

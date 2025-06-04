@@ -216,8 +216,6 @@ public class ARWebDriver {
 
         ARLogger.getInstance(ARWebDriver.class).fine("Going to call WebDriver for \n" + url);
 
-        ARPropertyManager managerProps = arPropertyManager;
-
         if (Strings.isNullOrEmpty(webDriverPath)) {
             ARLogger.getInstance(ARWebDriver.class).fine("URL IS EMPTY");
         }
@@ -373,9 +371,9 @@ public class ARWebDriver {
             }
 
             // Example: print or log the chunks if needed
-            for (String chunk : messageChunks) {
-                System.out.println("Browser response : " + chunk);
-            }
+            //            for (String chunk : messageChunks) {
+            //                System.out.println("Browser response : " + chunk);
+            //            }
             return null;
         }
 

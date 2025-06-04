@@ -56,7 +56,6 @@ public class ARPropertyManager {
             this.properties.load(configFile);
 
             String logLevel = this.properties.getProperty(ARPropertyEnum.LOG_LEVEL.getValue());
-            String extReference = this.properties.getProperty(ARPropertyEnum.WEBDRIVER_EXT_REFERENCE.getValue());
             System.out.println("LOG_LEVEL = " + logLevel + "   ConfigFile=" + configurationFileName);
 
             String logPath = getProperty(ARPropertyEnum.PATH_LOG);
@@ -111,6 +110,21 @@ public class ARPropertyManager {
                             null,
                             0);
                 }
+            }
+
+            if (!properties.containsKey("db_url")) {
+                properties.setProperty("db_url", "jdbc:postgresql://localhost:5432/ar_web");
+            }
+
+            //            if (!properties.containsKey("db_url")) {
+            //                properties.setProperty("db_url", "jdbc:postgresql://localhost:5432/ar_web");
+            //            }
+
+            if (!properties.containsKey("db_user")) {
+                properties.setProperty("db_user", "postgres");
+            }
+            if (!properties.containsKey("db_pwd")) {
+                properties.setProperty("db_pwd", "martini");
             }
 
             missingMandatoryPats();
@@ -195,9 +209,12 @@ public class ARPropertyManager {
             setProperty(ARPropertyEnum.PATH_DB.getValue(), "C:\\ARWeb\\ARWeb");
             setProperty(ARPropertyEnum.PATH_PRIORITY.getValue(), "C:\\ARWeb\\ARWeb");
 
-            setProperty(ARPropertyEnum.PATH_JAVA.getValue(), ARConstants.USER_PATH + ARConstants.PATH_JAVA);
-            setProperty(ARPropertyEnum.PATH_JAVA_FX.getValue(), ARConstants.USER_PATH + ARConstants.PATH_JAVA_FX);
+            setProperty(ARPropertyEnum.DB_URL.getValue(), "jdbc:postgresql://localhost:5432/ar_web");
+            setProperty(ARPropertyEnum.DB_USER.getValue(), "XXXXXX");
+            setProperty(ARPropertyEnum.DB_PWD.getValue(), "XXXXXX");
+
             setProperty(ARPropertyEnum.DATABASE_TYPE.getValue(), "Access");
+
             setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), "54525");
             setProperty(ARPropertyEnum.PATH_ENGINE.getValue(), ARConstants.USER_PATH);
             setProperty(ARPropertyEnum.PATH_WEBDRIVER.getValue(), ARConstants.USER_PATH + "\\driver");
@@ -206,10 +223,6 @@ public class ARPropertyManager {
             setProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC.getValue(), "60");
             setProperty(ARPropertyEnum.WEBDRIVER_INTERACTION_TIMEOUT_SEC.getValue(), "60");
             setProperty(ARPropertyEnum.INSTRUCTION_STOP_SECONDS.getValue(), "15");
-
-            setProperty(
-                    ARPropertyEnum.WEBDRIVER_EXT_REFERENCE.getValue(),
-                    "test-id='web-banking-payment-core.payment-details.external-reference'");
 
         } catch (IOException ex) {
             performMessage.errorMessage(
@@ -225,10 +238,11 @@ public class ARPropertyManager {
     public List<String> checkProperties(Properties properties) {
         String[] requiredProperties = {
             "data_base",
+            "db_url",
+            "db_user",
+            "db_pwd",
             "path_excel",
             "path_log",
-            "path_java",
-            "path_java_fx",
             "path_db",
             "path_report",
             "path_priority",

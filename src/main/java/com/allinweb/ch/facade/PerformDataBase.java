@@ -92,12 +92,9 @@ public class PerformDataBase {
 
     // Postgres
     public boolean POSTGRES_DB = false;
-    public final String CONNECTION_POSTGRES = "jdbc:postgresql://";
-    public final String DB_HOST = "localhost"; // or your PostgreSQL server address
-    public final String DB_PORT = "5432"; // default PostgreSQL port
-    public final String DB_NAME = "abr_web"; // your database name
-    public final String USERNAME = "postgres"; // your database username
-    public final String PASSWORD = "martini"; // your database password
+
+    @Getter
+    private List<HomeBankingLoadDTO> databaseUpds;
 
     @Getter
     private ObservableList<DatabaseUserDTO> databaseList = FXCollections.observableArrayList();
@@ -148,6 +145,20 @@ public class PerformDataBase {
         return openConnections;
     }
 
+    public void testConnection(String dataBaseType, String dbAccessPath, String dbUrl, String userDB, String userPwd)
+            throws SQLException, ClassNotFoundException {
+        if (dataBaseType != null && !dataBaseType.equalsIgnoreCase("POSTGRES")) {
+
+            String dbAccessUrl = CONNECTION_TYPE + dbAccessPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+            ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + dbUrl);
+            Class.forName("net.ucanaccess.jdbc.UcanaccessDriver");
+            DriverManager.getConnection(dbAccessUrl);
+        } else {
+            Class.forName("org.postgresql.Driver");
+            DriverManager.getConnection(dbUrl, userDB, userPwd);
+        }
+    }
+
     public void changeDbConnection() {
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
         //        if (Strings.isNullOrEmpty(previousDB) || (previousDB != null && !previousDB.equals(dataBaseType))) {
@@ -158,7 +169,8 @@ public class PerformDataBase {
         if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
             POSTGRES_DB = true;
 
-            createTableOpenAIVector();
+            //            createTableOpenAIVector();
+            //            createTableLLama2AIVector();
             if (!doesInstructionTableExist()) {
                 initializeMainDatabasePostgres();
             }
@@ -204,14 +216,20 @@ public class PerformDataBase {
                     String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
                     String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
                     ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + dbUrl);
+                    Class.forName("net.ucanaccess.jdbc.UcanaccessDriver");
                     conn = DriverManager.getConnection(dbUrl);
                     conn.setReadOnly(false);
                 } else {
-                    String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
-                    String userDB = USERNAME + " - " + PASSWORD;
+                    String dbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+                    String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+                    String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+
+                    String userData = userDB + " - " + userPwd;
+
                     ARLogger.getInstance(PerformDataBase.class).info("POSTGRES connection URL: " + dbUrl);
-                    ARLogger.getInstance(PerformDataBase.class).info("User Details: " + userDB);
-                    conn = DriverManager.getConnection(dbUrl, USERNAME, PASSWORD);
+                    ARLogger.getInstance(PerformDataBase.class).info("User Details: " + userData);
+                    Class.forName("org.postgresql.Driver");
+                    conn = DriverManager.getConnection(dbUrl, userDB, userPwd);
                     conn.setReadOnly(false);
                 }
                 // Increment the open connection counter
@@ -223,6 +241,18 @@ public class PerformDataBase {
             }
         } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class).severe("getConnection Error: " + error.getMessage());
+            String database = POSTGRES_DB ? "Postgress" : "Access";
+            performMessage.errorMessage(
+                    "Database connection Failed",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>An error occurred during the Database connection.</span>",
+                    "<span style='font-weight: bold;'>" + database + "</span>.",
+                    "<span style='color: #E65100; font-weight: bold;'>Please ensure the Database connections are correct.</span>",
+                    "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
+                    0);
+
+            return null;
+        } catch (ClassNotFoundException error) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Drive DB Class not Found Error: " + error.getMessage());
         }
 
         //        changeDbConnection(previousDB);
@@ -1094,14 +1124,15 @@ public class PerformDataBase {
 
         // Build the SQL insert query using PreparedStatement
         String insertSQL =
-                "INSERT INTO bot_job (id, name, description, home_banking_id, active) VALUES (?, ?, ?, ?, ?)";
+                "INSERT INTO bot_job (id, name, description, home_banking_id, home_url_id, active) VALUES (?, ?, ?, ?, ?, ?)";
 
         try (PreparedStatement pstmt = getConnection().prepareStatement(insertSQL)) {
             pstmt.setInt(1, nextId);
             pstmt.setString(2, createdBotJob.getName());
             pstmt.setString(3, createdBotJob.getName() + " description");
             pstmt.setInt(4, createdBotJob.getHomeBankingId());
-            pstmt.setInt(5, 1); // Setting "active" as true
+            pstmt.setInt(5, createdBotJob.getHomeUrlId());
+            pstmt.setInt(6, 1); // Setting "active" as true
 
             pstmt.executeUpdate();
 
@@ -2117,18 +2148,19 @@ public class PerformDataBase {
         this.botJobLoadList.clear();
         String query =
                 """
-            SELECT bot.id AS bot_job_id, bot.name AS bot_job_name,
-            bot.description AS bot_job_description, bot.priority AS bot_job_priority,
-            bot.home_banking_id, bot.home_url_id,
-            hb.url AS home_banking_url,
-            hb.name AS home_banking_name,
-            hb.priority AS home_banking_priority, hb.search_config,
-            hb.options_config, hb.cookies, hb.driver_session,
-            hb.username, hb.password,
-            bot.active
-            FROM bot_job bot
-            LEFT JOIN home_banking hb ON bot.home_banking_id = hb.id
-            ORDER BY bot.id ASC;
+SELECT bot.id AS bot_job_id, bot.name AS bot_job_name,
+bot.description AS bot_job_description, bot.priority AS bot_job_priority,
+bot.home_banking_id, bot.home_url_id,
+hu.url AS home_banking_url,
+hb.name AS home_banking_name,
+hb.priority AS home_banking_priority, hb.search_config,
+hb.options_config, hb.cookies, hb.driver_session,
+hb.username, hb.password,
+bot.active
+FROM bot_job bot
+LEFT JOIN home_banking hb ON bot.home_banking_id = hb.id
+LEFT JOIN home_url hu ON bot.home_url_id = hu.id and hu.home_banking_id = hb.id
+ORDER BY bot.id ASC;
             """;
 
         try (PreparedStatement pstmt = getConnection().prepareStatement(query)) {
@@ -2170,7 +2202,7 @@ public class PerformDataBase {
             }
         } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("Error loadAllBotJobs\nError: %s", error.getMessage()));
+                    .severe(String.format("Error loadAllBotJobs Error: %s", error.getMessage()));
         }
 
         return this.botJobLoadList;
@@ -2564,6 +2596,7 @@ public class PerformDataBase {
                 + "hb.id AS home_banking_id "
                 + "FROM home_banking hb "
                 + "JOIN component_block b ON b.home_banking_id = hb.id "
+                + "JOIN component_instruction ci ON ci.home_banking_id = hb.id and ci.block_id = b.id "
                 + "WHERE  hb.id = "
                 + homeBankingId + " " + "ORDER BY b.block_order_number ASC";
 
@@ -2595,10 +2628,10 @@ public class PerformDataBase {
                     blockLoadList.add(blockDTO);
                 }
             }
-        } catch (SQLException e) {
+        } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
-                            "Error loadBlocksForBotJob for botJobId %d\nError: %s", botJobId, e.getMessage()));
+                            "Error loadBlocksForBotJob for botJobId %d\nError: %s", botJobId, error.getMessage()));
         }
 
         return blockLoadList;
@@ -3203,88 +3236,74 @@ public class PerformDataBase {
         return -1;
     }
 
-    public List<HomeBankingLoadDTO> loadAllHomeBanking() {
-        List<HomeBankingLoadDTO> homeBankingList = new ArrayList<>();
+    public List<HomeBankingLoadDTO> loadHomeBanking(Integer homeBankingId) {
+        Map<Integer, HomeBankingLoadDTO> homeBankingMap = new HashMap<>();
 
-        try (Statement stmt = getConnection().createStatement()) {
+        StringBuilder selectSQLBuilder = new StringBuilder();
+        selectSQLBuilder.append("SELECT hb.id AS hb_id, hb.cookies, hb.driver_session, hb.name, hb.options_config, ");
+        selectSQLBuilder.append("hb.password, hb.priority, hb.search_config, hb.url AS hb_url, hb.username, ");
+        selectSQLBuilder.append("hu.id AS hu_id, hu.url AS hu_url, hu.home_banking_id ");
+        selectSQLBuilder.append("FROM home_banking hb ");
+        selectSQLBuilder.append("LEFT JOIN home_url hu ON hb.id = hu.home_banking_id ");
 
-            // Select the home banking record based on homeBankingId
-            String selectSQL =
-                    "SELECT id, cookies, driver_session, name, options_config, password, priority, search_config, url, username "
-                            + "FROM home_banking ";
-
-            ResultSet rs = stmt.executeQuery(selectSQL);
-
-            // Iterate through the result set and create HomeBankingLoadDTO objects
-            while (rs.next()) {
-                HomeBankingLoadDTO homeBanking = new HomeBankingLoadDTO();
-                homeBanking.setId(rs.getInt("id"));
-                homeBanking.setCookies(rs.getString("cookies"));
-                homeBanking.setDriverSession(rs.getString("driver_session"));
-                homeBanking.setName(rs.getString("name"));
-                homeBanking.setOptionsConfig(rs.getString("options_config"));
-                homeBanking.setPassword(rs.getString("password"));
-                homeBanking.setPriority(rs.getString("priority"));
-                homeBanking.setSearchConfig(rs.getString("search_config"));
-                homeBanking.setUrl(rs.getString("url"));
-                homeBanking.setUsername(rs.getString("username"));
-
-                // Add the object to the list
-                homeBankingList.add(homeBanking);
-            }
-
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Error selecting ALL home banking records");
+        if (homeBankingId != null) {
+            selectSQLBuilder.append("WHERE hb.id = ? "); // Add a space before WHERE
         }
+        selectSQLBuilder.append("ORDER BY hb.id, hu.id");
 
-        return homeBankingList;
-    }
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(selectSQLBuilder.toString())) {
 
-    public HomeBankingLoadDTO loadHomeBanking(int homeBankingId) {
-        HomeBankingLoadDTO homeBanking = null;
-
-        try (Statement stmt = getConnection().createStatement()) {
-
-            // Select the home_banking record
-            String selectHomeSQL = "SELECT * FROM home_banking WHERE id = " + homeBankingId;
-            ResultSet rs = stmt.executeQuery(selectHomeSQL);
-
-            if (rs.next()) {
-                homeBanking = new HomeBankingLoadDTO();
-                homeBanking.setId(rs.getInt("id"));
-                homeBanking.setCookies(rs.getString("cookies"));
-                homeBanking.setDriverSession(rs.getString("driver_session"));
-                homeBanking.setName(rs.getString("name"));
-                homeBanking.setOptionsConfig(rs.getString("options_config"));
-                homeBanking.setPassword(rs.getString("password"));
-                homeBanking.setPriority(rs.getString("priority"));
-                homeBanking.setSearchConfig(rs.getString("search_config"));
-                homeBanking.setUrl(rs.getString("url"));
-                homeBanking.setUsername(rs.getString("username"));
+            if (homeBankingId != null) {
+                pstmt.setInt(1, homeBankingId);
             }
 
-            // Now fetch the associated home_url records
-            if (homeBanking != null) {
-                String selectUrlsSQL = "SELECT * FROM home_url WHERE home_banking_id = " + homeBankingId;
-                ResultSet urlRs = stmt.executeQuery(selectUrlsSQL);
+            ResultSet rs = pstmt.executeQuery();
 
-                List<HomeUrlDTO> homeUrls = new ArrayList<>();
-                while (urlRs.next()) {
-                    HomeUrlDTO urlDTO =
-                            new HomeUrlDTO(urlRs.getInt("id"), urlRs.getString("url"), urlRs.getInt("home_banking_id"));
-                    homeUrls.add(urlDTO);
+            while (rs.next()) {
+                Integer currentHomeBankingId = rs.getInt("hb_id");
+
+                HomeBankingLoadDTO homeBanking = homeBankingMap.get(currentHomeBankingId);
+                if (homeBanking == null) {
+                    homeBanking =
+                            new HomeBankingLoadDTO(); // This will use the @NoArgsConstructor and the list will be null
+                    // OR, if you implement the full constructor, use it:
+                    // new HomeBankingLoadDTO(id, url, name, etc.)
+                    homeBanking.setId(currentHomeBankingId);
+                    homeBanking.setCookies(rs.getString("cookies"));
+                    homeBanking.setDriverSession(rs.getString("driver_session"));
+                    homeBanking.setName(rs.getString("name"));
+                    homeBanking.setOptionsConfig(rs.getString("options_config"));
+                    homeBanking.setPassword(rs.getString("password"));
+                    homeBanking.setPriority(rs.getString("priority"));
+                    homeBanking.setSearchConfig(rs.getString("search_config"));
+                    homeBanking.setUrl(rs.getString("hb_url"));
+                    homeBanking.setUsername(rs.getString("username"));
+                    homeBanking.setHomeUrlDTOs(
+                            new ArrayList<>()); // <--- IMPORTANT: Initialize the list here if not done in constructor
+                    homeBankingMap.put(currentHomeBankingId, homeBanking);
                 }
 
-                homeBanking.setHomeUrlDTOS(homeUrls);
+                int homeUrlId = rs.getInt("hu_id");
+                if (!rs.wasNull()) {
+                    String homeUrlUrl = rs.getString("hu_url");
+                    int homeUrlHomeBankingId = rs.getInt("home_banking_id");
+                    HomeUrlDTO urlDTO = new HomeUrlDTO(homeUrlId, homeUrlUrl, homeUrlHomeBankingId);
+                    homeBanking.getHomeUrlDTOs().add(urlDTO); // Access the list via getter and add
+                    // OR if you added the addHomeUrlDTO method in HomeBankingLoadDTO:
+                    // homeBanking.addHomeUrlDTO(urlDTO);
+                }
             }
 
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
-                            "Error selecting home banking record with ID %d. Error: %s",
-                            homeBankingId, e.getMessage()));
+            String message = homeBankingId != null
+                    ? String.format(
+                            "Error selecting home banking record with ID %d. Error: %s", homeBankingId, e.getMessage())
+                    : "Error selecting ALL home banking records";
+            ARLogger.getInstance(PerformDataBase.class).severe(message);
         }
-        return homeBanking;
+
+        return new ArrayList<>(homeBankingMap.values());
     }
 
     public ObservableList<ComboBoxVars> loadWebPageFields(int botJobId) {
@@ -5138,6 +5157,118 @@ public class PerformDataBase {
                 }
     }
 
+    public void updateDatabaseSchema(String dbUrl, File dbFile) {
+
+        try (Connection conn = DriverManager.getConnection(dbUrl)) {
+            try (Statement stmt = conn.createStatement()) {
+
+                DatabaseMetaData dbMeta = conn.getMetaData();
+
+                // 1. Check if the foreign key constraint already exists
+                boolean fkExists = false;
+                ResultSet rsFK = null;
+                try {
+                    // getImportedKeys(catalog, schema, table)
+                    // For Access, catalog and schema are usually null or empty string.
+                    // "bot_job" is the table that *has* the foreign key.
+                    rsFK = dbMeta.getImportedKeys(null, null, "bot_job");
+
+                    while (rsFK.next()) {
+                        String fkColumnName = rsFK.getString("FKCOLUMN_NAME");
+                        String pkTableName = rsFK.getString("PKTABLE_NAME");
+                        String pkColumnName = rsFK.getString("PKCOLUMN_NAME");
+
+                        // Check if it's the specific foreign key we want
+                        // Matching by foreign key column, referenced table, and referenced primary key column
+                        if ("home_url_id".equalsIgnoreCase(fkColumnName)
+                                && "home_url".equalsIgnoreCase(pkTableName)
+                                && "id".equalsIgnoreCase(pkColumnName)) {
+                            fkExists = true;
+                            // Optional: You can print the FK_NAME if you want to know what Access called it
+                            // String fkName = rsFK.getString("FK_NAME");
+                            // System.out.println(String.format("Foreign key '%s' (home_url_id -> home_url.id) already
+                            // exists.", fkName));
+                            break;
+                        }
+                    }
+                } finally {
+                    if (rsFK != null) {
+                        try {
+                            rsFK.close();
+                        } catch (SQLException e) {
+                            System.err.println("Error closing ResultSet for FK check: " + e.getMessage());
+                        }
+                    }
+                }
+
+                // 2. Add the foreign key constraint only if it doesn't exist
+                if (!fkExists) {
+                    System.out.println(String.format(
+                            "Foreign key 'FK_NewHomeURL' (home_url_id -> home_url.id) not found. Adding it..."));
+                    String addHomrURLForeignKeySQL = "ALTER TABLE bot_job "
+                            + "ADD CONSTRAINT FK_NewHomeURL FOREIGN KEY (home_url_id) "
+                            + "REFERENCES home_url(id) ";
+                    stmt.executeUpdate(addHomrURLForeignKeySQL);
+                    System.out.println(String.format("Foreign key 'FK_NewHomeURL' added to 'bot_job' table."));
+                    System.out.println(
+                            String.format("Database %s has been updated with the foreign key!", dbFile.getName()));
+                } else {
+                    System.out.println(String.format(
+                            "Database %s no need for foreign key 'FK_NewHomeURL' updates (constraint exists).",
+                            dbFile.getName()));
+                }
+
+                // Ensure the statement is closed
+                if (stmt != null) {
+                    try {
+                        stmt.close();
+                    } catch (SQLException e) {
+                        System.err.println("Error closing Statement: " + e.getMessage());
+                    }
+                }
+            }
+        } catch (SQLException error) {
+            System.out.println("initializeDatabase\nError: " + error.getMessage());
+        }
+    }
+
+    public void disableForeignKeyConstraints(String dbUrl) {
+        try (Connection conn = DriverManager.getConnection(dbUrl)) {
+            DatabaseMetaData meta = conn.getMetaData();
+            Statement stmt = conn.createStatement();
+
+            // Loop through all tables
+            ResultSet tables = meta.getTables(null, null, null, new String[] {"TABLE"});
+            while (tables.next()) {
+                String tableName = tables.getString("TABLE_NAME");
+
+                // Get foreign keys for the table
+                ResultSet fks = meta.getImportedKeys(null, null, tableName);
+                while (fks.next()) {
+                    String fkName = fks.getString("FK_NAME");
+
+                    if (fkName != null && !fkName.trim().isEmpty()) {
+                        String dropSQL = String.format("ALTER TABLE [%s] DROP CONSTRAINT [%s]", tableName, fkName);
+                        System.out.println("Dropping FK: " + dropSQL);
+                        try {
+                            stmt.executeUpdate(dropSQL);
+                        } catch (SQLException ex) {
+                            System.err.println("Failed to drop constraint " + fkName + ": " + ex.getMessage());
+                        }
+                    }
+                }
+                fks.close();
+            }
+
+            tables.close();
+            stmt.close();
+            System.out.println("All foreign key constraints removed.");
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
     public void updateTableAccess(String dbUrl, File dbFile) {
         //        try {
         //            String url = "jdbc:odbc:Driver={Microsoft Access Driver (*.mdb,
@@ -5164,7 +5295,8 @@ public class PerformDataBase {
                     System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
                     System.out.println(String.format("Updates %s", "variable ADD COLUMN local_format"));
                 } else {
-                    System.out.println(String.format("Database %s no need updates!", dbFile.getName()));
+                    //                    System.out.println(String.format("Database %s no need updates!",
+                    // dbFile.getName()));
                 }
 
                 rs = dbMeta.getColumns(null, null, "component_variable", "local_format");
@@ -5182,7 +5314,8 @@ public class PerformDataBase {
                     System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
                     System.out.println(String.format("Updates %s", "component_variable ADD COLUMN local_format"));
                 } else {
-                    System.out.println(String.format("Database %s no need updates!", dbFile.getName()));
+                    //                    System.out.println(String.format("Database %s no need updates!",
+                    // dbFile.getName()));
                 }
 
                 // ADD DELIMITER COLUMN
@@ -5195,7 +5328,8 @@ public class PerformDataBase {
                     System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
                     System.out.println(String.format("Updates %s", "variable ADD COLUMN delimiter"));
                 } else {
-                    System.out.println(String.format("Database %s no need updates!", dbFile.getName()));
+                    //                    System.out.println(String.format("Database %s no need updates!",
+                    // dbFile.getName()));
                 }
 
                 rs = dbMeta.getColumns(null, null, "component_variable", "delimiter");
@@ -5208,31 +5342,10 @@ public class PerformDataBase {
                     System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
                     System.out.println(String.format("Updates %s", "component_variable ADD COLUMN delimiter"));
                 } else {
-                    System.out.println(String.format("Database %s no need updates!", dbFile.getName()));
+                    //                    System.out.println(String.format("Database %s no need updates!",
+                    // dbFile.getName()));
                 }
 
-                // ADD HOME_URL_ID COLUMN
-                rs = dbMeta.getColumns(null, null, "bot_job", "home_url_id");
-
-                if (!rs.next()) {
-                    String addHomeUrlIdColumnSQL = "ALTER TABLE bot_job ADD COLUMN home_url_id INTEGER;";
-                    stmt.executeUpdate(addHomeUrlIdColumnSQL);
-
-                    System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
-                    System.out.println(String.format("Updates %s", "bot_job ADD COLUMN home_url_id"));
-                } else {
-                    System.out.println(String.format("Database %s no need updates!", dbFile.getName()));
-                }
-
-                //                // TEST FOR DROPPING COLUMNS
-                //                rs = dbMeta.getColumns(null, null, "variable", "local_format");
-                //                if (rs.next()) {
-                //                    // Column exists, so drop it
-                //                    String dropColumnSQL = "ALTER TABLE variable DROP COLUMN local_format;";
-                //                    stmt.executeUpdate(dropColumnSQL);
-                //                }
-
-                //                rs = dbMeta.getTables(null, null, "home_url", new String[]{"TABLE"});
                 boolean homeUrlExists = false;
                 rs = dbMeta.getTables(null, null, null, new String[] {"TABLE"});
 
@@ -5251,8 +5364,41 @@ public class PerformDataBase {
                     createHomeURLTable(dbUrl, dbFile); // Pass the connection if needed
                 }
 
+                // ADD HOME_URL_ID COLUMN
+                rs = dbMeta.getColumns(null, null, "bot_job", "home_url_id");
+
+                if (!rs.next()) {
+                    String addHomeUrlIdColumnSQL = "ALTER TABLE bot_job ADD COLUMN home_url_id INTEGER;";
+                    stmt.executeUpdate(addHomeUrlIdColumnSQL);
+
+                    //                    String addHomrURLForeignKeySQL = "ALTER TABLE bot_job "
+                    //                            + "ADD CONSTRAINT FK_NewHomeURL FOREIGN KEY (home_url_id) "
+                    //                            + "REFERENCES home_url(id)";
+                    //                    stmt.executeUpdate(addHomrURLForeignKeySQL);
+
+                    //                    String upDateSQL = "UPDATE bot_job "
+                    //                            + "SET home_url_id = home_banking_id";
+                    //                    stmt.executeUpdate(upDateSQL);
+
+                    System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
+                    System.out.println(String.format("Updates %s", "bot_job ADD COLUMN home_url_id"));
+                } else {
+                    //                    System.out.println(String.format("Database %s no need updates!",
+                    // dbFile.getName()));
+                }
+
+                //                // TEST FOR DROPPING COLUMNS
+                //                rs = dbMeta.getColumns(null, null, "variable", "local_format");
+                //                if (rs.next()) {
+                //                    // Column exists, so drop it
+                //                    String dropColumnSQL = "ALTER TABLE variable DROP COLUMN local_format;";
+                //                    stmt.executeUpdate(dropColumnSQL);
+                //                }
+
+                //                rs = dbMeta.getTables(null, null, "home_url", new String[]{"TABLE"});
+
                 //                deleteHomeUrl(dbUrl);
-                this.databaseList = loadAllHomeBankingBotJob();
+                this.databaseUpds = loadHomeBanking(null);
                 this.homeURLList = loadAllHomeURL();
 
                 insertUpdateHomeUrl();
@@ -5295,21 +5441,23 @@ public class PerformDataBase {
     }
 
     private ErrorMessage updateBotJobHomeUrlIds(Connection conn, List<HomeUrlDTO> homeURLList) {
-        String blockInsertQuery = "UPDATE bot_job set home_url_id = ? where home_banking_id = ?";
+        // Update bot_job only if the home_url_id to be set exists in the home_url table
+        String blockInsertQuery = "UPDATE bot_job AS bj " + "SET bj.home_url_id = ? "
+                + "WHERE bj.home_banking_id = ? "
+                + "AND EXISTS (SELECT 1 FROM home_url WHERE id = ?);"; // Parameter for home_url.id check
 
         try (PreparedStatement blockStmt = conn.prepareStatement(blockInsertQuery)) {
-
             boolean batchModeEnabled = false;
             for (HomeUrlDTO homeUrl : homeURLList) {
-                int index = 1;
-                blockStmt.setInt(index++, homeUrl.getId());
-                blockStmt.setInt(index++, homeUrl.getHomeBankingId());
+                blockStmt.setInt(1, homeUrl.getId()); // 1st ?: Sets home_url_id in bot_job
+                blockStmt.setInt(2, homeUrl.getHomeBankingId()); // 2nd ?: Sets home_banking_id in bot_job
+                blockStmt.setInt(3, homeUrl.getId()); // 4th ?: Used in AND EXISTS (SELECT 1 FROM home_url WHERE id = ?)
 
                 blockStmt.addBatch(); // Add the current block to the batch
                 batchModeEnabled = true;
             }
             if (batchModeEnabled) {
-                blockStmt.executeBatch(); // Execute the batch insert
+                blockStmt.executeBatch(); // Execute the batch update
             }
             return null;
         } catch (SQLException error) {
@@ -5329,10 +5477,10 @@ public class PerformDataBase {
                         + "home_banking_id INTEGER);";
                 stmt.executeUpdate(createURLTableSQL);
 
-                String addURLForeignKeySQL = "ALTER TABLE home_url "
-                        + "ADD CONSTRAINT FK_URL FOREIGN KEY (home_banking_id) "
-                        + "REFERENCES home_banking(id) ON DELETE CASCADE";
-                stmt.executeUpdate(addURLForeignKeySQL);
+                //                String addURLForeignKeySQL = "ALTER TABLE home_url "
+                //                        + "ADD CONSTRAINT FK_UrlNew FOREIGN KEY (home_banking_id) "
+                //                        + "REFERENCES home_banking(id) ";
+                //                stmt.executeUpdate(addURLForeignKeySQL);
             }
             System.out.println(String.format("Database %s has been created!", dbFile.getName()));
         } catch (SQLException error) {
@@ -5373,8 +5521,8 @@ public class PerformDataBase {
         try (PreparedStatement blockStmt = conn.prepareStatement(blockInsertQuery)) {
 
             boolean batchModeEnabled = false;
-            for (DatabaseUserDTO dbUser : this.databaseList) {
-                Integer dbUserId = dbUser.getId() != null ? Integer.parseInt(dbUser.getId()) : null;
+            for (HomeBankingLoadDTO dbUser : this.databaseUpds) {
+                Integer dbUserId = dbUser.getId() != null ? dbUser.getId() : null;
                 String dbUserUrl = dbUser.getUrl();
 
                 // Check if homeURLList contains a HomeUrlDTO with matching id and url
@@ -5432,10 +5580,31 @@ public class PerformDataBase {
     public ObservableList<DatabaseUserDTO> loadAllHomeBankingBotJob() {
         databaseList.clear();
         String selectSQL =
-                " SELECT bank.ID, bank.Name, Url, bank.priority, COUNT(bot.ID) Jobs, search_config searchConfig, options_config optionsConfig, username, password "
-                        + " FROM home_banking bank "
-                        + " left join bot_job bot on bot.home_banking_id = bank.id "
-                        + " group by bank.ID, bank.Name, bank.Url, bank.priority, bank.search_config, bank.options_config, bank.username, bank.password ";
+                """
+SELECT
+  bank.ID,
+  bank.Name,
+  hu.url,
+  bank.priority,
+  COUNT(bot.ID) AS Jobs,
+  bank.search_config AS searchConfig,
+  bank.options_config AS optionsConfig,
+  bank.username,
+  bank.password
+FROM home_banking bank
+LEFT JOIN bot_job bot ON bot.home_banking_id = bank.id
+LEFT JOIN home_url hu ON hu.home_banking_id = bank.id
+GROUP BY
+  bank.ID,
+  bank.Name,
+  hu.url,
+  bank.priority,
+  bank.search_config,
+  bank.options_config,
+  bank.username,
+  bank.password;
+                        """;
+
         try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
@@ -5528,6 +5697,226 @@ public class PerformDataBase {
         return homeURLList;
     }
 
+    public void postGresIntegration() {
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
+
+        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+
+        String userData = userDB + " - " + userPwd;
+
+        ARLogger.getInstance(PerformDataBase.class).info("POSTGRES connection URL: " + postgresDbUrl);
+        ARLogger.getInstance(PerformDataBase.class).info("User Details: " + userData);
+
+        final int BATCH_SIZE = 100;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+                Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
+                Statement accessStmt = accessConn.createStatement(); ) {
+            postgresConn.setAutoCommit(false); // Use manual commit for batch performance
+
+            String selectAccessSQL =
+                    "SELECT ID, url, name, priority, search_config, options_config, cookies, driver_session, username, password FROM home_banking";
+            ResultSet rs = accessStmt.executeQuery(selectAccessSQL);
+
+            String checkSQL = "SELECT id FROM home_banking WHERE url = ?";
+            String insertSQL =
+                    "INSERT INTO home_banking (url, name, priority, search_config, options_config, cookies, driver_session, username, password) "
+                            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+            try (PreparedStatement checkStmt = postgresConn.prepareStatement(checkSQL);
+                    PreparedStatement insertStmt = postgresConn.prepareStatement(insertSQL)) {
+                int count = 0;
+
+                while (rs.next()) {
+                    String url = rs.getString("url");
+
+                    // Check for existence
+                    checkStmt.setString(1, url);
+                    ResultSet checkResult = checkStmt.executeQuery();
+
+                    if (!checkResult.next()) {
+                        // Add to batch
+                        insertStmt.setString(1, url);
+                        insertStmt.setString(2, rs.getString("name"));
+                        insertStmt.setString(3, rs.getString("priority"));
+                        insertStmt.setString(4, rs.getString("search_config"));
+                        insertStmt.setString(5, rs.getString("options_config"));
+                        insertStmt.setString(6, rs.getString("cookies"));
+                        insertStmt.setString(7, rs.getString("driver_session"));
+                        insertStmt.setString(8, rs.getString("username"));
+                        insertStmt.setString(9, rs.getString("password"));
+                        insertStmt.addBatch();
+
+                        count++;
+
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            postgresConn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                        }
+                    } else {
+                        System.out.println("Skipped (exists): " + url);
+                    }
+                }
+
+                // Final batch
+                insertStmt.executeBatch();
+                postgresConn.commit();
+                System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+            }
+
+            System.out.println("Sync completed.");
+        } catch (SQLException error) {
+            error.printStackTrace();
+        }
+    }
+
+    public ErrorMessage dropPostGresSequences() {
+        // Build the SQL update statement
+
+        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+
+        try (Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd)) {
+
+            try (Statement stmt = postgresConn.createStatement()) {
+                int rowsAffected = 0;
+
+                rowsAffected += stmt.executeUpdate("DELETE  FROM \"home_url\";");
+                rowsAffected += stmt.executeUpdate("DELETE FROM \"home_banking\";");
+
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"home_url_id_seq\";");
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"home_banking_id_seq\";");
+
+                // Recreate sequences
+                rowsAffected += stmt.executeUpdate("CREATE SEQUENCE \"home_url_id_seq\" START WITH 1 INCREMENT BY 1;");
+                rowsAffected +=
+                        stmt.executeUpdate("CREATE SEQUENCE \"home_banking_id_seq\" START WITH 1 INCREMENT BY 1;");
+
+                // Uncomment if needed
+                //            rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"instruction_id_seq\";");
+                //            rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"block_id_seq\";");
+                //            rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"bot_job_id_seq\";");
+                //            rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"component_block_id_seq\";");
+                //            rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS
+                // \"component_instruction_id_seq\";");
+                //            rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS
+                // \"component_reference_id_seq\";");
+                //            rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS
+                // \"component_variable_id_seq\";");
+                //            rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"reference_id_seq\";");
+                //            rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"variable_id_seq\";");
+
+                if (rowsAffected > 0) {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .warning(String.format("Migration DB Scripts - RowsUpdated - %s", rowsAffected));
+                } else {
+                    ARLogger.getInstance(PerformDataBase.class).info("Migration DB Scripts - No Rows were updated");
+                }
+                return null;
+
+            } catch (SQLException error) {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .warning("Migration DB Scripts - Error: " + error.getMessage());
+                return new ErrorMessage(
+                        "Error Drop Tables Migration 2.7f", "Error dropping OLD objects", error.getMessage());
+            }
+
+        } catch (SQLException error) {
+            error.printStackTrace();
+            return new ErrorMessage("Connection Error", "Could not connect to Postgres DB", error.getMessage());
+        }
+    }
+
+    public void importHomeUrlTable() {
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
+
+        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+
+        String userData = userDB + " - " + userPwd;
+
+        ARLogger.getInstance(PerformDataBase.class).info("POSTGRES connection URL: " + postgresDbUrl);
+        ARLogger.getInstance(PerformDataBase.class).info("User Details: " + userData);
+        final int BATCH_SIZE = 100;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+                Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
+                Statement accessStmt = accessConn.createStatement()) {
+
+            postgresConn.setAutoCommit(false); // Enable manual commit for batch performance
+
+            String selectAccessSQL = "SELECT url FROM home_url";
+            try (ResultSet rs = accessStmt.executeQuery(selectAccessSQL)) {
+
+                String findHomeBankingIdSQL = "SELECT id FROM home_banking WHERE url = ?";
+                String checkHomeUrlExistsSQL = "SELECT id FROM home_url WHERE url = ? AND home_banking_id = ?";
+                String insertHomeUrlSQL = "INSERT INTO home_url (url, home_banking_id) VALUES (?, ?)";
+
+                try (PreparedStatement findHomeBankingStmt = postgresConn.prepareStatement(findHomeBankingIdSQL);
+                        PreparedStatement checkStmt = postgresConn.prepareStatement(checkHomeUrlExistsSQL);
+                        PreparedStatement insertStmt = postgresConn.prepareStatement(insertHomeUrlSQL)) {
+
+                    int count = 0;
+
+                    while (rs.next()) {
+                        String url = rs.getString("url");
+
+                        // Get home_banking.id from PostgreSQL using url
+                        findHomeBankingStmt.setString(1, url);
+                        try (ResultSet homeBankingRs = findHomeBankingStmt.executeQuery()) {
+
+                            if (homeBankingRs.next()) {
+                                int homeBankingId = homeBankingRs.getInt("id");
+
+                                // Check if home_url with the same url and home_banking_id already exists
+                                checkStmt.setString(1, url);
+                                checkStmt.setInt(2, homeBankingId);
+                                try (ResultSet checkRs = checkStmt.executeQuery()) {
+
+                                    if (!checkRs.next()) {
+                                        insertStmt.setString(1, url);
+                                        insertStmt.setInt(2, homeBankingId);
+                                        insertStmt.addBatch();
+                                        count++;
+
+                                        if (count % BATCH_SIZE == 0) {
+                                            insertStmt.executeBatch();
+                                            postgresConn.commit();
+                                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                                        }
+                                    } else {
+                                        System.out.println("Skipped (already exists): " + url + " / " + homeBankingId);
+                                    }
+                                }
+
+                            } else {
+                                System.out.println("No matching home_banking entry for url: " + url);
+                            }
+                        }
+                    }
+
+                    insertStmt.executeBatch();
+                    postgresConn.commit();
+                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    ARLogger.getInstance(PerformDataBase.class).info("Inserted records into home_url: " + count);
+                }
+            }
+
+        } catch (SQLException error) {
+            error.printStackTrace();
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to import home_url");
+        }
+    }
+
     public void initializeMainDatabaseAccess(String dbUrl, File dbFile) {
 
         try (Connection conn = DriverManager.getConnection(dbUrl)) {
@@ -5556,7 +5945,7 @@ public class PerformDataBase {
 
                 String addURLForeignKeySQL = "ALTER TABLE home_url "
                         + "ADD CONSTRAINT FK_URL FOREIGN KEY (home_banking_id) "
-                        + "REFERENCES home_banking(id) ON DELETE CASCADE";
+                        + "REFERENCES home_banking(id) ";
                 stmt.executeUpdate(addURLForeignKeySQL);
 
                 // Create bot_job table with a foreign key reference to home_banking
@@ -5566,13 +5955,19 @@ public class PerformDataBase {
                         + "description TEXT, "
                         + "priority MEMO, "
                         + "active YESNO NOT NULL, "
-                        + "home_banking_id INTEGER);";
+                        + "home_banking_id INTEGER, "
+                        + "home_url_id INTEGER);";
                 stmt.executeUpdate(createBotJobTableSQL);
 
                 String addBotJobForeignKeySQL = "ALTER TABLE bot_job "
                         + "ADD CONSTRAINT FK_BotJob FOREIGN KEY (home_banking_id) "
-                        + "REFERENCES home_banking(id) ON DELETE CASCADE";
+                        + "REFERENCES home_banking(id) ";
                 stmt.executeUpdate(addBotJobForeignKeySQL);
+
+                String addHomrURLForeignKeySQL = "ALTER TABLE bot_job "
+                        + "ADD CONSTRAINT FK_HomeUrl FOREIGN KEY (home_url_id) "
+                        + "REFERENCES home_url(id) ";
+                stmt.executeUpdate(addHomrURLForeignKeySQL);
 
                 // Create block table with a foreign key reference to bot_job
                 String createBlockTableSQL = "CREATE TABLE block ("
@@ -5589,7 +5984,7 @@ public class PerformDataBase {
 
                 String addForeignKeySQL2 = "ALTER TABLE block "
                         + "ADD CONSTRAINT FK_2 FOREIGN KEY (bot_job_id) "
-                        + "REFERENCES bot_job(id) ON DELETE CASCADE";
+                        + "REFERENCES bot_job(id) ";
                 stmt.executeUpdate(addForeignKeySQL2);
 
                 // Create instruction table with foreign key references to block and bot_job
@@ -5624,12 +6019,12 @@ public class PerformDataBase {
 
                 String addForeignKeySQL3 = "ALTER TABLE instruction "
                         + "ADD CONSTRAINT FK_3 FOREIGN KEY (block_id) "
-                        + "REFERENCES block(id) ON DELETE CASCADE";
+                        + "REFERENCES block(id) ";
                 stmt.executeUpdate(addForeignKeySQL3);
 
                 String addForeignKeySQL4 = "ALTER TABLE instruction "
                         + "ADD CONSTRAINT FK_4 FOREIGN KEY (bot_job_id) "
-                        + "REFERENCES bot_job(id) ON DELETE CASCADE";
+                        + "REFERENCES bot_job(id) ";
                 stmt.executeUpdate(addForeignKeySQL4);
 
                 String createReferenceTableSQL = "CREATE TABLE reference ("
@@ -5642,12 +6037,12 @@ public class PerformDataBase {
 
                 String addForeignKeySQL5 = "ALTER TABLE reference "
                         + "ADD CONSTRAINT FK_5 FOREIGN KEY (instruction_id) "
-                        + "REFERENCES instruction(id) ON DELETE CASCADE";
+                        + "REFERENCES instruction(id) ";
                 stmt.executeUpdate(addForeignKeySQL5);
 
                 String addForeignKeySQL6 = "ALTER TABLE reference "
                         + "ADD CONSTRAINT FK_6 FOREIGN KEY (bot_job_id) "
-                        + "REFERENCES bot_job(id) ON DELETE CASCADE";
+                        + "REFERENCES bot_job(id) ";
                 stmt.executeUpdate(addForeignKeySQL6);
 
                 String createVariableTableSQL = "CREATE TABLE variable ("
@@ -5663,34 +6058,13 @@ public class PerformDataBase {
 
                 String addForeignKeySQL7 = "ALTER TABLE variable "
                         + "ADD CONSTRAINT FK_7 FOREIGN KEY (instruction_id) "
-                        + "REFERENCES instruction(id) ON DELETE CASCADE";
+                        + "REFERENCES instruction(id) ";
                 stmt.executeUpdate(addForeignKeySQL7);
 
                 String addForeignKeySQL8 = "ALTER TABLE variable "
                         + "ADD CONSTRAINT FK_8 FOREIGN KEY (bot_job_id) "
-                        + "REFERENCES bot_job(id) ON DELETE CASCADE";
+                        + "REFERENCES bot_job(id) ";
                 stmt.executeUpdate(addForeignKeySQL8);
-
-                //                String createConfigurationTableSQL = "CREATE TABLE configuration ("
-                //                        + "id INTEGER PRIMARY KEY, "
-                //                        + "pathJava MEMO, "
-                //                        + "logLevel TEXT, "
-                //                        + "pathDB TEXT, "
-                //                        + "interactionTimeoutSec TEXT, "
-                //                        + "pathLog MEMO, "
-                //                        + "defaultInstructionStopSeconds TEXT, "
-                //                        + "pathReport TEXT, "
-                //                        + "browser MEMO, "
-                //                        + "dataBaseType TEXT, "
-                //                        + "pageUpdateTimeoutSec TEXT, "
-                //                        + "pathPriority TEXT, "
-                //                        + "pathEngine TEXT, "
-                //                        + "pathExcel TEXT, "
-                //                        + "pathExport TEXT, "
-                //                        + "socketPort TEXT, "
-                //                        + "blockLimit TEXT, "
-                //                        + "pathJavaFx TEXT)";
-                //                stmt.executeUpdate(createConfigurationTableSQL);
 
                 String createComponentBlockTableSQL = "CREATE TABLE component_block ("
                         + "id INTEGER PRIMARY KEY, "
@@ -5706,7 +6080,7 @@ public class PerformDataBase {
 
                 String addForeignKeySQL9 = "ALTER TABLE component_block "
                         + "ADD CONSTRAINT FK_9 FOREIGN KEY (home_banking_id) "
-                        + "REFERENCES home_banking(id) ON DELETE CASCADE";
+                        + "REFERENCES home_banking(id) ";
                 stmt.executeUpdate(addForeignKeySQL9);
 
                 String createComponentInstructionTableSQL = "CREATE TABLE component_instruction ("
@@ -5740,12 +6114,12 @@ public class PerformDataBase {
 
                 String addForeignKeySQL10 = "ALTER TABLE component_instruction "
                         + "ADD CONSTRAINT FK_10 FOREIGN KEY (block_id) "
-                        + "REFERENCES component_block(id) ON DELETE CASCADE";
+                        + "REFERENCES component_block(id) ";
                 stmt.executeUpdate(addForeignKeySQL10);
 
                 String addCompBlkHomeForeignKeySQL = "ALTER TABLE component_instruction "
                         + "ADD CONSTRAINT FK_BLKHomeBank FOREIGN KEY (home_banking_id) "
-                        + "REFERENCES home_banking(id) ON DELETE CASCADE";
+                        + "REFERENCES home_banking(id) ";
                 stmt.executeUpdate(addCompBlkHomeForeignKeySQL);
 
                 String createComponentReferenceTableSQL = "CREATE TABLE component_reference ("
@@ -5758,12 +6132,12 @@ public class PerformDataBase {
 
                 String addForeignKeySQL11 = "ALTER TABLE component_reference "
                         + "ADD CONSTRAINT FK_11 FOREIGN KEY (instruction_id) "
-                        + "REFERENCES component_instruction(id) ON DELETE CASCADE";
+                        + "REFERENCES component_instruction(id) ";
                 stmt.executeUpdate(addForeignKeySQL11);
 
                 String addCompReferForeignKeySQL = "ALTER TABLE component_reference "
                         + "ADD CONSTRAINT FK_CompRefer FOREIGN KEY (home_banking_id) "
-                        + "REFERENCES home_banking(id) ON DELETE CASCADE";
+                        + "REFERENCES home_banking(id) ";
                 stmt.executeUpdate(addCompReferForeignKeySQL);
 
                 String createComponentVariableTableSQL = "CREATE TABLE component_variable ("
@@ -5779,12 +6153,12 @@ public class PerformDataBase {
 
                 String addForeignKeySQL12 = "ALTER TABLE component_variable "
                         + "ADD CONSTRAINT FK_12 FOREIGN KEY (instruction_id) "
-                        + "REFERENCES component_instruction(id) ON DELETE CASCADE";
+                        + "REFERENCES component_instruction(id) ";
                 stmt.executeUpdate(addForeignKeySQL12);
 
                 String addCompVarForeignKeySQL = "ALTER TABLE component_variable "
                         + "ADD CONSTRAINT FK_CompVar FOREIGN KEY (home_banking_id) "
-                        + "REFERENCES home_banking(id) ON DELETE CASCADE";
+                        + "REFERENCES home_banking(id) ";
                 stmt.executeUpdate(addCompVarForeignKeySQL);
             }
             System.out.println(String.format("Database %s has been created!", dbFile.getName()));
@@ -5795,13 +6169,38 @@ public class PerformDataBase {
 
     public boolean doesInstructionTableExist() {
         try (Connection conn = getConnection()) {
-            try (ResultSet rs = conn.getMetaData().getTables(null, null, "instruction", null)) {
-                return rs.next(); // Returns true if the table exists
+            if (conn != null && conn != null && conn.getMetaData() != null) {
+                try (ResultSet rs = conn.getMetaData().getTables(null, null, "instruction", null)) {
+                    return rs.next(); // Returns true if the table exists
+                }
             }
         } catch (SQLException error) {
             System.out.println("Error checking table existence: " + error.getMessage());
         }
+
         return false; // Default return if an exception occurs or the table does not exist
+    }
+
+    public void createTableLLama2AIVector() {
+
+        try (Connection conn = getConnection()) {
+            try (Statement stmt = conn.createStatement()) {
+
+                String createTableVectorOpenAI =
+                        """
+                        CREATE TABLE web_elements_llama2 (
+                          id SERIAL PRIMARY KEY,
+                          element_name TEXT,
+                          element_type TEXT,
+                          embedding VECTOR(4096) -- size of OpenAI embedding vector
+                        );
+                        """;
+                stmt.executeUpdate(createTableVectorOpenAI);
+            }
+            System.out.println("Database %s has been created!");
+        } catch (SQLException error) {
+            System.out.println("initializeDatabase\nError: " + error.getMessage());
+        }
     }
 
     public void createTableOpenAIVector() {
@@ -5811,11 +6210,11 @@ public class PerformDataBase {
 
                 String createTableVectorOpenAI =
                         """
-                        CREATE TABLE web_elements (
+                        CREATE TABLE web_elements_openai (
                           id SERIAL PRIMARY KEY,
                           element_name TEXT,
                           element_type TEXT,
-                          embedding VECTOR(1536) -- size of OpenAI embedding vector
+                          embedding vector(1536) -- size of OpenAI embedding vector
                         );
                         """;
                 stmt.executeUpdate(createTableVectorOpenAI);
@@ -5859,7 +6258,8 @@ public class PerformDataBase {
                         + "description TEXT, "
                         + "priority TEXT, "
                         + "active INTEGER NOT NULL, "
-                        + "home_banking_id INTEGER REFERENCES home_banking(id) ON DELETE CASCADE)";
+                        + "home_banking_id INTEGER REFERENCES home_banking(id) ON DELETE CASCADE, "
+                        + "home_url_id INTEGER REFERENCES home_url(id) ON DELETE CASCADE)";
                 stmt.executeUpdate(createBotJobTableSQL);
 
                 // Create block table with a foreign key reference to bot_job
