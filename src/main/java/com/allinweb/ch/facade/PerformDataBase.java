@@ -5082,7 +5082,7 @@ ORDER BY bot.id ASC;
         return savedBlockLoadList;
     }
 
-    public boolean insertReferences(List<InstructionReferenceLoadDTO> queue, int instructionId) {
+    public boolean insertReferences(List<InstructionReferenceLoadDTO> queue, int instructionId) throws SQLException {
         String insertSQL =
                 "INSERT INTO reference(id, reference_type, value, instruction_id, bot_job_id) VALUES (?, ?, ?, ?, ?)";
 
@@ -5125,10 +5125,6 @@ ORDER BY bot.id ASC;
 
             ARLogger.getInstance(PerformDataBase.class).info("Batch insert completed successfully.");
             return true;
-
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Cannot Insert References\nError: " + e.getMessage());
-            return false;
         }
     }
 
