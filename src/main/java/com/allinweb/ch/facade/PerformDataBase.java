@@ -2937,6 +2937,25 @@ ORDER BY bot.id ASC;
         }
     }
 
+    public boolean instructionIdExists(int instructionId) {
+        String query = "SELECT COUNT(*) FROM instruction WHERE id = ?";
+        try (Connection connection = getConnection(); // Assuming getConnection() provides a valid Connection
+                PreparedStatement pstmt = connection.prepareStatement(query)) {
+
+            pstmt.setInt(1, instructionId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1) > 0; // If count is greater than 0, the ID exists
+                }
+            }
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "Error checking for instruction ID %d. Error: %s", instructionId, error.getMessage()));
+        }
+        return false; // Return false if an error occurs or the ID is not found
+    }
+
     private Integer loadNextIdInstructionData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq;
         String selectSQL = "SELECT MAX(ID) AS max_id FROM instruction";
@@ -6595,6 +6614,76 @@ GROUP BY
             ARLogger.getInstance(PerformDataBase.class).severe("loadAllVariables. Error: " + error.getMessage());
         }
         return null;
+    }
+
+    public List<InstructionLoadDTO> loadExcelGotoBlock(int homeBankingId, int botJobId) {
+
+        String query = "SELECT * FROM instruction " + " WHERE 1=1 " + " and actions = " + "'EXCEL GOTO'";
+
+        // Add conditional filters based on provided IDs
+        if (botJobId > 0) { // Only apply filter if botJobId is a valid, positive ID
+            query += " AND bot_job_id = " + botJobId;
+        }
+
+        //        if (homeBankingId > 0) { // Only apply filter if homeBankingId is a valid, positive ID
+        //            query += " AND home_banking_id = " + homeBankingId;
+        //        }
+
+        query += " ORDER BY instruction_order_number"; // Ordering by instruction order, as block_order_number is not
+        // available
+
+        List<InstructionLoadDTO> instructionLoadDTOList = new ArrayList<>();
+
+        // Using Statement to execute the query
+        try (Statement stmt = getConnection().createStatement()) {
+            ResultSet rs = stmt.executeQuery(query); // Execute the query
+
+            while (rs.next()) {
+                InstructionLoadDTO instructionLoadDTO = new InstructionLoadDTO();
+                instructionLoadDTO.setId(rs.getInt("id"));
+                instructionLoadDTO.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
+                instructionLoadDTO.setActions(rs.getString("actions"));
+                instructionLoadDTO.setInstructionActive(rs.getBoolean("active"));
+                instructionLoadDTO.setBlockMarked(rs.getBoolean("block_marked"));
+                instructionLoadDTO.setCodified(rs.getBoolean("codified"));
+                instructionLoadDTO.setDefaultValue(rs.getString("default_value"));
+                instructionLoadDTO.setDescription(rs.getString("description"));
+                instructionLoadDTO.setExportToABR(rs.getBoolean("export_to_abr"));
+                instructionLoadDTO.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
+                instructionLoadDTO.setInstructionName(rs.getString("name"));
+                instructionLoadDTO.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
+                instructionLoadDTO.setOperation(rs.getString("operation"));
+                instructionLoadDTO.setOptional(rs.getBoolean("optional"));
+                instructionLoadDTO.setParentId(rs.getInt("parent_id"));
+                instructionLoadDTO.setXpath(rs.getString("xpath"));
+                instructionLoadDTO.setCoordinates(rs.getString("coordinates"));
+                instructionLoadDTO.setForceCoordinates(rs.getBoolean("force_coordinates"));
+                instructionLoadDTO.setIFrameXPath(rs.getString("iframe_xpath"));
+
+                instructionLoadDTO.setTagName(rs.getString("tag_name"));
+                instructionLoadDTO.setShadowHost(rs.getString("shadow_host"));
+                instructionLoadDTO.setShadowRoot(rs.getString("shadow_root"));
+                instructionLoadDTO.setCssSelector(rs.getString("css_selector"));
+
+                instructionLoadDTO.setVariableId(rs.getInt("variable_id"));
+                instructionLoadDTO.setBlockId(rs.getInt("block_id"));
+                // Removed: setBlockOrderNumber as 'block_order_number' is not available without joining the 'block'
+                // table.
+
+                // Assuming both bot_job_id and home_banking_id exist in the 'instruction' table
+                instructionLoadDTO.setBotJobId(rs.getInt("bot_job_id"));
+
+                instructionLoadDTOList.add(instructionLoadDTO);
+            }
+
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "Error getting All Excel data GOTO Homebanking ID %d BotJob ID %d. Error: %s",
+                            homeBankingId, botJobId, error.getMessage()));
+        }
+
+        return instructionLoadDTOList;
     }
 
     private Integer loadNextIdData() {

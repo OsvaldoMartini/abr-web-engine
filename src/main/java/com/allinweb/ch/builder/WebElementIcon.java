@@ -13,6 +13,7 @@ public enum WebElementIcon {
     COPY_VAR("CopyVar"),
     IFRAME("iframe"),
     GOTO("GOTO"),
+    EXCEL_GOTO("EXCEL GOTO"),
     EXTRACT_FIELD("ExcelWrite"),
     REFRESH_ONLY("Refresh"),
     REFRESH_LOOP("Refresh Loop"),

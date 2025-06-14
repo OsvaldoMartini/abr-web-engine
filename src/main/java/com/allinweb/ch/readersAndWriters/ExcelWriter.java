@@ -199,6 +199,7 @@ public class ExcelWriter {
                             case ARConstants.EXIT -> "EXIT";
                             case ARConstants.BY_PASS -> "BY_PASS";
                             case ARConstants.EXCEL_BLOCK_HEADER -> "EXCEL_BLOCK_HEADER";
+                            case ARConstants.NEXT_ROW -> "EXCEL DATA NEXT ROW";
                             default -> "Unsupported action";
                         };
                 String value = "";
@@ -216,7 +217,10 @@ public class ExcelWriter {
                     value = msgLoop.getValue();
                 }
 
-                if (actions[0].equalsIgnoreCase(ARConstants.GOTO)) {
+                if (actions[0].equalsIgnoreCase(ARConstants.NEXT_ROW)) {
+                    keyAction = msgLoop.getKey();
+                    value = msgLoop.getValue();
+                } else if (actions[0].equalsIgnoreCase(ARConstants.GOTO)) {
                     if (msgLoop.getValue().equals("Unknown")) {
                         keyAction = msgLoop.getKey();
                         value = msgLoop.getValue();
