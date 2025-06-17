@@ -211,6 +211,7 @@ public class PerformDataBase {
             //                closeConnection(); // Close previous connection before establishing a new one
             //            }
 
+            POSTGRES_DB = false;
             if (conn == null || conn.isClosed()) {
                 if (!POSTGRES_DB) {
                     String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
@@ -219,19 +220,21 @@ public class PerformDataBase {
                     Class.forName("net.ucanaccess.jdbc.UcanaccessDriver");
                     conn = DriverManager.getConnection(dbUrl);
                     conn.setReadOnly(false);
-                } else {
-                    String dbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
-                    String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
-                    String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
-
-                    String userData = userDB + " - " + userPwd;
-
-                    ARLogger.getInstance(PerformDataBase.class).info("POSTGRES connection URL: " + dbUrl);
-                    ARLogger.getInstance(PerformDataBase.class).info("User Details: " + userData);
-                    Class.forName("org.postgresql.Driver");
-                    conn = DriverManager.getConnection(dbUrl, userDB, userPwd);
-                    conn.setReadOnly(false);
                 }
+                //                else {
+                //                    String dbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+                //                    String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+                //                    String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+                //
+                //                    String userData = userDB + " - " + userPwd;
+                //
+                //                    ARLogger.getInstance(PerformDataBase.class).info("POSTGRES connection URL: " +
+                // dbUrl);
+                //                    ARLogger.getInstance(PerformDataBase.class).info("User Details: " + userData);
+                //                    Class.forName("org.postgresql.Driver");
+                //                    conn = DriverManager.getConnection(dbUrl, userDB, userPwd);
+                //                    conn.setReadOnly(false);
+                //                }
                 // Increment the open connection counter
                 if (getOpenConnectionsCount() > 10) {
                     this.openConnections = 0;
