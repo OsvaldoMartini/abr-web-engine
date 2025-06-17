@@ -373,9 +373,9 @@ public class PerformActions {
                                     parentField,
                                     instruction.getActions(),
                                     mapOperators);
-                        } else if (mapOperators.containsKey(variableField)) {
-                            valueElem = mapOperators.get(variableField);
-                        } else {
+                        } // else if (mapOperators.containsKey(variableField)) {
+                        //   valueElem = mapOperators.get(variableField);
+                        else {
                             valueElem = getValueInElement(byPassNotFound, instructionElement);
                         }
                         if (!Strings.isNullOrEmpty(valueElem)) {

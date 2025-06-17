@@ -2,7 +2,10 @@ package com.allinweb.ch.readersAndWriters;
 
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
-import java.awt.*;
+import java.awt.AWTException;
+import java.awt.Rectangle;
+import java.awt.Robot;
+import java.awt.Toolkit;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
@@ -14,6 +17,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import javafx.util.Pair;
 import javax.imageio.ImageIO;
@@ -112,6 +116,20 @@ public class ExcelWriter {
             try {
 
                 managedExcel.onSheet(0).insertFieldNameAndValueLastColumn(mapExport, exportIndex);
+                //                        .insertColumValueOnLastRow(value);
+                managedExcel.save();
+            } catch (Exception ex) {
+                ARLogger.getInstance(ExcelWriter.class)
+                        .severe(String.format(
+                                "Excel Writer insertValueFieldName.Check if the file exist. File: %s\nError",
+                                botJobName, ex.getMessage()));
+            }
+        }
+
+        public void insertCSVContentIntoExcel(List<String> columnsCSV, List<List<String>> rowsCSV, int exportIndex) {
+            try {
+
+                managedExcel.onSheet(0).insertCSVContentIntoExcel(columnsCSV, rowsCSV, exportIndex);
                 //                        .insertColumValueOnLastRow(value);
                 managedExcel.save();
             } catch (Exception ex) {
@@ -548,6 +566,31 @@ public class ExcelWriter {
                 ARLogger.getInstance(ExcelWriter.class)
                         .severe(String.format(
                                 "Excel Writer insertFieldNameAndValueLastColumn: \nError", ex.getMessage()));
+            }
+        }
+
+        public void insertCSVContentIntoExcel(List<String> columnsCSV, List<List<String>> rowsCSV, int exportIndex) {
+            try {
+                // Create header row: KEY | column1 | column2 | ...
+                Row headerRow = getOrCreateRow(exportIndex);
+                insertValueAtCoordinates("KEY", exportIndex, 0);
+                for (int i = 0; i < columnsCSV.size(); i++) {
+                    insertValueAtCoordinates(columnsCSV.get(i), exportIndex, i + 1);
+                }
+
+                // Write each row: EXTERNAL_1 | val1 | val2 | ...
+                for (int i = 0; i < rowsCSV.size(); i++) {
+                    Row row = getOrCreateRow(exportIndex + 1 + i);
+                    insertValueAtCoordinates("EXTERNAL_" + (i + 1), exportIndex + 1 + i, 0);
+                    List<String> rowData = rowsCSV.get(i);
+                    for (int j = 0; j < rowData.size(); j++) {
+                        insertValueAtCoordinates(rowData.get(j), exportIndex + 1 + i, j + 1);
+                    }
+                }
+
+            } catch (Exception ex) {
+                ARLogger.getInstance(ExcelWriter.class)
+                        .severe(String.format("Excel Writer insertCSVContentIntoExcel: \nError - %s", ex.getMessage()));
             }
         }
 
