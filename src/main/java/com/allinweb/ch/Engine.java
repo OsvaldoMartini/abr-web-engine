@@ -2210,11 +2210,11 @@ public class Engine {
     }
 
     private static void licenseControl() {
-        if (isEnabledLicence) {
-            if (!checkLicense()) {
-                System.exit(0);
-            }
-        }
+        //        if (isEnabledLicence) {
+        //            if (!checkLicense()) {
+        //                System.exit(0);
+        //            }
+        //        }
     }
 
     private static boolean checkLicense() {
