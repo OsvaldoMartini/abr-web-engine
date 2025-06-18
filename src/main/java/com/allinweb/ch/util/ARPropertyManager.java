@@ -3,6 +3,8 @@ package com.allinweb.ch.util;
 import com.allinweb.ch.facade.PerformMessage;
 import com.google.common.base.Strings;
 import java.io.*;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -128,6 +130,9 @@ public class ARPropertyManager {
             }
 
             missingMandatoryPats();
+
+            setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.1f Beta Test");
+            setProperty(ARPropertyEnum.BUILD.getValue(), "Build: " + getTodaysDate(0));
 
             //        } catch (Exception e) {
             //
@@ -299,5 +304,12 @@ public class ARPropertyManager {
             return true;
         }
         return false;
+    }
+
+    public static String getTodaysDate(int day) {
+        LocalDate today = LocalDate.now();
+        LocalDate yesterday = today.minusDays(day);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+        return yesterday.format(formatter);
     }
 }
