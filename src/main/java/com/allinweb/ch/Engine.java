@@ -1069,8 +1069,10 @@ public class Engine {
                                             performActions.getInstructionParentField(currentInstruction, blockLoad);
                                     variableField = performActions.getInstructionVariableField(
                                             currentInstruction, variablesLoaded);
-                                    delimiterCSV = performActions.getInstructionVariableDelimiter(
-                                            currentInstruction, variablesLoaded);
+                                    if (delimiterCSV == null) {
+                                        delimiterCSV = performActions.getInstructionVariableDelimiter(
+                                                currentInstruction, variablesLoaded);
+                                    }
                                     if (variableField == null) {
                                         variableField = "Not Variable defined";
                                     }
@@ -1817,7 +1819,8 @@ public class Engine {
                             mapExportRows = new LinkedHashMap<>();
                         }
                         excelFieldName = "";
-                    } else {
+                    } else if (excelFieldName != null
+                            && excelFieldName.toLowerCase().endsWith(".xlsx")) {
                         //
                         //                    writerExport.insertFieldNameAndValueLastColumn(mapExportRows, exportIndex
                         // -
