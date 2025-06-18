@@ -20,6 +20,7 @@ import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import io.opentelemetry.api.internal.StringUtils;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.*;
@@ -2356,8 +2357,9 @@ public class Engine {
         return sb.toString();
     }
 
-    public static void writeToFile(String filename, String content) {
-        try (FileWriter writer = new FileWriter(filename)) {
+    public void writeToFile(String filename, String content) {
+        try (Writer writer =
+                new BufferedWriter(new OutputStreamWriter(new FileOutputStream(filename), StandardCharsets.UTF_8))) {
             writer.write(content);
             System.out.println("CSV written to file: " + filename);
         } catch (IOException e) {
