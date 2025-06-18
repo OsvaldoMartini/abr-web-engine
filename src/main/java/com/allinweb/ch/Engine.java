@@ -482,6 +482,14 @@ public class Engine {
 
                         if (blockActive) {
                             excelFieldName = blockLoad.getExportFile();
+                            if (Strings.isNullOrEmpty(excelFieldName)) {
+                                String[] parts = excelFieldName.split(":");
+                                if (parts.length > 2) {
+                                    delimiterCSV = parts[2];
+                                    excelFieldName =
+                                            excelFieldName.replace(":,", "").replace(":|", "");
+                                }
+                            }
                         }
 
                         // It Searches the Block That have finished the Loops to Avoid recursivity
@@ -723,7 +731,7 @@ public class Engine {
                                 String parentFieldLoop = null;
                                 String variableField = null;
                                 String localFormat = null;
-                                delimiterCSV = null;
+                                //                                delimiterCSV = null;
                                 String fieldName = null;
                                 int parentId = currentInstruction.getParentId();
 
@@ -1070,10 +1078,12 @@ public class Engine {
                                             performActions.getInstructionParentField(currentInstruction, blockLoad);
                                     variableField = performActions.getInstructionVariableField(
                                             currentInstruction, variablesLoaded);
-                                    if (delimiterCSV == null) {
-                                        delimiterCSV = performActions.getInstructionVariableDelimiter(
-                                                currentInstruction, variablesLoaded);
-                                    }
+                                    //                                    if (delimiterCSV == null) {
+                                    //                                        delimiterCSV =
+                                    // performActions.getInstructionVariableDelimiter(
+                                    //                                                currentInstruction,
+                                    // variablesLoaded);
+                                    //                                    }
                                     if (variableField == null) {
                                         variableField = "Not Variable defined";
                                     }
@@ -2357,7 +2367,7 @@ public class Engine {
         return sb.toString();
     }
 
-    public void writeToFile(String filename, String content) {
+    public static void writeToFile(String filename, String content) {
         try (Writer writer =
                 new BufferedWriter(new OutputStreamWriter(new FileOutputStream(filename), StandardCharsets.UTF_8))) {
             writer.write(content);
