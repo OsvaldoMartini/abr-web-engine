@@ -482,7 +482,7 @@ public class Engine {
 
                         if (blockActive) {
                             excelFieldName = blockLoad.getExportFile();
-                            if (Strings.isNullOrEmpty(excelFieldName)) {
+                            if (!Strings.isNullOrEmpty(excelFieldName)) {
                                 String[] parts = excelFieldName.split(":");
                                 if (parts.length > 2) {
                                     delimiterCSV = parts[2];
