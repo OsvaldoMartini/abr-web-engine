@@ -235,9 +235,9 @@ public class ExcelReader {
             }
             case NUMERIC -> {
                 cellValue = String.valueOf(cell.getNumericCellValue());
-                if (cellValue.contains(".0")) {
-                    cellValue = cellValue.substring(0, cellValue.indexOf(".0"));
-                }
+                //                if (cellValue.contains(".0")) {
+                //                    cellValue = cellValue.substring(0, cellValue.indexOf(".0"));
+                //                }
                 return cellValue;
             }
             case BOOLEAN, BLANK, FORMULA, ERROR -> {}

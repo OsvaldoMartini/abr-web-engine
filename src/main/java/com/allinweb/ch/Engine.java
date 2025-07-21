@@ -163,7 +163,12 @@ public class Engine {
 
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
         performDataBase.initialize(dataBaseType);
-        performDataBase.changeDbConnection();
+        try {
+            performDataBase.changeDbConnection();
+        } catch (Exception error) {
+            ARLogger.getInstance(Engine.class).severe("Error Database Connections: " + error.getMessage());
+            System.exit(0);
+        }
 
         try {
             startParametersInterpreter(args);
@@ -2167,10 +2172,11 @@ public class Engine {
     public static List<String> checkProperties(Properties properties) {
         String[] requiredProperties = {
             "data_base",
+            "db_url",
+            "db_user",
+            "db_pwd",
             "path_excel",
             "path_log",
-            "path_java",
-            "path_java_fx",
             "path_db",
             "path_report",
             "path_priority",

@@ -131,7 +131,7 @@ public class ARPropertyManager {
 
             missingMandatoryPats();
 
-            setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.1f Beta Test");
+            setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.6f Beta Test");
             setProperty(ARPropertyEnum.BUILD.getValue(), "Build: " + getTodaysDate(0));
 
             //        } catch (Exception e) {
@@ -191,7 +191,6 @@ public class ARPropertyManager {
     }
 
     public void createDefaultProperties(File configurationFile) {
-
         performMessage.errorMessage(
                 "Creation of new \"ARWeb.config\" file", // Using configurationFileName as the title
                 "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Configuration file not found!</span>",
