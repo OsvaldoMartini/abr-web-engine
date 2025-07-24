@@ -131,7 +131,7 @@ public class ARPropertyManager {
 
             missingMandatoryPats();
 
-            setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.1f Beta Test");
+            setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.6f Beta Test");
             setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 23/07/2025");
 
             //        } catch (Exception e) {
@@ -242,9 +242,9 @@ public class ARPropertyManager {
     public List<String> checkProperties(Properties properties) {
         String[] requiredProperties = {
             "data_base",
-            "db_url",
-            "db_user",
-            "db_pwd",
+            //            "db_url",
+            //            "db_user",
+            //            "db_pwd",
             "path_excel",
             "path_log",
             "path_db",

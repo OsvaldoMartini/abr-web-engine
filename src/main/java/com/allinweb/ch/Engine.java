@@ -2172,9 +2172,9 @@ public class Engine {
     public static List<String> checkProperties(Properties properties) {
         String[] requiredProperties = {
             "data_base",
-            "db_url",
-            "db_user",
-            "db_pwd",
+            //            "db_url",
+            //            "db_user",
+            //            "db_pwd",
             "path_excel",
             "path_log",
             "path_db",
