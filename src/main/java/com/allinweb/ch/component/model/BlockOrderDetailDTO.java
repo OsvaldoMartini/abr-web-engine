@@ -6,6 +6,7 @@ import lombok.Data;
 @Data
 @Builder
 public class BlockOrderDetailDTO {
+    private int homeBankId;
     private int blockId;
     private int botJobId;
     private int blockOrderNumber;

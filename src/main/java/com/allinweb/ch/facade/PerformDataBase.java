@@ -266,32 +266,38 @@ public class PerformDataBase {
     }
 
     // Handle DELETE_INSTRUCTION message
-    public void deleteInstruction(int botJobId, InstructionLoadDTO deleteInstructionLoadDTO) {
+    public void deleteInstruction(int botJobId, InstructionLoadDTO deleteInstructionLoadDTO, boolean blockDeletion) {
 
         if (deleteInstructionLoadDTO.getParentId() != null) {
             List<ParentOperations> listParents = loadParents(
                     botJobId, deleteInstructionLoadDTO.getInstructionId(), deleteInstructionLoadDTO.getParentId());
             if (!listParents.isEmpty()) {
 
-                List<String> lstMsg = performMessage.distributeMsg(
-                        listParents.stream().map(ParentOperations::getName).collect(Collectors.toList()));
+                if (!blockDeletion) {
 
-                ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
-                        "Steps Attached",
-                        "Are you Sure you want to delete?",
-                        lstMsg.get(0),
-                        lstMsg.get(1),
-                        lstMsg.get(2),
-                        false,
-                        "Confirm",
-                        "Cancel",
-                        0);
+                    List<String> lstMsg = performMessage.distributeMsg(
+                            listParents.stream().map(ParentOperations::getName).collect(Collectors.toList()));
 
-                if (respModal.equals(ARConstants.DialogModal.STOP)) {
-                    return;
+                    ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+                            "Steps Attached",
+                            "Are you Sure you want to delete?",
+                            lstMsg.get(0),
+                            lstMsg.get(1),
+                            lstMsg.get(2),
+                            false,
+                            "Confirm",
+                            "Cancel",
+                            0);
+
+                    if (respModal.equals(ARConstants.DialogModal.STOP)) {
+                        return;
+                    }
                 }
 
-                deleteRowParents(deleteInstructionLoadDTO.getBotJobId(), deleteInstructionLoadDTO.getInstructionId());
+                deleteRowParents(
+                        deleteInstructionLoadDTO.getBotJobId(),
+                        deleteInstructionLoadDTO.getBlockId(),
+                        deleteInstructionLoadDTO.getInstructionId());
             }
         }
 
@@ -449,11 +455,68 @@ public class PerformDataBase {
         return parentList;
     }
 
+    public List<ParentOperations> loadParentsComp(int homeBankId, int blockId, int instructionId, int parentId) {
+        List<ParentOperations> parentList = new ArrayList<>();
+
+        try (Statement stmt = getConnection().createStatement()) {
+
+            String selectSQL = MessageFormat.format(
+                    """
+                    SELECT
+                        parent.name as parent_name,
+                        child.name as child_name,
+                        child.parent_id
+                    FROM component_instruction AS child
+                    LEFT JOIN component_instruction AS parent ON child.parent_id = parent.id
+                    WHERE child.id != {0}
+                      AND child.parent_id = {1}
+                      AND child.home_banking_id = {2}
+                      AND child.block_id = {3}
+                    ORDER BY child.id;
+            """,
+                    parentId, instructionId, homeBankId, blockId);
+
+            try (ResultSet rs = stmt.executeQuery(selectSQL)) {
+                while (rs.next()) {
+                    String name = (rs.getString("child_name") + " --> (" + rs.getString("parent_id") + ")-"
+                            + rs.getString("parent_name"));
+
+                    ParentOperations parentOper = new ParentOperations();
+                    parentOper.setName(name);
+                    parentOper.setInstructionId(instructionId);
+                    parentOper.setParentId(rs.getInt("parent_id"));
+
+                    parentList.add(parentOper);
+                }
+            }
+
+            if (!parentList.isEmpty()) {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .info(String.format(
+                                "Loaded parents for instruction ID %d from homeBankId %d and blockId %d",
+                                instructionId, homeBankId, blockId));
+            } else {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .warning(String.format(
+                                "No parents found for instruction ID %d in homeBankId %d and blockId %d.",
+                                instructionId, homeBankId, blockId));
+            }
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "Error loading component parents for instruction ID %d from homeBankId %d and blockId %d. Error: %s",
+                            instructionId, homeBankId, blockId, e.getMessage()));
+        }
+
+        return parentList;
+    }
+
     public boolean deleteCompVariable(InstructionLoadDTO deleteInstructionLoadDTO) {
         // Validate input
         if (deleteInstructionLoadDTO == null || deleteInstructionLoadDTO.getInstructionId() <= 0) {
             ARLogger.getInstance(PerformDataBase.class)
-                    .warning("Invalid InstructionLoadDTO provided. Skipping reference deletion.");
+                    .warning("Invalid Instruction provided. Skipping reference deletion.");
             return false;
         }
 
@@ -491,7 +554,7 @@ public class PerformDataBase {
 
     public boolean deleteReferences(int botJobId, int instructionId) {
         String deleteSQL =
-                "DELETE FROM reference WHERE " + " bot_job_id = " + botJobId + " instruction_id = " + instructionId;
+                "DELETE FROM reference WHERE " + " bot_job_id = " + botJobId + " and instruction_id = " + instructionId;
 
         try (Statement stmt = getConnection().createStatement()) {
             int rowsAffected = stmt.executeUpdate(deleteSQL);
@@ -552,7 +615,7 @@ public class PerformDataBase {
         try (Statement stmt = getConnection().createStatement()) {
 
             int rowsAffected = 0;
-            String deleteSQL = "DELETE FROM instruction" + " WHERE id = "
+            String deleteSQL = "DELETE FROM instruction WHERE id = "
                     + deleteInstructionLoadDTO.getInstructionId()
                     + (deleteInstructionLoadDTO.getBlockId() > 0
                             ? " AND block_id = " + deleteInstructionLoadDTO.getBlockId()
@@ -597,31 +660,62 @@ public class PerformDataBase {
         return false;
     }
 
-    public boolean deleteRowParents(int botJobId, int parentId) {
+    public boolean deleteRowParents(int botJobId, int blockId, int parentId) {
         // Build the SQL delete statement
         String deleteSQL = MessageFormat.format(
                 """
                 DELETE FROM instruction
                  WHERE parent_id = {0}
                  AND bot_job_id = {1}
+                 AND block_id = {2}
                  """,
-                parentId, botJobId);
+                parentId, botJobId, blockId);
 
         try (Statement stmt = getConnection().createStatement()) {
             int rowsAffected = stmt.executeUpdate(deleteSQL);
             if (rowsAffected > 0) {
                 ARLogger.getInstance(PerformDataBase.class)
                         .info(String.format(
-                                "Deleted %d parents - parent with ID %d - bot job %d.",
-                                rowsAffected, parentId, botJobId));
+                                "Deleted %d parents - parent with ID %d - bot job %d - block %d. ",
+                                rowsAffected, parentId, botJobId, blockId));
             }
             return true;
 
         } catch (SQLException e) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
-                            "Error deleting parent ID %d from Bot Job ID %d. Error: %s",
-                            parentId, botJobId, e.getMessage()));
+                            "Error deleting parent ID %d from bot job %d block %d. Error: %s",
+                            parentId, botJobId, blockId, e.getMessage()));
+        }
+        return false;
+    }
+
+    public boolean deleteCompRowParents(int homeBankId, int blockId, int parentId) {
+        // Build the SQL delete statement
+        String deleteSQL = MessageFormat.format(
+                """
+                DELETE FROM component_instruction
+                 WHERE parent_id = {0}
+                 AND home_banking_id = {1}
+                 AND block_id = {2}
+                 """,
+                parentId, homeBankId, blockId);
+
+        try (Statement stmt = getConnection().createStatement()) {
+            int rowsAffected = stmt.executeUpdate(deleteSQL);
+            if (rowsAffected > 0) {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .info(String.format(
+                                "Deleted %d parents - parent with ID %d - home bank %d - block %d.",
+                                rowsAffected, parentId, homeBankId, blockId));
+            }
+            return true;
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "Error deleting parent ID %d from home bank %d - block %d. Error: %s",
+                            parentId, homeBankId, blockId, e.getMessage()));
         }
         return false;
     }
@@ -798,20 +892,23 @@ public class PerformDataBase {
                         + (reorderAll ? newOrderNumber : blockOrderDetailDTO.getBlockOrderNumber())
                         + " WHERE id = "
                         + blockOrderDetailDTO.getBlockId()
-                        + " AND bot_job_id = " + blockOrderDetailDTO.getBotJobId();
+                        + " AND home_banking_id = " + blockOrderDetailDTO.getHomeBankId();
 
                 int rowsAffected = stmt.executeUpdate(updateSQL);
 
                 if (rowsAffected > 0) {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .info(String.format(
-                                    "Block Order Number updated blockId: %s, newBlockOrderNumber: %s",
-                                    blockOrderDetailDTO.getBlockId(), newOrderNumber));
+                    //                    ARLogger.getInstance(PerformDataBase.class)
+                    //                            .info(String.format(
+                    //                                    "Block Order Number updated blockId: %s, newBlockOrderNumber:
+                    // %s",
+                    //                                    blockOrderDetailDTO.getBlockId(), newOrderNumber));
                 } else {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .warning(String.format(
-                                    "updateCompBlockOrderNumber - No matching record found to update botJobId: %d blockId: %d",
-                                    blockOrderDetailDTO.getBotJobId(), blockOrderDetailDTO.getBlockId()));
+                    //                    ARLogger.getInstance(PerformDataBase.class)
+                    //                            .warning(String.format(
+                    //                                    "UpdateBlockOrderNumber - No matching record found to update
+                    // botJobId: %d blockId: %d",
+                    //                                    blockOrderDetailDTO.getBotJobId(),
+                    // blockOrderDetailDTO.getBlockId()));
                 }
 
                 newOrderNumber++; // Increment the new order number for the next block
@@ -819,9 +916,49 @@ public class PerformDataBase {
 
         } catch (SQLException e) {
             ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("Error updateCompBlockOrderNumber. Error: %s", e.getMessage()));
+                    .severe(String.format("Error UpdateCompBlockOrderNumber. Error: %s", e.getMessage()));
         }
     }
+
+    //    public void updateCompBlockOrderNumber(List<BlockOrderDetailDTO> blockOrderDetailDTOList, boolean reorderAll)
+    // {
+    //        //         Sort the blockOrderDetailDTOList based on the previous blockOrderNumber in ascending order
+    //        blockOrderDetailDTOList.sort(Comparator.comparingInt(BlockOrderDetailDTO::getBlockOrderNumber));
+    //
+    //        try (Statement stmt = getConnection().createStatement()) {
+    //            int newOrderNumber = 1; // Start reordering from 1
+    //
+    //            for (BlockOrderDetailDTO blockOrderDetailDTO : blockOrderDetailDTOList) {
+    //                // Update each block's block_order_number starting from 1
+    //                String updateSQL = "UPDATE component_block SET block_order_number = "
+    //                        + (reorderAll ? newOrderNumber : blockOrderDetailDTO.getBlockOrderNumber())
+    //                        + " WHERE id = "
+    //                        + blockOrderDetailDTO.getBlockId()
+    //                        + " AND bot_job_id = " + blockOrderDetailDTO.getBotJobId();
+    //
+    //                int rowsAffected = stmt.executeUpdate(updateSQL);
+    //
+    //                if (rowsAffected > 0) {
+    //                    ARLogger.getInstance(PerformDataBase.class)
+    //                            .info(String.format(
+    //                                    "Block Order Number updated blockId: %s, newBlockOrderNumber: %s",
+    //                                    blockOrderDetailDTO.getBlockId(), newOrderNumber));
+    //                } else {
+    //                    ARLogger.getInstance(PerformDataBase.class)
+    //                            .warning(String.format(
+    //                                    "updateCompBlockOrderNumber - No matching record found to update botJobId: %d
+    // blockId: %d",
+    //                                    blockOrderDetailDTO.getBotJobId(), blockOrderDetailDTO.getBlockId()));
+    //                }
+    //
+    //                newOrderNumber++; // Increment the new order number for the next block
+    //            }
+    //
+    //        } catch (SQLException e) {
+    //            ARLogger.getInstance(PerformDataBase.class)
+    //                    .severe(String.format("Error updateCompBlockOrderNumber. Error: %s", e.getMessage()));
+    //        }
+    //    }
 
     public List<BlockOrderDetailDTO> selectAllBlocks(int botJobId) {
         List<BlockOrderDetailDTO> blockOrderDetails = new ArrayList<>();
@@ -855,6 +992,43 @@ public class PerformDataBase {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error selecting blocks for botJobId ID %d. Error: %s", botJobId, e.getMessage()));
+        }
+        return blockOrderDetails;
+    }
+
+    public List<BlockOrderDetailDTO> selectCompAllBlocks(int homeBankId, int blockId) {
+        List<BlockOrderDetailDTO> blockOrderDetails = new ArrayList<>();
+        try (Statement stmt = getConnection().createStatement()) {
+
+            // Select blocks based on botJobId, ordered by block_order_number ASC
+            String selectSQL = "SELECT id FROM component_block WHERE home_banking_id = " + homeBankId
+                    + " and block_id = " + blockId + " ORDER BY block_order_number ASC";
+            ResultSet rs = stmt.executeQuery(selectSQL);
+
+            int newOrderNumber = 1;
+            // Iterate through the result set and build BlockOrderDetailDTO list
+            while (rs.next()) {
+                blockId = rs.getInt("id");
+
+                // Create a BlockOrderDetailDTO object with blockId and the new order number
+                BlockOrderDetailDTO blockDetail = BlockOrderDetailDTO.builder()
+                        .homeBankId(homeBankId)
+                        .blockId(blockId)
+                        .blockOrderNumber(newOrderNumber)
+                        .build();
+
+                // Add the block detail to the list
+                blockOrderDetails.add(blockDetail);
+
+                // Increment the order number for the next block
+                newOrderNumber++;
+            }
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "Error selecting blocks for homeBankId %d and bockId %d. Error: %s",
+                            homeBankId, blockId, e.getMessage()));
         }
         return blockOrderDetails;
     }
@@ -1025,7 +1199,7 @@ public class PerformDataBase {
         if (deleteList.size() > 0) {
             for (InstructionLoadDTO deleteDTO : deleteList) {
                 deleteDTO.setHomeBankingId(deleteBlockDTO.getHomeBankingId());
-                deleteInstruction(deleteBlockDTO.getBotJobId(), deleteDTO);
+                deleteInstruction(deleteBlockDTO.getBotJobId(), deleteDTO, true);
                 //                updateOtherBlocks()
             }
         }
@@ -1049,7 +1223,7 @@ public class PerformDataBase {
         if (deleteList.size() > 0) {
             for (InstructionLoadDTO deleteDTO : deleteList) {
                 deleteDTO.setHomeBankingId(deleteBlockDTO.getHomeBankingId());
-                deleteComponent(deleteDTO);
+                deleteComponent(deleteBlockDTO.getHomeBankingId(), deleteBlockDTO.getBlockId(), deleteDTO, true);
                 //                updateOtherBlocks()
             }
         }
@@ -5252,13 +5426,43 @@ ORDER BY bot.id ASC;
     }
 
     // Handle DELETE_INSTRUCTION message
-    public void deleteComponent(InstructionLoadDTO deleteInstructionLoad) {
+    public void deleteComponent(
+            int homeBankId, int blockId, InstructionLoadDTO deleteInstructionLoad, boolean blockDeletion) {
+
+        if (deleteInstructionLoad.getParentId() != null) {
+            List<ParentOperations> listParents = loadParentsComp(
+                    homeBankId, blockId, deleteInstructionLoad.getInstructionId(), deleteInstructionLoad.getParentId());
+            if (!listParents.isEmpty()) {
+
+                if (!blockDeletion) {
+                    List<String> lstMsg = performMessage.distributeMsg(
+                            listParents.stream().map(ParentOperations::getName).collect(Collectors.toList()));
+
+                    ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+                            "Steps Attached",
+                            "Are you Sure you want to delete?",
+                            lstMsg.get(0),
+                            lstMsg.get(1),
+                            lstMsg.get(2),
+                            false,
+                            "Confirm",
+                            "Cancel",
+                            0);
+
+                    if (respModal.equals(ARConstants.DialogModal.STOP)) {
+                        return;
+                    }
+                }
+
+                deleteCompRowParents(homeBankId, blockId, deleteInstructionLoad.getInstructionId());
+            }
+        }
+
         if (deleteCompVariable(deleteInstructionLoad))
             if (deleteCompReferences(deleteInstructionLoad))
                 if (deleteCompInstruction(deleteInstructionLoad)) {
                     deleteCompNullBlocks(deleteInstructionLoad.getHomeBankingId());
-                    //                    updateBlockOrderNumber(selectAllBlocks(deleteInstructionLoadDTO.getBlockId()),
-                    // true);
+                    updateCompBlockOrderNumber(selectCompAllBlocks(homeBankId, blockId), true);
                 }
     }
 
@@ -5683,6 +5887,150 @@ ORDER BY bot.id ASC;
         }
     }
 
+    public ErrorMessage insertNewHomeUrl(int homeBankId, String newUrl) throws SQLException {
+        String checkQuery = "SELECT COUNT(*) FROM home_url WHERE url = ? AND home_banking_id = ?";
+        String blockInsertQuery = "INSERT INTO home_url (id, url, home_banking_id) VALUES (?, ?, ?)";
+
+        try (Connection conn = getConnection()) {
+            // Check if the URL already exists for the given home_banking_id
+            try (PreparedStatement checkStmt = conn.prepareStatement(checkQuery)) {
+                checkStmt.setString(1, newUrl);
+                checkStmt.setInt(2, homeBankId);
+
+                try (ResultSet rs = checkStmt.executeQuery()) {
+                    if (rs.next() && rs.getInt(1) > 0) {
+                        return new ErrorMessage(
+                                "Error: URL already exists for this organization.",
+                                "Duplicate URL Entry",
+                                "The URL '" + newUrl + "' is already assigned to this home_banking_id: " + homeBankId);
+                    }
+                }
+            }
+
+            // Proceed with insertion
+            try (PreparedStatement insertStmt = conn.prepareStatement(blockInsertQuery)) {
+                int newHomeUrlId = getMaxId(conn, "home_url") + 1;
+
+                int index = 1;
+                insertStmt.setInt(index++, newHomeUrlId);
+                insertStmt.setString(index++, newUrl);
+                insertStmt.setInt(index++, homeBankId);
+
+                insertStmt.executeUpdate(); // Use executeUpdate for single insert
+                return null;
+            }
+
+        } catch (SQLException error) {
+            System.out.println(error.getMessage());
+            return new ErrorMessage("Error inserting URL", "Org URL Insertion Failure", error.getMessage());
+        }
+    }
+
+    public ErrorMessage updateHomeUrl(int homeUrlId, int homeBankId, String newUrl) throws SQLException {
+        String checkQuery = "SELECT COUNT(*) FROM home_url WHERE url = ? AND home_banking_id = ? AND id != ?";
+        String updateQuery = "UPDATE home_url SET url = ? WHERE id = ? AND home_banking_id = ?";
+
+        try (Connection conn = getConnection()) {
+            // Check if the URL already exists for this org but with a different ID
+            try (PreparedStatement checkStmt = conn.prepareStatement(checkQuery)) {
+                checkStmt.setString(1, newUrl);
+                checkStmt.setInt(2, homeBankId);
+                checkStmt.setInt(3, homeUrlId);
+
+                try (ResultSet rs = checkStmt.executeQuery()) {
+                    if (rs.next() && rs.getInt(1) > 0) {
+                        return new ErrorMessage(
+                                "Error: URL already exists for this organization.",
+                                "Duplicate URL Entry",
+                                "The URL '" + newUrl + "' is already assigned to this home_banking_id: " + homeBankId);
+                    }
+                }
+            }
+
+            // Proceed with update
+            try (PreparedStatement updateStmt = conn.prepareStatement(updateQuery)) {
+                updateStmt.setString(1, newUrl);
+                updateStmt.setInt(2, homeUrlId);
+                updateStmt.setInt(3, homeBankId);
+
+                int updated = updateStmt.executeUpdate();
+                if (updated == 0) {
+                    return new ErrorMessage(
+                            "No URL updated",
+                            "Update Failed",
+                            "No record was found with ID " + homeUrlId + " for home_banking_id " + homeBankId);
+                }
+
+                return null;
+            }
+
+        } catch (SQLException error) {
+            System.out.println(error.getMessage());
+            return new ErrorMessage("Error updating URL", "Org URL Update Failure", error.getMessage());
+        }
+    }
+
+    public ErrorMessage deleteHomeUrl(int homeUrlId) throws SQLException {
+        String usageCheckQuery = "SELECT COUNT(*) AS usage_count FROM bot_job WHERE home_url_id = ?";
+        String deleteQuery = "DELETE FROM home_url WHERE id = ?";
+
+        try (Connection conn = getConnection()) {
+            // Step 1: Check usage in bot_job
+            try (PreparedStatement checkStmt = conn.prepareStatement(usageCheckQuery)) {
+                checkStmt.setInt(1, homeUrlId);
+
+                try (ResultSet rs = checkStmt.executeQuery()) {
+                    if (rs.next()) {
+                        int usageCount = rs.getInt("usage_count");
+                        if (usageCount > 0) {
+                            return new ErrorMessage(
+                                    "Cannot delete URL",
+                                    "URL in Use",
+                                    "This URL is used in " + usageCount
+                                            + " bot_job(s). Please detach it before deletion.");
+                        }
+                    }
+                }
+            }
+
+            // Step 2: Proceed with deletion
+            try (PreparedStatement deleteStmt = conn.prepareStatement(deleteQuery)) {
+                deleteStmt.setInt(1, homeUrlId);
+                int rows = deleteStmt.executeUpdate();
+
+                if (rows == 0) {
+                    return new ErrorMessage("URL not found", "Deletion Failure", "No matching URL ID found.");
+                }
+
+                return null; // Success
+            }
+
+        } catch (SQLException e) {
+            return new ErrorMessage("Error deleting URL", "Database Error", e.getMessage());
+        }
+    }
+
+    public int countUsageOfHomeUrlId(int homeUrlId) {
+        String countQuery = "SELECT COUNT(*) AS usage_count FROM bot_job WHERE home_url_id = ?";
+
+        try (Connection conn = getConnection();
+                PreparedStatement stmt = conn.prepareStatement(countQuery)) {
+
+            stmt.setInt(1, homeUrlId);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("usage_count");
+                }
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Error counting usage of Home URL ID " + homeUrlId + ": " + e.getMessage());
+        }
+
+        return 0; // Return 0 if query fails or no result
+    }
+
     public ObservableList<DatabaseUserDTO> loadAllHomeBankingBotJob() {
         databaseList.clear();
         String selectSQL =
@@ -5786,7 +6134,8 @@ GROUP BY
 
     public List<HomeUrlDTO> loadAllHomeURLByHomeId(int homeBankingId) {
         homeURLList.clear();
-        String selectSQL = " SELECT *  FROM home_url bank " + " where home_banking_id = " + homeBankingId;
+        String selectSQL =
+                " SELECT *  FROM home_url bank " + " where home_banking_id = " + homeBankingId + " order by id";
 
         try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
@@ -5801,6 +6150,180 @@ GROUP BY
             System.out.println(e.getMessage());
         }
         return homeURLList;
+    }
+
+    public void selectHomeBankinOneRow() {
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
+
+        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+
+        String userData = userDB + " - " + userPwd;
+
+        ARLogger.getInstance(PerformDataBase.class).info("POSTGRES connection URL: " + postgresDbUrl);
+        ARLogger.getInstance(PerformDataBase.class).info("User Details: " + userData);
+
+        final int BATCH_SIZE = 100;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+                Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
+                Statement postgreStmt = postgresConn.createStatement(); ) {
+            accessConn.setAutoCommit(false); // Use manual commit for batch performance
+
+            String selectPostgresSQL =
+                    "SELECT ID, url, name, priority, search_config, options_config, cookies, driver_session, username, password FROM home_banking order by id";
+            ResultSet rsHomeBank = postgreStmt.executeQuery(selectPostgresSQL);
+
+            String checkSQL = "SELECT id FROM home_banking WHERE url = ?";
+            String insertSQL =
+                    "INSERT INTO home_banking (url, name, priority, search_config, options_config, cookies, driver_session, username, password, id) "
+                            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+            homeBankMap.clear();
+            try (PreparedStatement checkStmt = accessConn.prepareStatement(checkSQL);
+                    PreparedStatement insertStmt = accessConn.prepareStatement(insertSQL)) {
+                int count = 0;
+
+                while (rsHomeBank.next()) {
+                    int id = rsHomeBank.getInt("id");
+                    String url = rsHomeBank.getString("url");
+
+                    if (url != null && !url.trim().isEmpty()) {
+                        homeBankMap.put(id, -1);
+                    }
+
+                    // Check for existence
+                    checkStmt.setString(1, url);
+                    ResultSet checkResult = checkStmt.executeQuery();
+
+                    if (!checkResult.next()) {
+                        // Add to batch
+                        insertStmt.setInt(10, id);
+
+                        insertStmt.setString(1, url);
+                        insertStmt.setString(2, rsHomeBank.getString("name"));
+                        insertStmt.setString(3, rsHomeBank.getString("priority"));
+                        insertStmt.setString(4, rsHomeBank.getString("search_config"));
+                        insertStmt.setString(5, rsHomeBank.getString("options_config"));
+                        insertStmt.setString(6, rsHomeBank.getString("cookies"));
+                        insertStmt.setString(7, rsHomeBank.getString("driver_session"));
+                        insertStmt.setString(8, rsHomeBank.getString("username"));
+                        insertStmt.setString(9, rsHomeBank.getString("password"));
+
+                        insertStmt.addBatch();
+
+                        count++;
+
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            accessConn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                        }
+                    } else {
+                        System.out.println("Skipped (exists): " + url);
+                    }
+                }
+
+                // Final batch
+                insertStmt.executeBatch();
+                accessConn.commit();
+                System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+            }
+
+            System.out.println("Sync completed.");
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Error export HomeBanking");
+        }
+    }
+
+    public void exportHomeBankingAccess() {
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
+
+        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+
+        String userData = userDB + " - " + userPwd;
+
+        ARLogger.getInstance(PerformDataBase.class).info("POSTGRES connection URL: " + postgresDbUrl);
+        ARLogger.getInstance(PerformDataBase.class).info("User Details: " + userData);
+
+        final int BATCH_SIZE = 100;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+                Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
+                Statement postgreStmt = postgresConn.createStatement(); ) {
+            accessConn.setAutoCommit(false); // Use manual commit for batch performance
+
+            String selectPostgresSQL =
+                    "SELECT ID, url, name, priority, search_config, options_config, cookies, driver_session, username, password FROM home_banking order by id";
+            ResultSet rsHomeBank = postgreStmt.executeQuery(selectPostgresSQL);
+
+            String checkSQL = "SELECT id FROM home_banking WHERE url = ?";
+            String insertSQL =
+                    "INSERT INTO home_banking (url, name, priority, search_config, options_config, cookies, driver_session, username, password, id) "
+                            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+            homeBankMap.clear();
+            try (PreparedStatement checkStmt = accessConn.prepareStatement(checkSQL);
+                    PreparedStatement insertStmt = accessConn.prepareStatement(insertSQL)) {
+                int count = 0;
+
+                while (rsHomeBank.next()) {
+                    int id = rsHomeBank.getInt("id");
+                    String url = rsHomeBank.getString("url");
+
+                    if (url != null && !url.trim().isEmpty()) {
+                        homeBankMap.put(id, -1);
+                    }
+
+                    // Check for existence
+                    checkStmt.setString(1, url);
+                    ResultSet checkResult = checkStmt.executeQuery();
+
+                    if (!checkResult.next()) {
+                        // Add to batch
+                        insertStmt.setInt(10, id);
+
+                        insertStmt.setString(1, url);
+                        insertStmt.setString(2, rsHomeBank.getString("name"));
+                        insertStmt.setString(3, rsHomeBank.getString("priority"));
+                        insertStmt.setString(4, rsHomeBank.getString("search_config"));
+                        insertStmt.setString(5, rsHomeBank.getString("options_config"));
+                        insertStmt.setString(6, rsHomeBank.getString("cookies"));
+                        insertStmt.setString(7, rsHomeBank.getString("driver_session"));
+                        insertStmt.setString(8, rsHomeBank.getString("username"));
+                        insertStmt.setString(9, rsHomeBank.getString("password"));
+
+                        insertStmt.addBatch();
+
+                        count++;
+
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            accessConn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                        }
+                    } else {
+                        System.out.println("Skipped (exists): " + url);
+                    }
+                }
+
+                // Final batch
+                insertStmt.executeBatch();
+                accessConn.commit();
+                System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+            }
+
+            System.out.println("Sync completed.");
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Error export HomeBanking");
+        }
     }
 
     public void exportHomeBanking() {
@@ -5915,6 +6438,33 @@ GROUP BY
         }
     }
 
+    public void getNewIdsHomeBankAccess() {
+
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+                PreparedStatement stmt = accessConn.prepareStatement("SELECT id, url FROM home_banking order by id");
+                ResultSet rs = stmt.executeQuery()) {
+
+            List<Integer> keys = new ArrayList<>(homeBankMap.keySet());
+            int index = 0;
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                //                String url = rs.getString("url");
+                int keyAtIndex0 = keys.get(index);
+                homeBankMap.put(keyAtIndex0, id);
+                index++;
+            }
+
+            ARLogger.getInstance(PerformDataBase.class)
+                    .info("Loaded home_banking map with " + homeBankMap.size() + " entries.");
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to load home_banking map from PostgreSQL.");
+        }
+    }
+
     public void getNewIdsHomeUrl() {
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
@@ -5923,6 +6473,33 @@ GROUP BY
 
         try (Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
                 PreparedStatement stmt = postgresConn.prepareStatement("SELECT id, url FROM home_url order by id");
+                ResultSet rs = stmt.executeQuery()) {
+
+            List<Integer> keys = new ArrayList<>(homeUrlMap.keySet());
+            int index = 0;
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                //                String url = rs.getString("url");
+                int keyAtIndex0 = keys.get(index);
+                homeUrlMap.put(keyAtIndex0, id);
+                index++;
+            }
+
+            ARLogger.getInstance(PerformDataBase.class)
+                    .info("Loaded home_url map with " + homeUrlMap.size() + " entries.");
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to load home_url map from PostgreSQL.");
+        }
+    }
+
+    public void getNewIdsHomeUrlAccess() {
+
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+                PreparedStatement stmt = accessConn.prepareStatement("SELECT id, url FROM home_url order by id");
                 ResultSet rs = stmt.executeQuery()) {
 
             List<Integer> keys = new ArrayList<>(homeUrlMap.keySet());
@@ -5971,6 +6548,33 @@ GROUP BY
         }
     }
 
+    public void getNewIdsBotJobAccess() {
+
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+                PreparedStatement stmt = accessConn.prepareStatement("SELECT id  FROM bot_job order by id");
+                ResultSet rs = stmt.executeQuery()) {
+
+            List<Integer> keys = new ArrayList<>(botJobMap.keySet());
+            int index = 0;
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                //                String url = rs.getString("url");
+                int keyAtIndex0 = keys.get(index);
+                botJobMap.put(keyAtIndex0, id);
+                index++;
+            }
+
+            ARLogger.getInstance(PerformDataBase.class)
+                    .info("Loaded bot_job map with " + botJobMap.size() + " entries.");
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to load bot_job map from PostgreSQL.");
+        }
+    }
+
     public void getNewIdsBlock() {
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
@@ -5998,6 +6602,32 @@ GROUP BY
         }
     }
 
+    public void getNewIdsBlockAccess() {
+
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+                PreparedStatement stmt = accessConn.prepareStatement("SELECT id  FROM block order by id");
+                ResultSet rs = stmt.executeQuery()) {
+
+            List<Integer> keys = new ArrayList<>(blockMap.keySet());
+            int index = 0;
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                //                String url = rs.getString("url");
+                int keyAtIndex0 = keys.get(index);
+                blockMap.put(keyAtIndex0, id);
+                index++;
+            }
+
+            ARLogger.getInstance(PerformDataBase.class).info("Loaded block map with " + blockMap.size() + " entries.");
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to load block map from PostgreSQL.");
+        }
+    }
+
     public void getNewIdsInstruc() {
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
@@ -6006,6 +6636,33 @@ GROUP BY
 
         try (Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
                 PreparedStatement stmt = postgresConn.prepareStatement("SELECT id  FROM instruction order by id");
+                ResultSet rs = stmt.executeQuery()) {
+
+            List<Integer> keys = new ArrayList<>(instructionMap.keySet());
+            int index = 0;
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                //                String url = rs.getString("url");
+                int keyAtIndex0 = keys.get(index);
+                instructionMap.put(keyAtIndex0, id);
+                index++;
+            }
+
+            ARLogger.getInstance(PerformDataBase.class)
+                    .info("Loaded instruction map with " + instructionMap.size() + " entries.");
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to load instruction map from PostgreSQL.");
+        }
+    }
+
+    public void getNewIdsInstrucAccess() {
+
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+                PreparedStatement stmt = accessConn.prepareStatement("SELECT id  FROM instruction order by id");
                 ResultSet rs = stmt.executeQuery()) {
 
             List<Integer> keys = new ArrayList<>(instructionMap.keySet());
@@ -6054,6 +6711,33 @@ GROUP BY
         }
     }
 
+    public void getNewIdsVariableAccess() {
+
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+                PreparedStatement stmt = accessConn.prepareStatement("SELECT id  FROM variable order by id");
+                ResultSet rs = stmt.executeQuery()) {
+
+            List<Integer> keys = new ArrayList<>(variableMap.keySet());
+            int index = 0;
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                //                String url = rs.getString("url");
+                int keyAtIndex0 = keys.get(index);
+                variableMap.put(keyAtIndex0, id);
+                index++;
+            }
+
+            ARLogger.getInstance(PerformDataBase.class)
+                    .info("Loaded variable map with " + variableMap.size() + " entries.");
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to load variable map from PostgreSQL.");
+        }
+    }
+
     // SAVED COMPONENTS
     public void getNewIdsCompBlock() {
 
@@ -6063,6 +6747,33 @@ GROUP BY
 
         try (Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
                 PreparedStatement stmt = postgresConn.prepareStatement("SELECT id  FROM component_block order by id");
+                ResultSet rs = stmt.executeQuery()) {
+
+            List<Integer> keys = new ArrayList<>(blockMap.keySet());
+            int index = 0;
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                //                String url = rs.getString("url");
+                int keyAtIndex0 = keys.get(index);
+                blockMap.put(keyAtIndex0, id);
+                index++;
+            }
+
+            ARLogger.getInstance(PerformDataBase.class)
+                    .info("Loaded component_block map with " + blockMap.size() + " entries.");
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to load component_block map from PostgreSQL.");
+        }
+    }
+
+    public void getNewIdsCompBlockAccess() {
+
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+                PreparedStatement stmt = accessConn.prepareStatement("SELECT id  FROM component_block order by id");
                 ResultSet rs = stmt.executeQuery()) {
 
             List<Integer> keys = new ArrayList<>(blockMap.keySet());
@@ -6113,6 +6824,35 @@ GROUP BY
         }
     }
 
+    public void getNewIdsCompInstrucAccess() {
+
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+                PreparedStatement stmt =
+                        accessConn.prepareStatement("SELECT id  FROM component_instruction order by id");
+                ResultSet rs = stmt.executeQuery()) {
+
+            List<Integer> keys = new ArrayList<>(instructionMap.keySet());
+            int index = 0;
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                //                String url = rs.getString("url");
+                int keyAtIndex0 = keys.get(index);
+                instructionMap.put(keyAtIndex0, id);
+                index++;
+            }
+
+            ARLogger.getInstance(PerformDataBase.class)
+                    .info("Loaded component_instruction map with " + instructionMap.size() + " entries.");
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe("Failed to load component_instruction map from PostgreSQL.");
+        }
+    }
+
     public void getNewIdsCompVariable() {
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
@@ -6122,6 +6862,34 @@ GROUP BY
         try (Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
                 PreparedStatement stmt =
                         postgresConn.prepareStatement("SELECT id  FROM component_variable order by id");
+                ResultSet rs = stmt.executeQuery()) {
+
+            List<Integer> keys = new ArrayList<>(variableMap.keySet());
+            int index = 0;
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                //                String url = rs.getString("url");
+                int keyAtIndex0 = keys.get(index);
+                variableMap.put(keyAtIndex0, id);
+                index++;
+            }
+
+            ARLogger.getInstance(PerformDataBase.class)
+                    .info("Loaded component_variable map with " + variableMap.size() + " entries.");
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe("Failed to load component_variable map from PostgreSQL.");
+        }
+    }
+
+    public void getNewIdsCompVariableAccess() {
+
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+                PreparedStatement stmt = accessConn.prepareStatement("SELECT id  FROM component_variable order by id");
                 ResultSet rs = stmt.executeQuery()) {
 
             List<Integer> keys = new ArrayList<>(variableMap.keySet());
@@ -6222,16 +6990,12 @@ GROUP BY
 
             postgresConn.setAutoCommit(false); // Enable manual commit for batch performance
 
-            String selectAccessSQL = "SELECT id, url FROM home_url order by id";
+            String selectAccessSQL = "SELECT id, home_banking_id, url FROM home_url order by id";
             try (ResultSet rsHomeUrl = accessStmt.executeQuery(selectAccessSQL)) {
 
-                String findHomeBankingIdSQL = "SELECT id FROM home_banking WHERE url = ?";
-                String checkHomeUrlExistsSQL = "SELECT id FROM home_url WHERE url = ? AND home_banking_id = ?";
                 String insertHomeUrlSQL = "INSERT INTO home_url (url, home_banking_id) VALUES (?, ?)";
 
-                try (PreparedStatement findHomeBankingStmt = postgresConn.prepareStatement(findHomeBankingIdSQL);
-                        PreparedStatement checkStmt = postgresConn.prepareStatement(checkHomeUrlExistsSQL);
-                        PreparedStatement insertStmt = postgresConn.prepareStatement(insertHomeUrlSQL)) {
+                try (PreparedStatement insertStmt = postgresConn.prepareStatement(insertHomeUrlSQL)) {
 
                     int count = 0;
                     homeUrlMap.clear();
@@ -6241,46 +7005,138 @@ GROUP BY
                         int id = rsHomeUrl.getInt("id");
                         String url = rsHomeUrl.getString("url");
 
+                        int oldHomeBankId = rsHomeUrl.getInt("home_banking_id");
+                        // Map old bot_job_id to new
+                        Integer newHomeBankId = homeBankMap.get(oldHomeBankId);
+                        if (newHomeBankId == null) {
+                            System.out.println(
+                                    "Skipped component_block with unknown home_banking_id: " + newHomeBankId);
+                            continue;
+                        }
+
                         if (url != null && !url.trim().isEmpty()) {
                             homeUrlMap.put(id, -1);
                         }
 
-                        // Get home_banking.id from PostgreSQL using url
-                        findHomeBankingStmt.setString(1, url);
-                        try (ResultSet homeBankingRs = findHomeBankingStmt.executeQuery()) {
+                        insertStmt.setString(1, url);
+                        insertStmt.setInt(2, newHomeBankId);
+                        insertStmt.addBatch();
+                        count++;
 
-                            if (homeBankingRs.next()) {
-                                int homeBankingId = homeBankingRs.getInt("id");
-
-                                // Check if home_url with the same url and home_banking_id already exists
-                                checkStmt.setString(1, url);
-                                checkStmt.setInt(2, homeBankingId);
-                                try (ResultSet checkRs = checkStmt.executeQuery()) {
-
-                                    if (!checkRs.next()) {
-                                        insertStmt.setString(1, url);
-                                        insertStmt.setInt(2, homeBankingId);
-                                        insertStmt.addBatch();
-                                        count++;
-
-                                        if (count % BATCH_SIZE == 0) {
-                                            insertStmt.executeBatch();
-                                            postgresConn.commit();
-                                            System.out.println("Inserted batch of " + BATCH_SIZE);
-                                        }
-                                    } else {
-                                        System.out.println("Skipped (already exists): " + url + " / " + homeBankingId);
-                                    }
-                                }
-
-                            } else {
-                                System.out.println("No matching home_banking entry for url: " + url);
-                            }
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            postgresConn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
                         }
                     }
 
                     insertStmt.executeBatch();
                     postgresConn.commit();
+                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    ARLogger.getInstance(PerformDataBase.class).info("Inserted records into home_url: " + count);
+                }
+            }
+
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to export home_url");
+        }
+    }
+
+    public void exportHomeUrlAccess() {
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
+
+        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+
+        String userData = userDB + " - " + userPwd;
+
+        ARLogger.getInstance(PerformDataBase.class).info("POSTGRES connection URL: " + postgresDbUrl);
+        ARLogger.getInstance(PerformDataBase.class).info("User Details: " + userData);
+        final int BATCH_SIZE = 100;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+                Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
+                Statement postgresStmt = postgresConn.createStatement()) {
+
+            accessConn.setAutoCommit(false); // Enable manual commit for batch performance
+
+            String selectPostgresSQL = "SELECT id, url, home_banking_id FROM home_url order by id";
+            try (ResultSet rsHomeUrl = postgresStmt.executeQuery(selectPostgresSQL)) {
+
+                String findHomeBankingIdSQL = "SELECT id FROM home_banking WHERE url = ?";
+                String checkHomeUrlExistsSQL = "SELECT id FROM home_url WHERE url = ? AND home_banking_id = ?";
+                String insertHomeUrlSQL = "INSERT INTO home_url (url, home_banking_id, id) VALUES (?, ?, ?)";
+
+                try (PreparedStatement findHomeBankingStmt = accessConn.prepareStatement(findHomeBankingIdSQL);
+                        PreparedStatement checkStmt = accessConn.prepareStatement(checkHomeUrlExistsSQL);
+                        PreparedStatement insertStmt = accessConn.prepareStatement(insertHomeUrlSQL)) {
+
+                    int count = 0;
+                    homeUrlMap.clear();
+
+                    while (rsHomeUrl.next()) {
+
+                        int idHomeUrl = rsHomeUrl.getInt("id");
+                        String url = rsHomeUrl.getString("url");
+
+                        int oldHomeBankId = rsHomeUrl.getInt("home_banking_id");
+                        // Map old bot_job_id to new
+                        Integer newHomeBankId = homeBankMap.get(oldHomeBankId);
+                        if (newHomeBankId == null) {
+                            System.out.println(
+                                    "Skipped component_block with unknown home_banking_id: " + newHomeBankId);
+                            continue;
+                        }
+
+                        if (url != null && !url.trim().isEmpty()) {
+                            homeUrlMap.put(idHomeUrl, -1);
+                        }
+
+                        // Get home_banking.id from PostgreSQL using url
+                        //                        findHomeBankingStmt.setString(1, url);
+                        //                        try (ResultSet homeBankingRs = findHomeBankingStmt.executeQuery()) {
+                        //
+                        //                            if (homeBankingRs.next()) {
+                        //                                int homeBankingId = homeBankingRs.getInt("id");
+                        //
+                        //                                // Check if home_url with the same url and home_banking_id
+                        // already exists
+                        //                                checkStmt.setString(1, url);
+                        //                                checkStmt.setInt(2, homeBankingId);
+                        //                                try (ResultSet checkRs = checkStmt.executeQuery()) {
+                        //
+                        //                                    if (!checkRs.next()) {
+                        insertStmt.setString(1, url);
+                        insertStmt.setInt(2, newHomeBankId);
+
+                        insertStmt.setInt(3, idHomeUrl);
+
+                        insertStmt.addBatch();
+                        count++;
+
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            accessConn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                            //                                        }
+                            //                                    } else {
+                            //                                        System.out.println("Skipped (already exists): " +
+                            // url + " / " + homeBankingId);
+                            //                                    }
+                            //                                }
+                            //
+                            //                            } else {
+                            //                                System.out.println("No matching home_banking entry for
+                            // url: " + url);
+                            //                            }
+                        }
+                    }
+
+                    insertStmt.executeBatch();
+                    accessConn.commit();
                     System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
                     ARLogger.getInstance(PerformDataBase.class).info("Inserted records into home_url: " + count);
                 }
@@ -6308,19 +7164,21 @@ GROUP BY
 
             postgresConn.setAutoCommit(false);
 
-            String selectAccessSQL =
-                    "SELECT bot.id, bot.name, bot.description, bot.priority, bot.active, bot.home_banking_id, hu.url FROM bot_job bot left join home_url hu on hu.id = bot.home_url_id order by bot.id";
-            try (ResultSet rsBotJob = accessStmt.executeQuery(selectAccessSQL)) {
+            //            String selectAccessSQL =
+            //                    "SELECT bot.id, bot.name, bot.description, bot.priority, bot.active,
+            // bot.home_banking_id, hu.url FROM bot_job bot left join home_url hu on hu.id = bot.home_url_id order by
+            // bot.id";
+            String selectAccessFabrizio =
+                    "SELECT bot.id, bot.name, bot.description, bot.priority, bot.active, bot.home_banking_id, bot.home_url_id FROM bot_job bot order by bot.id";
+            try (ResultSet rsBotJob = accessStmt.executeQuery(selectAccessFabrizio)) {
 
-                String findHomeUrlSQL = "SELECT id, home_banking_id FROM home_url WHERE url = ?";
+                String findHomeUrlSQL = "SELECT id FROM home_banking WHERE url = ? and name = ?";
                 String checkExistsSQL = "SELECT id FROM bot_job WHERE name = ?";
                 String insertSQL =
                         "INSERT INTO bot_job (name, description, priority, active, home_url_id, home_banking_id) "
                                 + "VALUES (?, ?, ?, ?, ?, ?)";
 
-                try (PreparedStatement findHomeUrlStmt = postgresConn.prepareStatement(findHomeUrlSQL);
-                        PreparedStatement checkStmt = postgresConn.prepareStatement(checkExistsSQL);
-                        PreparedStatement insertStmt = postgresConn.prepareStatement(insertSQL)) {
+                try (PreparedStatement insertStmt = postgresConn.prepareStatement(insertSQL)) {
 
                     int count = 0;
 
@@ -6332,44 +7190,39 @@ GROUP BY
                         String description = rsBotJob.getString("description");
                         String priority = rsBotJob.getString("priority");
                         int active = rsBotJob.getInt("active");
-                        String url = rsBotJob.getString("url");
+
+                        int oldHomeBankId = rsBotJob.getInt("home_banking_id");
+                        // Map old bot_job_id to new
+                        Integer newHomeBankId = homeBankMap.get(oldHomeBankId);
+                        if (newHomeBankId == null) {
+                            System.out.println(
+                                    "Skipped component_block with unknown home_banking_id: " + newHomeBankId);
+                            continue;
+                        }
+
+                        //                        int oldHomeUrlId = rsBotJob.getInt("home_url_id");
+                        //                        Integer newHomeUrlId = homeBankMap.get(oldHomeUrlId);
+                        //                        if (newHomeUrlId == null) {
+                        //                            System.out.println("Skipped component_block with unknown
+                        // home_banking_id: " + oldHomeUrlId);
+                        //                            continue;
+                        //                        }
 
                         botJobMap.put(id, -1);
 
-                        // Lookup home_url_id and home_banking_id by URL
-                        findHomeUrlStmt.setString(1, url);
-                        try (ResultSet homeUrlRs = findHomeUrlStmt.executeQuery()) {
+                        insertStmt.setString(1, name);
+                        insertStmt.setString(2, description);
+                        insertStmt.setString(3, priority);
+                        insertStmt.setInt(4, active);
+                        insertStmt.setInt(5, newHomeBankId);
+                        insertStmt.setInt(6, newHomeBankId);
+                        insertStmt.addBatch();
+                        count++;
 
-                            if (homeUrlRs.next()) {
-                                int homeUrlId = homeUrlRs.getInt("id");
-                                int homeBankingId = homeUrlRs.getInt("home_banking_id");
-
-                                // Check if the bot_job already exists by name
-                                checkStmt.setString(1, name);
-                                try (ResultSet checkRs = checkStmt.executeQuery()) {
-                                    if (!checkRs.next()) {
-                                        insertStmt.setString(1, name);
-                                        insertStmt.setString(2, description);
-                                        insertStmt.setString(3, priority);
-                                        insertStmt.setInt(4, active);
-                                        insertStmt.setInt(5, homeUrlId);
-                                        insertStmt.setInt(6, homeBankingId);
-                                        insertStmt.addBatch();
-                                        count++;
-
-                                        if (count % BATCH_SIZE == 0) {
-                                            insertStmt.executeBatch();
-                                            postgresConn.commit();
-                                            System.out.println("Inserted batch of " + BATCH_SIZE);
-                                        }
-                                    } else {
-                                        System.out.println("Skipped existing bot_job: " + name);
-                                    }
-                                }
-
-                            } else {
-                                System.out.println("No matching home_url found for: " + url);
-                            }
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            postgresConn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
                         }
                     }
 
@@ -6381,6 +7234,94 @@ GROUP BY
             }
 
         } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to export bot_job");
+        }
+    }
+
+    public void exportBotJobAccess() {
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
+
+        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+
+        final int BATCH_SIZE = 100;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+                Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
+                Statement postgresStmt = postgresConn.createStatement()) {
+
+            accessConn.setAutoCommit(false);
+
+            String selectPostgresSQL =
+                    "SELECT bot.id, bot.name, bot.description, bot.priority, bot.active, bot.home_banking_id, bot.home_url_id FROM bot_job bot order by bot.id";
+            try (ResultSet rsBotJob = postgresStmt.executeQuery(selectPostgresSQL)) {
+
+                String insertSQL =
+                        "INSERT INTO bot_job (name, description, priority, active, home_url_id, home_banking_id, id) "
+                                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+                try (PreparedStatement insertStmt = accessConn.prepareStatement(insertSQL)) {
+
+                    int count = 0;
+
+                    botJobMap.clear();
+
+                    while (rsBotJob.next()) {
+                        int idBotJob = rsBotJob.getInt("id");
+                        String name = rsBotJob.getString("name");
+                        String description = rsBotJob.getString("description");
+                        String priority = rsBotJob.getString("priority");
+                        int active = rsBotJob.getInt("active");
+
+                        int oldHomeBankId = rsBotJob.getInt("home_banking_id");
+                        // Map old bot_job_id to new
+                        Integer newHomeBankId = homeBankMap.get(oldHomeBankId);
+                        if (newHomeBankId == null) {
+                            System.out.println(
+                                    "Skipped component_block with unknown home_banking_id: " + newHomeBankId);
+                            continue;
+                        }
+
+                        int oldHomeUrlId = rsBotJob.getInt("home_url_id");
+                        // Map old bot_job_id to new
+                        Integer newHomeUrlId = homeBankMap.get(oldHomeUrlId);
+                        if (newHomeUrlId == null) {
+                            System.out.println("Skipped component_block with unknown home_banking_id: " + oldHomeUrlId);
+                            continue;
+                        }
+
+                        botJobMap.put(idBotJob, -1);
+
+                        insertStmt.setString(1, name);
+                        insertStmt.setString(2, description);
+                        insertStmt.setString(3, priority);
+                        insertStmt.setInt(4, active);
+                        insertStmt.setInt(5, newHomeUrlId);
+                        insertStmt.setInt(6, newHomeBankId);
+
+                        insertStmt.setInt(7, idBotJob);
+
+                        insertStmt.addBatch();
+                        count++;
+
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            accessConn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                        }
+                    }
+
+                    insertStmt.executeBatch();
+                    accessConn.commit();
+                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    ARLogger.getInstance(PerformDataBase.class).info("Inserted bot_job records: " + count);
+                }
+            }
+
+        } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class).severe("Failed to export bot_job");
         }
     }
@@ -6483,6 +7424,117 @@ GROUP BY
 
                     insertStmt.executeBatch();
                     postgresConn.commit();
+                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    ARLogger.getInstance(PerformDataBase.class).info("Inserted block records: " + count);
+                }
+            }
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to export block");
+        }
+    }
+
+    public void exportBlockAccess() {
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
+
+        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+
+        final int BATCH_SIZE = 100;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+                Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
+                Statement postgresStmt = postgresConn.createStatement()) {
+
+            accessConn.setAutoCommit(false);
+
+            String selectPostgresSQL =
+                    "SELECT id, block_order_number, name, description, type_id, export_file, active, wait, bot_job_id FROM block ORDER BY id";
+
+            try (ResultSet rs = postgresStmt.executeQuery(selectPostgresSQL)) {
+
+                String checkExistsSQL =
+                        "SELECT id FROM block WHERE block_order_number = ? AND name = ? AND bot_job_id = ?";
+                String insertSQL =
+                        "INSERT INTO block (block_order_number, name, description, type_id, export_file, active, wait, bot_job_id, id) "
+                                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+                blockMap = new TreeMap<>();
+
+                try (PreparedStatement insertStmt = accessConn.prepareStatement(insertSQL);
+                        PreparedStatement checkStmt = accessConn.prepareStatement(checkExistsSQL)) {
+
+                    int count = 0;
+                    blockMap.clear();
+
+                    while (rs.next()) {
+                        int idBlock = rs.getInt("id");
+                        int blockOrderNumber = rs.getInt("block_order_number");
+                        String name = rs.getString("name");
+                        String description = rs.getString("description");
+                        Integer typeId = rs.getObject("type_id") != null ? rs.getInt("type_id") : null;
+                        String exportFile = rs.getString("export_file");
+                        int active = rs.getInt("active");
+                        Integer wait = rs.getObject("wait") != null ? rs.getInt("wait") : null;
+                        int oldBotJobId = rs.getInt("bot_job_id");
+
+                        blockMap.put(idBlock, -1); // initialize with -1
+
+                        // Map old bot_job_id to new
+                        Integer newBotJobId = botJobMap.get(oldBotJobId);
+                        if (newBotJobId == null) {
+                            System.out.println("Skipped block with unknown bot_job_id: " + oldBotJobId);
+                            continue;
+                        }
+
+                        checkStmt.setInt(1, blockOrderNumber);
+                        checkStmt.setString(2, name);
+                        checkStmt.setInt(3, newBotJobId);
+
+                        try (ResultSet checkRs = checkStmt.executeQuery()) {
+                            if (!checkRs.next()) {
+                                insertStmt.setInt(1, blockOrderNumber);
+                                insertStmt.setString(2, name);
+                                insertStmt.setString(3, description);
+
+                                if (typeId != null) {
+                                    insertStmt.setInt(4, typeId);
+                                } else {
+                                    insertStmt.setNull(4, Types.INTEGER);
+                                }
+
+                                insertStmt.setString(5, exportFile);
+                                insertStmt.setInt(6, active);
+
+                                if (wait != null) {
+                                    insertStmt.setInt(7, wait);
+                                } else {
+                                    insertStmt.setNull(7, Types.INTEGER);
+                                }
+
+                                insertStmt.setInt(8, newBotJobId);
+
+                                insertStmt.setInt(9, idBlock);
+
+                                insertStmt.addBatch();
+                                count++;
+                            } else {
+                                System.out.println("Skipped existing block: " + name);
+                            }
+                        }
+
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            accessConn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                        }
+                    }
+
+                    insertStmt.executeBatch();
+                    accessConn.commit();
                     System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
                     ARLogger.getInstance(PerformDataBase.class).info("Inserted block records: " + count);
                 }
@@ -6613,6 +7665,128 @@ GROUP BY
         }
     }
 
+    public void exportInstructionsAccess() {
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
+
+        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+
+        final int BATCH_SIZE = 100;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+                Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
+                Statement postgresStmt = postgresConn.createStatement()) {
+
+            accessConn.setAutoCommit(false);
+
+            String selectPostgresSQL = "SELECT * FROM instruction order by id";
+            try (ResultSet rsInstruction = postgresStmt.executeQuery(selectPostgresSQL)) {
+
+                String checkExistsSQL =
+                        "SELECT id FROM instruction WHERE instruction_order_number = ? AND name = ? AND bot_job_id = ? AND block_id = ?";
+                String insertSQL = "INSERT INTO instruction ("
+                        + "instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_id, bot_job_id, id) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+                try (PreparedStatement insertStmt = accessConn.prepareStatement(insertSQL);
+                        PreparedStatement checkStmt = accessConn.prepareStatement(checkExistsSQL)) {
+
+                    int count = 0;
+                    instructionMap.clear();
+
+                    while (rsInstruction.next()) {
+
+                        int idInstruc = rsInstruction.getInt("id");
+                        int oldBotJobId = rsInstruction.getInt("bot_job_id");
+                        Integer newBotJobId = botJobMap.get(oldBotJobId);
+                        if (newBotJobId == null) {
+                            System.out.println("Skipped instruction with unknown bot_job_id: " + oldBotJobId);
+                            continue;
+                        }
+
+                        int oldBlockId = rsInstruction.getInt("block_id");
+                        Integer newBlockId = blockMap.get(oldBlockId);
+                        if (newBlockId == null) {
+                            System.out.println("Skipped instruction with unknown block_id: " + oldBlockId);
+                            continue;
+                        }
+
+                        int instructionOrderNumber = rsInstruction.getInt("instruction_order_number");
+                        String name = rsInstruction.getString("name");
+
+                        instructionMap.put(idInstruc, -1); // initialize with -1
+
+                        checkStmt.setInt(1, instructionOrderNumber);
+                        checkStmt.setString(2, name);
+                        checkStmt.setInt(3, newBotJobId);
+                        checkStmt.setInt(4, newBlockId);
+
+                        try (ResultSet checkRs = checkStmt.executeQuery()) {
+                            if (!checkRs.next()) {
+
+                                insertStmt.setInt(1, rsInstruction.getInt("instruction_order_number"));
+                                insertStmt.setString(2, rsInstruction.getString("actions"));
+                                insertStmt.setString(3, rsInstruction.getString("name"));
+                                insertStmt.setString(4, rsInstruction.getString("xpath"));
+                                insertStmt.setString(5, rsInstruction.getString("coordinates"));
+
+                                insertOrNull(insertStmt, 6, rsInstruction, "force_coordinates");
+                                insertStmt.setString(7, rsInstruction.getString("iframe_xpath"));
+                                insertStmt.setString(8, rsInstruction.getString("tag_name"));
+                                insertStmt.setString(9, rsInstruction.getString("shadow_host"));
+                                insertStmt.setString(10, rsInstruction.getString("shadow_root"));
+                                insertStmt.setString(11, rsInstruction.getString("css_selector"));
+                                insertStmt.setString(12, rsInstruction.getString("description"));
+                                insertStmt.setString(13, rsInstruction.getString("operation"));
+
+                                insertOrNull(insertStmt, 14, rsInstruction, "optional");
+                                insertOrNull(insertStmt, 15, rsInstruction, "block_marked");
+                                insertStmt.setString(16, rsInstruction.getString("default_value"));
+                                insertOrNull(insertStmt, 17, rsInstruction, "action_custom_max_wait_sec");
+                                insertOrNull(insertStmt, 18, rsInstruction, "on_hold_seconds");
+                                insertOrNull(insertStmt, 19, rsInstruction, "codified");
+                                insertOrNull(insertStmt, 20, rsInstruction, "export_to_abr");
+
+                                insertStmt.setInt(21, rsInstruction.getInt("active"));
+                                insertStmt.setInt(22, newBlockId);
+
+                                insertOrNull(insertStmt, 23, rsInstruction, "variable_id");
+                                insertOrNull(insertStmt, 24, rsInstruction, "parent_id");
+
+                                insertStmt.setInt(25, newBotJobId);
+
+                                insertStmt.setInt(26, idInstruc);
+
+                                insertStmt.addBatch();
+                                count++;
+                            } else {
+                                System.out.println("Skipped existing instruction: " + name);
+                            }
+                        }
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            accessConn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                        }
+                    }
+
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        accessConn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
+                    ARLogger.getInstance(PerformDataBase.class).info("Inserted instruction records: " + count);
+                }
+            }
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to export instructions");
+        }
+    }
+
     public void exportVariables() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
         String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
@@ -6721,6 +7895,116 @@ GROUP BY
         }
     }
 
+    public void exportVariablesAccess() {
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
+
+        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+
+        final int BATCH_SIZE = 100;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+                Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
+                Statement postgresStmt = postgresConn.createStatement()) {
+
+            accessConn.setAutoCommit(false);
+
+            String selectPostgresSQL = "SELECT * FROM variable order by id";
+            try (ResultSet rsVariable = postgresStmt.executeQuery(selectPostgresSQL)) {
+
+                String checkExistsSQL =
+                        "SELECT id FROM variable WHERE type = ? AND name = ? AND instruction_id = ? AND bot_job_id = ?";
+                String insertSQL =
+                        "INSERT INTO variable (type, name, value, local_format, delimiter, instruction_id, bot_job_id, id) "
+                                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+
+                try (PreparedStatement insertStmt = accessConn.prepareStatement(insertSQL);
+                        PreparedStatement checkStmt = accessConn.prepareStatement(checkExistsSQL)) {
+
+                    int count = 0;
+                    variableMap.clear();
+
+                    while (rsVariable.next()) {
+                        int idVariable = rsVariable.getInt("id");
+                        String type = rsVariable.getString("type");
+                        String name = rsVariable.getString("name");
+
+                        int oldBotJobId = rsVariable.getInt("bot_job_id");
+                        Integer newBotJobId = botJobMap.get(oldBotJobId);
+                        if (newBotJobId == null) {
+                            System.out.println("Skipped variable with unknown bot_job_id: " + oldBotJobId);
+                            continue;
+                        }
+
+                        Integer instructionId = rsVariable.getObject("instruction_id") != null
+                                ? rsVariable.getInt("instruction_id")
+                                : null;
+
+                        Integer newInstructionId = null;
+
+                        if (instructionId != null) {
+                            newInstructionId = instructionMap.get(instructionId);
+                            if (newInstructionId == null) {
+                                System.out.println("Skipped variable with unknown instruction_id: " + instructionId);
+                                continue;
+                            }
+                        }
+
+                        variableMap.put(idVariable, -1); // initialize with -1
+
+                        checkStmt.setString(1, type);
+                        checkStmt.setString(2, name);
+                        checkStmt.setInt(3, newInstructionId);
+                        checkStmt.setInt(4, newBotJobId);
+
+                        try (ResultSet checkRs = checkStmt.executeQuery()) {
+                            if (!checkRs.next()) {
+
+                                insertStmt.setString(1, rsVariable.getString("type"));
+                                insertStmt.setString(2, rsVariable.getString("name"));
+                                insertStmt.setString(3, rsVariable.getString("value"));
+                                insertStmt.setString(4, rsVariable.getString("local_format"));
+                                insertStmt.setString(5, rsVariable.getString("delimiter"));
+
+                                if (newInstructionId != null) {
+                                    insertStmt.setInt(6, newInstructionId);
+                                } else {
+                                    insertStmt.setNull(6, Types.INTEGER);
+                                }
+
+                                insertStmt.setInt(7, newBotJobId);
+
+                                insertStmt.setInt(8, idVariable);
+
+                                insertStmt.addBatch();
+                                count++;
+                            } else {
+                                System.out.println("Skipped existing variable: " + name);
+                            }
+                        }
+
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            accessConn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                        }
+                    }
+
+                    insertStmt.executeBatch();
+                    accessConn.commit();
+                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    ARLogger.getInstance(PerformDataBase.class).info("Inserted variable records: " + count);
+                }
+            }
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to export variables");
+        }
+    }
+
     public void exportUpdateInstruction() {
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
         String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
@@ -6791,6 +8075,89 @@ GROUP BY
                     if (count % BATCH_SIZE != 0) {
                         updateStmt.executeBatch();
                         postgresConn.commit();
+                        System.out.println("Updated final batch of " + (count % BATCH_SIZE));
+                    }
+
+                    ARLogger.getInstance(PerformDataBase.class).info("Updated instruction records: " + count);
+                }
+            }
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to update instructions");
+        }
+    }
+
+    public void exportUpdateInstructionAccess() {
+
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+
+        final int BATCH_SIZE = 100;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+                Statement accessStmt = accessConn.createStatement()) {
+
+            accessConn.setAutoCommit(false);
+
+            String selectAccessSQL =
+                    "SELECT id, name, parent_id, variable_id FROM instruction WHERE parent_id IS NOT NULL OR variable_id IS NOT NULL ORDER BY id";
+            try (ResultSet rsInstruction = accessStmt.executeQuery(selectAccessSQL)) {
+
+                String updateSQL = "UPDATE instruction SET variable_id = ?, parent_id = ? WHERE id = ? ";
+
+                try (PreparedStatement updateStmt = accessConn.prepareStatement(updateSQL)) {
+                    int count = 0;
+
+                    while (rsInstruction.next()) {
+                        int id = rsInstruction.getInt("id");
+                        String name = rsInstruction.getString("name");
+
+                        // Set variable_id directly from Access
+                        int originalVariableId = rsInstruction.getInt("variable_id");
+                        // Map old bot_job_id to new
+                        Integer newVariableId = variableMap.get(originalVariableId);
+                        if (newVariableId == null) {
+                            System.out.println(
+                                    "Skipped update variable column with unknown variable_id: " + newVariableId);
+                            updateStmt.setNull(1, Types.INTEGER);
+                        } else {
+                            updateStmt.setInt(1, newVariableId);
+                        }
+
+                        // Handle parent_id based on name
+                        if ("GOTO".equalsIgnoreCase(name) || "EXCEL GOTO".equalsIgnoreCase(name)) {
+                            int parentBlockId = rsInstruction.getInt("parent_id");
+                            Integer newParentBlockId = blockMap.get(parentBlockId);
+                            if (newParentBlockId != null) {
+                                updateStmt.setInt(2, newParentBlockId);
+                            } else {
+                                updateStmt.setNull(2, Types.INTEGER);
+                            }
+                        } else {
+                            int parentInstructionId = rsInstruction.getInt("parent_id");
+                            Integer newParentInstructionId = instructionMap.get(parentInstructionId);
+                            if (newParentInstructionId != null) {
+                                updateStmt.setInt(2, newParentInstructionId);
+                            } else {
+                                updateStmt.setNull(2, Types.INTEGER);
+                            }
+                        }
+
+                        updateStmt.setInt(3, id); // WHERE clause: name = ?
+
+                        updateStmt.addBatch();
+                        count++;
+
+                        if (count % BATCH_SIZE == 0) {
+                            updateStmt.executeBatch();
+                            accessConn.commit();
+                            System.out.println("Updated batch of " + BATCH_SIZE);
+                        }
+                    }
+
+                    if (count % BATCH_SIZE != 0) {
+                        updateStmt.executeBatch();
+                        accessConn.commit();
                         System.out.println("Updated final batch of " + (count % BATCH_SIZE));
                     }
 
@@ -6884,6 +8251,99 @@ GROUP BY
 
                     insertStmt.executeBatch();
                     postgresConn.commit();
+                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    ARLogger.getInstance(PerformDataBase.class).info("Inserted reference records: " + count);
+                }
+            }
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to export reference table");
+        }
+    }
+
+    public void exportReferencesAccess() {
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
+
+        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+
+        final int BATCH_SIZE = 100;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+                Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
+                Statement postgresStmt = postgresConn.createStatement()) {
+
+            accessConn.setAutoCommit(false);
+
+            String selectPostgresSQL = "SELECT * FROM reference order by id";
+            try (ResultSet rs = postgresStmt.executeQuery(selectPostgresSQL)) {
+
+                String checkExistsSQL =
+                        "SELECT id FROM reference WHERE reference_type = ? AND value = ? AND instruction_id = ? AND bot_job_id = ?";
+                String insertSQL =
+                        "INSERT INTO reference (reference_type, value, instruction_id, bot_job_id, id) VALUES (?, ?, ?, ?, ?)";
+
+                try (PreparedStatement insertStmt = accessConn.prepareStatement(insertSQL);
+                        PreparedStatement checkStmt = accessConn.prepareStatement(checkExistsSQL)) {
+                    int count = 0;
+                    referenceMap.clear();
+
+                    while (rs.next()) {
+                        int idRefer = rs.getInt("id");
+                        String referenceType = rs.getString("reference_type");
+                        String value = rs.getString("value");
+
+                        int oldInstructionId = rs.getInt("instruction_id");
+                        Integer newInstructionId = instructionMap.get(oldInstructionId);
+                        if (newInstructionId == null) {
+                            System.out.println("Skipped reference with unknown instruction_id: " + oldInstructionId);
+                            continue;
+                        }
+
+                        int oldBotJobId = rs.getInt("bot_job_id");
+                        Integer newBotJobId = botJobMap.get(oldBotJobId);
+
+                        referenceMap.put(idRefer, -1); // initialize with -1
+
+                        checkStmt.setString(1, referenceType);
+                        checkStmt.setString(2, value);
+                        checkStmt.setInt(3, newInstructionId);
+                        checkStmt.setInt(4, newBotJobId);
+
+                        try (ResultSet checkRs = checkStmt.executeQuery()) {
+                            if (!checkRs.next()) {
+
+                                insertStmt.setString(1, rs.getString("reference_type"));
+                                insertStmt.setString(2, rs.getString("value"));
+                                insertStmt.setInt(3, newInstructionId);
+
+                                if (newBotJobId != null) {
+                                    insertStmt.setInt(4, newBotJobId);
+                                } else {
+                                    insertStmt.setNull(4, Types.INTEGER);
+                                }
+
+                                insertStmt.setInt(5, idRefer);
+
+                                insertStmt.addBatch();
+                                count++;
+                            } else {
+                                System.out.println("Skipped existing reference: " + referenceType);
+                            }
+                        }
+
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            accessConn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                        }
+                    }
+
+                    insertStmt.executeBatch();
+                    accessConn.commit();
                     System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
                     ARLogger.getInstance(PerformDataBase.class).info("Inserted reference records: " + count);
                 }
@@ -6994,6 +8454,118 @@ GROUP BY
 
                     insertStmt.executeBatch();
                     postgresConn.commit();
+                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    ARLogger.getInstance(PerformDataBase.class).info("Inserted component_block records: " + count);
+                }
+            }
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to export component_block");
+        }
+    }
+
+    public void exportCompBlockAccess() {
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
+
+        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+
+        final int BATCH_SIZE = 100;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+                Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
+                Statement postgresStmt = postgresConn.createStatement()) {
+
+            accessConn.setAutoCommit(false);
+
+            String selectPostgresSQL =
+                    "SELECT id, block_order_number, name, description, type_id, export_file, active, wait, home_banking_id FROM component_block ORDER BY id";
+
+            try (ResultSet rs = postgresStmt.executeQuery(selectPostgresSQL)) {
+
+                String checkExistsSQL =
+                        "SELECT id FROM component_block WHERE block_order_number = ? AND name = ? AND home_banking_id = ?";
+                String insertSQL =
+                        "INSERT INTO component_block (block_order_number, name, description, type_id, export_file, active, wait, home_banking_id, id) "
+                                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+                blockMap = new TreeMap<>();
+
+                try (PreparedStatement insertStmt = accessConn.prepareStatement(insertSQL);
+                        PreparedStatement checkStmt = accessConn.prepareStatement(checkExistsSQL)) {
+
+                    int count = 0;
+                    blockMap.clear();
+
+                    while (rs.next()) {
+                        int idCompBlock = rs.getInt("id");
+                        int blockOrderNumber = rs.getInt("block_order_number");
+                        String name = rs.getString("name");
+                        String description = rs.getString("description");
+                        Integer typeId = rs.getObject("type_id") != null ? rs.getInt("type_id") : null;
+                        String exportFile = rs.getString("export_file");
+                        int active = rs.getInt("active");
+                        Integer wait = rs.getObject("wait") != null ? rs.getInt("wait") : null;
+                        int oldHomeBankId = rs.getInt("home_banking_id");
+
+                        // Map old bot_job_id to new
+                        Integer newHomeBankId = homeBankMap.get(oldHomeBankId);
+                        if (newHomeBankId == null) {
+                            System.out.println(
+                                    "Skipped component_block with unknown home_banking_id: " + newHomeBankId);
+                            continue;
+                        }
+
+                        blockMap.put(idCompBlock, -1); // initialize with -1
+
+                        checkStmt.setInt(1, blockOrderNumber);
+                        checkStmt.setString(2, name);
+                        checkStmt.setInt(3, newHomeBankId);
+
+                        try (ResultSet checkRs = checkStmt.executeQuery()) {
+                            if (!checkRs.next()) {
+                                insertStmt.setInt(1, blockOrderNumber);
+                                insertStmt.setString(2, name);
+                                insertStmt.setString(3, description);
+
+                                if (typeId != null) {
+                                    insertStmt.setInt(4, typeId);
+                                } else {
+                                    insertStmt.setNull(4, Types.INTEGER);
+                                }
+
+                                insertStmt.setString(5, exportFile);
+                                insertStmt.setInt(6, active);
+
+                                if (wait != null) {
+                                    insertStmt.setInt(7, wait);
+                                } else {
+                                    insertStmt.setNull(7, Types.INTEGER);
+                                }
+
+                                insertStmt.setInt(8, newHomeBankId);
+
+                                insertStmt.setInt(9, idCompBlock);
+
+                                insertStmt.addBatch();
+                                count++;
+                            } else {
+                                System.out.println("Skipped existing component_block: " + name);
+                            }
+                        }
+
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            accessConn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                        }
+                    }
+
+                    insertStmt.executeBatch();
+                    accessConn.commit();
                     System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
                     ARLogger.getInstance(PerformDataBase.class).info("Inserted component_block records: " + count);
                 }
@@ -7126,6 +8698,130 @@ GROUP BY
         }
     }
 
+    public void exportCompInstructionsAccess() {
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
+
+        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+
+        final int BATCH_SIZE = 100;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+                Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
+                Statement postgresStmt = postgresConn.createStatement()) {
+
+            accessConn.setAutoCommit(false);
+
+            String selectPostgreSQL = "SELECT * FROM component_instruction order by id";
+            try (ResultSet rsInstruction = postgresStmt.executeQuery(selectPostgreSQL)) {
+
+                String checkExistsSQL =
+                        "SELECT id FROM component_instruction WHERE instruction_order_number = ? AND name = ? AND home_banking_id = ? AND block_id = ?";
+                String insertSQL = "INSERT INTO component_instruction ("
+                        + "instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_id, home_banking_id, id) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+                try (PreparedStatement insertStmt = accessConn.prepareStatement(insertSQL);
+                        PreparedStatement checkStmt = accessConn.prepareStatement(checkExistsSQL)) {
+
+                    int count = 0;
+                    instructionMap.clear();
+
+                    while (rsInstruction.next()) {
+
+                        int idCompInstruc = rsInstruction.getInt("id");
+                        int oldHomeBankId = rsInstruction.getInt("home_banking_id");
+                        Integer newHomeBankId = homeBankMap.get(oldHomeBankId);
+                        if (newHomeBankId == null) {
+                            System.out.println(
+                                    "Skipped component_instruction with unknown home_banking_id: " + newHomeBankId);
+                            continue;
+                        }
+
+                        int oldBlockId = rsInstruction.getInt("block_id");
+                        Integer newBlockId = blockMap.get(oldBlockId);
+                        if (newBlockId == null) {
+                            System.out.println("Skipped component_instruction with unknown block_id: " + oldBlockId);
+                            continue;
+                        }
+
+                        int instructionOrderNumber = rsInstruction.getInt("instruction_order_number");
+                        String name = rsInstruction.getString("name");
+
+                        instructionMap.put(idCompInstruc, -1); // initialize with -1
+
+                        checkStmt.setInt(1, instructionOrderNumber);
+                        checkStmt.setString(2, name);
+                        checkStmt.setInt(3, newHomeBankId);
+                        checkStmt.setInt(4, newBlockId);
+
+                        try (ResultSet checkRs = checkStmt.executeQuery()) {
+                            if (!checkRs.next()) {
+
+                                insertStmt.setInt(1, rsInstruction.getInt("instruction_order_number"));
+                                insertStmt.setString(2, rsInstruction.getString("actions"));
+                                insertStmt.setString(3, rsInstruction.getString("name"));
+                                insertStmt.setString(4, rsInstruction.getString("xpath"));
+                                insertStmt.setString(5, rsInstruction.getString("coordinates"));
+
+                                insertOrNull(insertStmt, 6, rsInstruction, "force_coordinates");
+                                insertStmt.setString(7, rsInstruction.getString("iframe_xpath"));
+                                insertStmt.setString(8, rsInstruction.getString("tag_name"));
+                                insertStmt.setString(9, rsInstruction.getString("shadow_host"));
+                                insertStmt.setString(10, rsInstruction.getString("shadow_root"));
+                                insertStmt.setString(11, rsInstruction.getString("css_selector"));
+                                insertStmt.setString(12, rsInstruction.getString("description"));
+                                insertStmt.setString(13, rsInstruction.getString("operation"));
+
+                                insertOrNull(insertStmt, 14, rsInstruction, "optional");
+                                insertOrNull(insertStmt, 15, rsInstruction, "block_marked");
+                                insertStmt.setString(16, rsInstruction.getString("default_value"));
+                                insertOrNull(insertStmt, 17, rsInstruction, "action_custom_max_wait_sec");
+                                insertOrNull(insertStmt, 18, rsInstruction, "on_hold_seconds");
+                                insertOrNull(insertStmt, 19, rsInstruction, "codified");
+                                insertOrNull(insertStmt, 20, rsInstruction, "export_to_abr");
+
+                                insertStmt.setInt(21, rsInstruction.getInt("active"));
+                                insertStmt.setInt(22, newBlockId);
+
+                                insertOrNull(insertStmt, 23, rsInstruction, "variable_id");
+                                insertOrNull(insertStmt, 24, rsInstruction, "parent_id");
+
+                                insertStmt.setInt(25, newHomeBankId);
+
+                                insertStmt.setInt(26, idCompInstruc);
+
+                                insertStmt.addBatch();
+                                count++;
+                            } else {
+                                System.out.println("Skipped existing component_instruction: " + name);
+                            }
+                        }
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            accessConn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                        }
+                    }
+
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        accessConn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .info("Inserted component_instruction records: " + count);
+                }
+            }
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to export component_instruction");
+        }
+    }
+
     public void exportCompVariables() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
         String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
@@ -7236,6 +8932,118 @@ GROUP BY
         }
     }
 
+    public void exportCompVariablesAccess() {
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
+
+        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+
+        final int BATCH_SIZE = 100;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+                Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
+                Statement postgresStmt = postgresConn.createStatement()) {
+
+            accessConn.setAutoCommit(false);
+
+            String selectPostgresSQL = "SELECT * FROM component_variable order by id";
+            try (ResultSet rsVariable = postgresStmt.executeQuery(selectPostgresSQL)) {
+
+                String checkExistsSQL =
+                        "SELECT id FROM component_variable WHERE type = ? AND name = ? AND instruction_id = ? AND home_banking_id = ?";
+                String insertSQL =
+                        "INSERT INTO component_variable (type, name, value, local_format, delimiter, instruction_id, home_banking_id, id) "
+                                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+
+                try (PreparedStatement insertStmt = accessConn.prepareStatement(insertSQL);
+                        PreparedStatement checkStmt = accessConn.prepareStatement(checkExistsSQL)) {
+
+                    int count = 0;
+                    variableMap.clear();
+
+                    while (rsVariable.next()) {
+                        int idVariable = rsVariable.getInt("id");
+                        String type = rsVariable.getString("type");
+                        String name = rsVariable.getString("name");
+
+                        int oldHomeBankId = rsVariable.getInt("home_banking_id");
+                        Integer newHomeBankId = homeBankMap.get(oldHomeBankId);
+                        if (newHomeBankId == null) {
+                            System.out.println(
+                                    "Skipped component_variable with unknown home_banking_id: " + oldHomeBankId);
+                            continue;
+                        }
+
+                        Integer instructionId = rsVariable.getObject("instruction_id") != null
+                                ? rsVariable.getInt("instruction_id")
+                                : null;
+
+                        Integer newInstructionId = null;
+
+                        if (instructionId != null) {
+                            newInstructionId = instructionMap.get(instructionId);
+                            if (newInstructionId == null) {
+                                System.out.println(
+                                        "Skipped component_variable with unknown instruction_id: " + instructionId);
+                                continue;
+                            }
+                        }
+
+                        variableMap.put(idVariable, -1); // initialize with -1
+
+                        checkStmt.setString(1, type);
+                        checkStmt.setString(2, name);
+                        checkStmt.setInt(3, newInstructionId);
+                        checkStmt.setInt(4, newHomeBankId);
+
+                        try (ResultSet checkRs = checkStmt.executeQuery()) {
+                            if (!checkRs.next()) {
+
+                                insertStmt.setString(1, rsVariable.getString("type"));
+                                insertStmt.setString(2, rsVariable.getString("name"));
+                                insertStmt.setString(3, rsVariable.getString("value"));
+                                insertStmt.setString(4, rsVariable.getString("local_format"));
+                                insertStmt.setString(5, rsVariable.getString("delimiter"));
+
+                                if (newInstructionId != null) {
+                                    insertStmt.setInt(6, newInstructionId);
+                                } else {
+                                    insertStmt.setNull(6, Types.INTEGER);
+                                }
+
+                                insertStmt.setInt(7, newHomeBankId);
+
+                                insertStmt.setInt(8, idVariable);
+
+                                insertStmt.addBatch();
+                                count++;
+                            } else {
+                                System.out.println("Skipped existing component_variable: " + name);
+                            }
+                        }
+
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            accessConn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                        }
+                    }
+
+                    insertStmt.executeBatch();
+                    accessConn.commit();
+                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    ARLogger.getInstance(PerformDataBase.class).info("Inserted component_variable records: " + count);
+                }
+            }
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to export component_variable");
+        }
+    }
+
     public void exportUpdateCompInstruction() {
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
         String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
@@ -7245,11 +9053,12 @@ GROUP BY
 
         try (Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
                 Statement postgresStmt = postgresConn.createStatement()) {
+
             postgresConn.setAutoCommit(false);
 
-            String selectAccessSQL =
+            String selectPostgresSQL =
                     "SELECT id, name, parent_id, variable_id FROM component_instruction WHERE parent_id IS NOT NULL OR variable_id IS NOT NULL ORDER BY id";
-            try (ResultSet rsInstruction = postgresStmt.executeQuery(selectAccessSQL)) {
+            try (ResultSet rsInstruction = postgresStmt.executeQuery(selectPostgresSQL)) {
 
                 String updateSQL = "UPDATE instruction SET variable_id = ?, parent_id = ? WHERE id = ? ";
 
@@ -7305,6 +9114,88 @@ GROUP BY
                     if (count % BATCH_SIZE != 0) {
                         updateStmt.executeBatch();
                         postgresConn.commit();
+                        System.out.println("Updated final batch of " + (count % BATCH_SIZE));
+                    }
+
+                    ARLogger.getInstance(PerformDataBase.class).info("Updated component_instruction records: " + count);
+                }
+            }
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to update component_instruction");
+        }
+    }
+
+    public void exportUpdateCompInstructionAccess() {
+
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+
+        final int BATCH_SIZE = 100;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+                Statement accessStmt = accessConn.createStatement()) {
+
+            accessConn.setAutoCommit(false);
+
+            String selectAccessSQL =
+                    "SELECT id, name, parent_id, variable_id FROM component_instruction WHERE parent_id IS NOT NULL OR variable_id IS NOT NULL ORDER BY id";
+            try (ResultSet rsInstruction = accessStmt.executeQuery(selectAccessSQL)) {
+
+                String updateSQL = "UPDATE instruction SET variable_id = ?, parent_id = ? WHERE id = ? ";
+
+                try (PreparedStatement updateStmt = accessConn.prepareStatement(updateSQL)) {
+                    int count = 0;
+
+                    while (rsInstruction.next()) {
+                        int id = rsInstruction.getInt("id");
+                        String name = rsInstruction.getString("name");
+
+                        // Set variable_id directly from Access
+                        int originalVariableId = rsInstruction.getInt("variable_id");
+                        // Map old bot_job_id to new
+                        Integer newVariableId = variableMap.get(originalVariableId);
+                        if (newVariableId == null) {
+                            System.out.println("Skipped variable_id column with unknown variable_id: " + newVariableId);
+                            updateStmt.setNull(1, Types.INTEGER);
+                        } else {
+                            updateStmt.setInt(1, newVariableId);
+                        }
+
+                        // Handle parent_id based on name
+                        if ("GOTO".equalsIgnoreCase(name) || "EXCEL GOTO".equalsIgnoreCase(name)) {
+                            int parentBlockId = rsInstruction.getInt("parent_id");
+                            Integer newParentBlockId = blockMap.get(parentBlockId);
+                            if (newParentBlockId != null) {
+                                updateStmt.setInt(2, newParentBlockId);
+                            } else {
+                                updateStmt.setNull(2, Types.INTEGER);
+                            }
+                        } else {
+                            int parentInstructionId = rsInstruction.getInt("parent_id");
+                            Integer newParentInstructionId = instructionMap.get(parentInstructionId);
+                            if (newParentInstructionId != null) {
+                                updateStmt.setInt(2, newParentInstructionId);
+                            } else {
+                                updateStmt.setNull(2, Types.INTEGER);
+                            }
+                        }
+
+                        updateStmt.setInt(3, id); // WHERE clause: name = ?
+
+                        updateStmt.addBatch();
+                        count++;
+
+                        if (count % BATCH_SIZE == 0) {
+                            updateStmt.executeBatch();
+                            accessConn.commit();
+                            System.out.println("Updated batch of " + BATCH_SIZE);
+                        }
+                    }
+
+                    if (count % BATCH_SIZE != 0) {
+                        updateStmt.executeBatch();
+                        accessConn.commit();
                         System.out.println("Updated final batch of " + (count % BATCH_SIZE));
                     }
 
@@ -7404,6 +9295,105 @@ GROUP BY
 
                     insertStmt.executeBatch();
                     postgresConn.commit();
+                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    ARLogger.getInstance(PerformDataBase.class).info("Inserted component_reference records: " + count);
+                }
+            }
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to export component_reference table");
+        }
+    }
+
+    public void exportCompReferencesAccess() {
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
+
+        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+
+        final int BATCH_SIZE = 100;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+                Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
+                Statement postgresStmt = postgresConn.createStatement()) {
+
+            accessConn.setAutoCommit(false);
+
+            String selectPostgresSQL = "SELECT * FROM component_reference order by id";
+            try (ResultSet rs = postgresStmt.executeQuery(selectPostgresSQL)) {
+
+                String checkExistsSQL =
+                        "SELECT id FROM component_reference WHERE reference_type = ? AND value = ? AND instruction_id = ? AND home_banking_id = ?";
+                String insertSQL =
+                        "INSERT INTO component_reference (reference_type, value, instruction_id, home_banking_id, ?) VALUES (?, ?, ?, ?, ?)";
+
+                try (PreparedStatement insertStmt = accessConn.prepareStatement(insertSQL);
+                        PreparedStatement checkStmt = accessConn.prepareStatement(checkExistsSQL)) {
+                    int count = 0;
+                    referenceMap.clear();
+
+                    while (rs.next()) {
+                        int idRefer = rs.getInt("id");
+                        String referenceType = rs.getString("reference_type");
+                        String value = rs.getString("value");
+
+                        int oldInstructionId = rs.getInt("instruction_id");
+                        Integer newInstructionId = instructionMap.get(oldInstructionId);
+                        if (newInstructionId == null) {
+                            System.out.println(
+                                    "Skipped component_reference with unknown instruction_id: " + oldInstructionId);
+                            continue;
+                        }
+
+                        int oldHomeBankId = rs.getInt("home_banking_id");
+                        Integer newHomeBankId = homeBankMap.get(oldHomeBankId);
+                        if (newHomeBankId == null) {
+                            System.out.println(
+                                    "Skipped component_reference with unknown home_banking_id: " + oldHomeBankId);
+                            continue;
+                        }
+
+                        referenceMap.put(idRefer, -1); // initialize with -1
+
+                        checkStmt.setString(1, referenceType);
+                        checkStmt.setString(2, value);
+                        checkStmt.setInt(3, newInstructionId);
+                        checkStmt.setInt(4, newHomeBankId);
+
+                        try (ResultSet checkRs = checkStmt.executeQuery()) {
+                            if (!checkRs.next()) {
+
+                                insertStmt.setString(1, rs.getString("reference_type"));
+                                insertStmt.setString(2, rs.getString("value"));
+                                insertStmt.setInt(3, newInstructionId);
+
+                                if (newHomeBankId != null) {
+                                    insertStmt.setInt(4, newHomeBankId);
+                                } else {
+                                    insertStmt.setNull(4, Types.INTEGER);
+                                }
+
+                                insertStmt.setInt(5, idRefer);
+
+                                insertStmt.addBatch();
+                                count++;
+                            } else {
+                                System.out.println("Skipped existing component_reference: " + referenceType);
+                            }
+                        }
+
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            accessConn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                        }
+                    }
+
+                    insertStmt.executeBatch();
+                    accessConn.commit();
                     System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
                     ARLogger.getInstance(PerformDataBase.class).info("Inserted component_reference records: " + count);
                 }
@@ -8059,92 +10049,725 @@ GROUP BY
         }
     }
 
-    // CREATED SAVED COMPONENTS
-    public void getNewIdsCreatedCompBlock() {
+    // CLONE BOT JOB
+    public Integer getNewBotBojId(int previousBotJob) {
+        return botJobMap.get(previousBotJob);
+    }
 
-        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
-        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
-        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+    public ErrorMessage cloneBotJob(
+            HomeUrlDTO homeUrlDTO, int previousBotJob, String newBotJobName, String newDescription)
+            throws SQLException {
 
-        try (Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
-                PreparedStatement stmt = postgresConn.prepareStatement("SELECT id  FROM component_block order by id");
-                ResultSet rs = stmt.executeQuery()) {
+        int newBotJobId = getMaxId(conn, "bot_job") + 1;
 
+        String selectComponentIdsSQL =
+                "SELECT id FROM bot_job WHERE home_banking_id = " + homeUrlDTO.getHomeBankingId() + " ORDER BY id";
+
+        try (Connection conn = getConnection();
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+
+            conn.setAutoCommit(false);
+
+            // Step 1: get current component_block ids before insert
+            List<Integer> blockIdsBefore = new ArrayList<>();
+            try (ResultSet rsIdsBefore = idStmtBefore.executeQuery(selectComponentIdsSQL)) {
+                while (rsIdsBefore.next()) {
+                    blockIdsBefore.add(rsIdsBefore.getInt("id"));
+                }
+            }
+
+            String insertSQL =
+                    "INSERT INTO bot_job (id, name, description, priority, home_banking_id, home_url_id, active) "
+                            + "SELECT ?, ?, ?, priority, home_banking_id, ?, ? FROM bot_job WHERE id = ?";
+
+            botJobMap.clear();
+            botJobMap.put(previousBotJob, -1);
+
+            try (PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
+
+                insertStmt.setInt(1, newBotJobId);
+                insertStmt.setString(2, newBotJobName);
+                insertStmt.setString(3, newDescription);
+                insertStmt.setInt(4, homeUrlDTO.getId());
+                insertStmt.setInt(5, 1);
+                insertStmt.setInt(6, previousBotJob);
+
+                insertStmt.addBatch();
+                insertStmt.executeBatch();
+                conn.commit();
+                ARLogger.getInstance(PerformDataBase.class).info("Inserted bot job records: 1");
+            }
+
+            // Step 3: get component_block ids after insert
+            List<Integer> blockIdsAfter = new ArrayList<>();
+            try (ResultSet rsIdsAfter = idStmtAfter.executeQuery(selectComponentIdsSQL)) {
+                while (rsIdsAfter.next()) {
+                    blockIdsAfter.add(rsIdsAfter.getInt("id"));
+                }
+            }
+
+            // Step 4: compute new IDs
+            List<Integer> newComponentIds = new ArrayList<>(blockIdsAfter);
+            newComponentIds.removeAll(blockIdsBefore);
+
+            // You can now use `newComponentIds` as needed
+            System.out.println("Newly inserted bot_job IDs: " + newComponentIds);
+
+            // Step 5: update blockMap with new IDs
+            List<Integer> keys = new ArrayList<>(botJobMap.keySet());
+
+            if (keys.size() != newComponentIds.size()) {
+                System.err.println(
+                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+            } else {
+                for (int i = 0; i < keys.size(); i++) {
+                    Integer oldId = keys.get(i);
+                    Integer newId = newComponentIds.get(i);
+                    botJobMap.put(oldId, newId);
+                }
+            }
+
+            return null;
+
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to clone bot_job");
+            return new ErrorMessage("Failed to clone bot_job", "bot_job Insertion Failure", error.getMessage());
+        }
+    }
+
+    public ErrorMessage cloneBlock(int previousBotJob) {
+
+        final int BATCH_SIZE = 100;
+        String checkExistsSQL =
+                "SELECT id, block_order_number, name, description, type_id, export_file, active, wait, bot_job_id "
+                        + "FROM block WHERE bot_job_id = ? ORDER BY id";
+
+        String selectComponentIdsSQL = "SELECT id FROM block ORDER BY id";
+
+        try (Connection conn = getConnection();
+                PreparedStatement selectStmt = conn.prepareStatement(checkExistsSQL);
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+
+            conn.setAutoCommit(false);
+
+            // Step 1: get current component_block ids before insert
+            List<Integer> blockIdsBefore = new ArrayList<>();
+            try (ResultSet rsIdsBefore = idStmtBefore.executeQuery(selectComponentIdsSQL)) {
+                while (rsIdsBefore.next()) {
+                    blockIdsBefore.add(rsIdsBefore.getInt("id"));
+                }
+            }
+
+            // Step 2: prepare and execute insert
+            selectStmt.setInt(1, previousBotJob);
+            try (ResultSet rs = selectStmt.executeQuery()) {
+
+                String insertSQL = "INSERT INTO block "
+                        + "(id, block_order_number, name, description, type_id, export_file, active, wait, bot_job_id) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+                blockMap.clear();
+
+                try (PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
+
+                    int count = 0;
+
+                    int newBlockId = getMaxId(conn, "block") + 1;
+
+                    while (rs.next()) {
+                        int id = rs.getInt("id");
+                        int blockOrderNumber = rs.getInt("block_order_number");
+                        String name = rs.getString("name");
+                        String description = rs.getString("description");
+                        Integer typeId = rs.getObject("type_id") != null ? rs.getInt("type_id") : null;
+                        String exportFile = rs.getString("export_file");
+                        int active = rs.getInt("active");
+                        Integer wait = rs.getObject("wait") != null ? rs.getInt("wait") : null;
+
+                        int oldBotJobId = rs.getInt("bot_job_id");
+
+                        // Map old bot_job_id to new
+                        Integer newBotJobId = botJobMap.get(oldBotJobId);
+                        if (newBotJobId == null) {
+                            System.out.println("Skipped block with unknown bot_job_id: " + newBotJobId);
+                            continue;
+                        }
+
+                        blockMap.put(id, -1);
+
+                        insertStmt.setInt(1, newBlockId);
+                        insertStmt.setInt(2, blockOrderNumber);
+                        insertStmt.setString(3, name);
+                        insertStmt.setString(4, description);
+                        if (typeId != null) {
+                            insertStmt.setInt(5, typeId);
+                        } else {
+                            insertStmt.setNull(5, Types.INTEGER);
+                        }
+                        insertStmt.setString(6, exportFile);
+                        insertStmt.setInt(7, active);
+                        if (wait != null) {
+                            insertStmt.setInt(8, wait);
+                        } else {
+                            insertStmt.setNull(8, Types.INTEGER);
+                        }
+                        insertStmt.setInt(9, newBotJobId);
+
+                        insertStmt.addBatch();
+                        newBlockId++;
+                        count++;
+
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            conn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                        }
+                    }
+
+                    insertStmt.executeBatch();
+                    conn.commit();
+                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    ARLogger.getInstance(PerformDataBase.class).info("Inserted block records: " + count);
+                }
+            }
+
+            // Step 3: get component_block ids after insert
+            List<Integer> blockIdsAfter = new ArrayList<>();
+            try (ResultSet rsIdsAfter = idStmtAfter.executeQuery(selectComponentIdsSQL)) {
+                while (rsIdsAfter.next()) {
+                    blockIdsAfter.add(rsIdsAfter.getInt("id"));
+                }
+            }
+
+            // Step 4: compute new IDs
+            List<Integer> newComponentIds = new ArrayList<>(blockIdsAfter);
+            newComponentIds.removeAll(blockIdsBefore);
+
+            // You can now use `newComponentIds` as needed
+            System.out.println("Newly inserted block IDs: " + newComponentIds);
+
+            // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(blockMap.keySet());
-            int index = 0;
-            while (rs.next()) {
-                int id = rs.getInt("id");
-                //                String url = rs.getString("url");
-                int keyAtIndex0 = keys.get(index);
-                blockMap.put(keyAtIndex0, id);
-                index++;
+
+            if (keys.size() != newComponentIds.size()) {
+                System.err.println(
+                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+            } else {
+                for (int i = 0; i < keys.size(); i++) {
+                    Integer oldId = keys.get(i);
+                    Integer newId = newComponentIds.get(i);
+                    blockMap.put(oldId, newId);
+                }
             }
 
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info("Loaded component_block map with " + blockMap.size() + " entries.");
+            return null;
 
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Failed to load component_block map from PostgreSQL.");
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to clone block");
+            return new ErrorMessage("Failed to clone block", "block Insertion Failure", error.getMessage());
         }
     }
 
-    public void getNewIdsCreatedCompInstruc() {
+    public ErrorMessage cloneInstructions(int previousBotJob) {
 
-        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
-        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
-        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+        final int BATCH_SIZE = 100;
 
-        try (Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
-                PreparedStatement stmt =
-                        postgresConn.prepareStatement("SELECT id  FROM component_instruction order by id");
-                ResultSet rs = stmt.executeQuery()) {
+        String checkExistsSQL = "SELECT * FROM instruction WHERE bot_job_id = ? order by id";
 
+        String selectComponentIdsSQL = "SELECT id FROM instruction ORDER BY id";
+
+        try (Connection conn = getConnection();
+                PreparedStatement selectStmt = conn.prepareStatement(checkExistsSQL);
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+
+            conn.setAutoCommit(false);
+
+            // Step 1: get current component_block ids before insert
+            List<Integer> blockIdsBefore = new ArrayList<>();
+            try (ResultSet rsIdsBefore = idStmtBefore.executeQuery(selectComponentIdsSQL)) {
+                while (rsIdsBefore.next()) {
+                    blockIdsBefore.add(rsIdsBefore.getInt("id"));
+                }
+            }
+
+            // Step 2: prepare and execute insert
+            selectStmt.setInt(1, previousBotJob);
+
+            try (ResultSet rsInstruction = selectStmt.executeQuery()) {
+
+                String insertSQL = "INSERT INTO instruction ("
+                        + "id, instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_id, bot_job_id) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+                instructionMap.clear();
+
+                try (PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
+
+                    int count = 0;
+
+                    int newInstructionId = getMaxId(conn, "instruction") + 1;
+
+                    while (rsInstruction.next()) {
+                        int id = rsInstruction.getInt("id");
+
+                        int oldBlockId = rsInstruction.getInt("block_id");
+                        Integer newBlockId = blockMap.get(oldBlockId);
+                        if (newBlockId == null) {
+                            System.out.println("Skipped instruction with unknown block_id: " + oldBlockId);
+                            continue;
+                        }
+
+                        int oldBotJobId = rsInstruction.getInt("bot_job_id");
+                        Integer newBotJobId = botJobMap.get(oldBotJobId);
+                        if (newBotJobId == null) {
+                            System.out.println("Skipped instruction with unknown bot_job_id: " + newBotJobId);
+                            continue;
+                        }
+
+                        instructionMap.put(id, -1);
+
+                        insertStmt.setInt(1, newInstructionId);
+                        insertStmt.setInt(2, rsInstruction.getInt("instruction_order_number"));
+                        insertStmt.setString(3, rsInstruction.getString("actions"));
+                        insertStmt.setString(4, rsInstruction.getString("name"));
+                        insertStmt.setString(5, rsInstruction.getString("xpath"));
+                        insertStmt.setString(6, rsInstruction.getString("coordinates"));
+
+                        insertOrNull(insertStmt, 7, rsInstruction, "force_coordinates");
+                        insertStmt.setString(8, rsInstruction.getString("iframe_xpath"));
+                        insertStmt.setString(9, rsInstruction.getString("tag_name"));
+                        insertStmt.setString(10, rsInstruction.getString("shadow_host"));
+                        insertStmt.setString(11, rsInstruction.getString("shadow_root"));
+                        insertStmt.setString(12, rsInstruction.getString("css_selector"));
+                        insertStmt.setString(13, rsInstruction.getString("description"));
+                        insertStmt.setString(14, rsInstruction.getString("operation"));
+
+                        insertOrNull(insertStmt, 15, rsInstruction, "optional");
+                        insertOrNull(insertStmt, 16, rsInstruction, "block_marked");
+                        insertStmt.setString(17, rsInstruction.getString("default_value"));
+                        insertOrNull(insertStmt, 18, rsInstruction, "action_custom_max_wait_sec");
+                        insertOrNull(insertStmt, 19, rsInstruction, "on_hold_seconds");
+                        insertOrNull(insertStmt, 20, rsInstruction, "codified");
+                        insertOrNull(insertStmt, 21, rsInstruction, "export_to_abr");
+
+                        insertStmt.setInt(22, rsInstruction.getInt("active"));
+                        insertStmt.setInt(23, newBlockId);
+
+                        insertOrNull(insertStmt, 24, rsInstruction, "variable_id");
+                        insertOrNull(insertStmt, 25, rsInstruction, "parent_id");
+
+                        insertStmt.setInt(26, newBotJobId);
+
+                        insertStmt.addBatch();
+                        count++;
+                        newInstructionId++;
+
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            conn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                        }
+                    }
+
+                    insertStmt.executeBatch();
+                    conn.commit();
+                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    ARLogger.getInstance(PerformDataBase.class).info("Inserted instruction records: " + count);
+                }
+            }
+
+            // Step 3: get component_block ids after insert
+            List<Integer> blockIdsAfter = new ArrayList<>();
+            try (ResultSet rsIdsAfter = idStmtAfter.executeQuery(selectComponentIdsSQL)) {
+                while (rsIdsAfter.next()) {
+                    blockIdsAfter.add(rsIdsAfter.getInt("id"));
+                }
+            }
+
+            // Step 4: compute new IDs
+            List<Integer> newComponentIds = new ArrayList<>(blockIdsAfter);
+            newComponentIds.removeAll(blockIdsBefore);
+
+            // You can now use `newComponentIds` as needed
+            System.out.println("Newly inserted instruction IDs: " + newComponentIds);
+
+            // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(instructionMap.keySet());
-            int index = 0;
-            while (rs.next()) {
-                int id = rs.getInt("id");
-                //                String url = rs.getString("url");
-                int keyAtIndex0 = keys.get(index);
-                instructionMap.put(keyAtIndex0, id);
-                index++;
+
+            if (keys.size() != newComponentIds.size()) {
+                System.err.println(
+                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+            } else {
+                for (int i = 0; i < keys.size(); i++) {
+                    Integer oldId = keys.get(i);
+                    Integer newId = newComponentIds.get(i);
+                    instructionMap.put(oldId, newId);
+                }
             }
 
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info("Loaded component_instruction map with " + instructionMap.size() + " entries.");
+            return null;
 
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Failed to load component_instruction map from PostgreSQL.");
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to clono instruction");
+            return new ErrorMessage("Failed to clone instruction", "instruction Insertion Failure", error.getMessage());
         }
     }
 
-    public void getNewIdsCreatedCompVariable() {
+    public ErrorMessage cloneVariables(int previousBotJob) {
 
-        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
-        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
-        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+        final int BATCH_SIZE = 100;
 
-        try (Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
-                PreparedStatement stmt =
-                        postgresConn.prepareStatement("SELECT id  FROM component_variable order by id");
-                ResultSet rs = stmt.executeQuery()) {
+        String checkExistsSQL = "SELECT * FROM variable WHERE bot_job_id = ? order by id";
 
-            List<Integer> keys = new ArrayList<>(variableMap.keySet());
-            int index = 0;
-            while (rs.next()) {
-                int id = rs.getInt("id");
-                //                String url = rs.getString("url");
-                int keyAtIndex0 = keys.get(index);
-                variableMap.put(keyAtIndex0, id);
-                index++;
+        String selectComponentIdsSQL = "SELECT id FROM variable ORDER BY id";
+
+        try (Connection conn = getConnection();
+                PreparedStatement selectStmt = conn.prepareStatement(checkExistsSQL);
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+
+            conn.setAutoCommit(false);
+
+            // Step 1: get current component_block ids before insert
+            List<Integer> blockIdsBefore = new ArrayList<>();
+            try (ResultSet rsIdsBefore = idStmtBefore.executeQuery(selectComponentIdsSQL)) {
+                while (rsIdsBefore.next()) {
+                    blockIdsBefore.add(rsIdsBefore.getInt("id"));
+                }
             }
 
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info("Loaded component_variable map with " + variableMap.size() + " entries.");
+            // Step 2: prepare and execute insert
+            selectStmt.setInt(1, previousBotJob);
 
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Failed to load component_variable map from PostgreSQL.");
+            try (ResultSet rsVariable = selectStmt.executeQuery()) {
+
+                String insertSQL =
+                        "INSERT INTO variable (id, type, name, value, local_format, delimiter, instruction_id, bot_job_id) "
+                                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+
+                variableMap.clear();
+
+                try (PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
+
+                    int count = 0;
+                    int newVariableId = getMaxId(conn, "variable") + 1;
+
+                    while (rsVariable.next()) {
+                        int id = rsVariable.getInt("id");
+
+                        int oldBotJobId = rsVariable.getInt("bot_job_id");
+                        Integer newBotJobId = botJobMap.get(oldBotJobId);
+                        if (newBotJobId == null) {
+                            System.out.println("Skipped variable with unknown bot_job_id: " + newBotJobId);
+                            continue;
+                        }
+
+                        Integer instructionId = rsVariable.getObject("instruction_id") != null
+                                ? rsVariable.getInt("instruction_id")
+                                : null;
+
+                        Integer newInstructionId = null;
+
+                        if (instructionId != null) {
+                            newInstructionId = instructionMap.get(instructionId);
+                            if (newInstructionId == null) {
+                                System.out.println("Skipped variable with unknown instruction_id: " + instructionId);
+                                continue;
+                            }
+                        }
+
+                        variableMap.put(id, -1);
+
+                        insertStmt.setInt(1, newVariableId);
+                        insertStmt.setString(2, rsVariable.getString("type"));
+                        insertStmt.setString(3, rsVariable.getString("name"));
+                        insertStmt.setString(4, rsVariable.getString("value"));
+                        insertStmt.setString(5, rsVariable.getString("local_format"));
+                        insertStmt.setString(6, rsVariable.getString("delimiter"));
+
+                        if (newInstructionId != null) {
+                            insertStmt.setInt(7, newInstructionId);
+                        } else {
+                            insertStmt.setNull(7, Types.INTEGER);
+                        }
+
+                        insertStmt.setInt(8, newBotJobId);
+
+                        insertStmt.addBatch();
+                        count++;
+                        newVariableId++;
+
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            conn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                        }
+                    }
+
+                    insertStmt.executeBatch();
+                    conn.commit();
+                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    ARLogger.getInstance(PerformDataBase.class).info("Inserted variable records: " + count);
+                }
+            }
+
+            // Step 3: get component_block ids after insert
+            List<Integer> idsAfter = new ArrayList<>();
+            try (ResultSet rsIdsAfter = idStmtAfter.executeQuery(selectComponentIdsSQL)) {
+                while (rsIdsAfter.next()) {
+                    idsAfter.add(rsIdsAfter.getInt("id"));
+                }
+            }
+
+            // Step 4: compute new IDs
+            List<Integer> newComponentIds = new ArrayList<>(idsAfter);
+            newComponentIds.removeAll(blockIdsBefore);
+
+            // You can now use `newComponentIds` as needed
+            System.out.println("Newly inserted variable IDs: " + newComponentIds);
+
+            // Step 5: update blockMap with new IDs
+            List<Integer> keys = new ArrayList<>(variableMap.keySet());
+
+            if (keys.size() != newComponentIds.size()) {
+                System.err.println(
+                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+            } else {
+                for (int i = 0; i < keys.size(); i++) {
+                    Integer oldId = keys.get(i);
+                    Integer newId = newComponentIds.get(i);
+                    variableMap.put(oldId, newId);
+                }
+            }
+
+            return null;
+
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to clone variable");
+            return new ErrorMessage("Failed to clone variable", "variable Insertion Failure", error.getMessage());
+        }
+    }
+
+    public ErrorMessage cloneUpdateInstruction(int previosBotJob) {
+        final int BATCH_SIZE = 100;
+
+        try (Connection conn = getConnection();
+                Statement postgresStmt = conn.createStatement()) {
+            conn.setAutoCommit(false);
+
+            String idsInstruction =
+                    instructionMap.values().stream().map(String::valueOf).collect(Collectors.joining(","));
+
+            String idsBlock = blockMap.values().stream().map(String::valueOf).collect(Collectors.joining(","));
+
+            int newBotJobId = botJobMap.get(previosBotJob);
+
+            String selectAccessSQL = "SELECT id, name, parent_id, variable_id " + "FROM instruction "
+                    + "WHERE (parent_id IS NOT NULL OR variable_id IS NOT NULL) "
+                    + "AND bot_job_id = "
+                    + newBotJobId + " AND id IN ("
+                    + idsInstruction + ") AND block_id IN ("
+                    + idsBlock + ") ORDER BY id";
+
+            try (ResultSet rsInstruction = postgresStmt.executeQuery(selectAccessSQL)) {
+
+                String updateSQL = "UPDATE instruction SET variable_id = ?, parent_id = ? WHERE id = ? ";
+
+                try (PreparedStatement updateStmt = conn.prepareStatement(updateSQL)) {
+                    int count = 0;
+
+                    while (rsInstruction.next()) {
+                        int id = rsInstruction.getInt("id");
+                        String name = rsInstruction.getString("name");
+
+                        // Set variable_id directly from Access
+                        int originalVariableId = rsInstruction.getInt("variable_id");
+                        // Map old bot_job_id to new
+                        Integer newVariableId = variableMap.get(originalVariableId);
+                        if (newVariableId == null) {
+                            System.out.println("Skipped variable_id column with unknown variable_id: " + newVariableId);
+                            updateStmt.setNull(1, Types.INTEGER);
+                        } else {
+                            updateStmt.setInt(1, newVariableId);
+                        }
+
+                        // Handle parent_id based on name
+                        if ("GOTO".equalsIgnoreCase(name) || "EXCEL GOTO".equalsIgnoreCase(name)) {
+                            int parentBlockId = rsInstruction.getInt("parent_id");
+                            Integer newParentBlockId = blockMap.get(parentBlockId);
+                            if (newParentBlockId != null) {
+                                updateStmt.setInt(2, newParentBlockId);
+                            } else {
+                                updateStmt.setNull(2, Types.INTEGER);
+                            }
+                        } else {
+                            int parentInstructionId = rsInstruction.getInt("parent_id");
+                            Integer newParentInstructionId = instructionMap.get(parentInstructionId);
+                            if (newParentInstructionId != null) {
+                                updateStmt.setInt(2, newParentInstructionId);
+                            } else {
+                                updateStmt.setNull(2, Types.INTEGER);
+                            }
+                        }
+
+                        updateStmt.setInt(3, id); // WHERE clause: name = ?
+
+                        updateStmt.addBatch();
+                        count++;
+
+                        if (count % BATCH_SIZE == 0) {
+                            updateStmt.executeBatch();
+                            conn.commit();
+                            System.out.println("Updated batch of " + BATCH_SIZE);
+                        }
+                    }
+
+                    if (count % BATCH_SIZE != 0) {
+                        updateStmt.executeBatch();
+                        conn.commit();
+                        System.out.println("Updated final batch of " + (count % BATCH_SIZE));
+                    }
+
+                    ARLogger.getInstance(PerformDataBase.class).info("Updated instruction records: " + count);
+                }
+            }
+
+            return null;
+
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to update cloned instruction");
+            return new ErrorMessage(
+                    "Failed to update cloned instruction", "cloned instruction Update Failure", error.getMessage());
+        }
+    }
+
+    public ErrorMessage cloneReferences(int previousBotJob) {
+
+        final int BATCH_SIZE = 100;
+
+        String idsInstruction =
+                instructionMap.keySet().stream().map(String::valueOf).collect(Collectors.joining(","));
+
+        String checkExistsSQL = "SELECT * FROM reference " + "WHERE  bot_job_id = ? AND instruction_id IN ("
+                + idsInstruction + ") ORDER BY id";
+
+        String selectComponentIdsSQL = "SELECT id FROM reference ORDER BY id";
+
+        try (Connection conn = getConnection();
+                PreparedStatement selectStmt = conn.prepareStatement(checkExistsSQL);
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+
+            conn.setAutoCommit(false);
+
+            // Step 1: get current component_block ids before insert
+            List<Integer> blockIdsBefore = new ArrayList<>();
+            try (ResultSet rsIdsBefore = idStmtBefore.executeQuery(selectComponentIdsSQL)) {
+                while (rsIdsBefore.next()) {
+                    blockIdsBefore.add(rsIdsBefore.getInt("id"));
+                }
+            }
+
+            // Step 2: prepare and execute insert
+            selectStmt.setInt(1, previousBotJob);
+
+            try (ResultSet rsReference = selectStmt.executeQuery()) {
+
+                String insertSQL =
+                        "INSERT INTO reference (id, reference_type, value, instruction_id, bot_job_id) VALUES (?, ?, ?, ?, ?)";
+
+                referenceMap.clear();
+
+                try (PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
+
+                    int count = 0;
+                    int newReferId = getMaxId(conn, "reference") + 1;
+
+                    while (rsReference.next()) {
+                        int id = rsReference.getInt("id");
+
+                        int oldInstructionId = rsReference.getInt("instruction_id");
+                        Integer newInstructionId = instructionMap.get(oldInstructionId);
+                        if (newInstructionId == null) {
+                            System.out.println("Skipped reference with unknown instruction_id: " + oldInstructionId);
+                            continue;
+                        }
+
+                        int oldBotJobId = rsReference.getInt("bot_job_id");
+                        Integer newBotJobId = botJobMap.get(oldBotJobId);
+                        if (newBotJobId == null) {
+                            System.out.println("Skipped reference with unknown bot_job_id: " + newBotJobId);
+                            continue;
+                        }
+
+                        referenceMap.put(id, -1);
+
+                        insertStmt.setInt(1, newReferId);
+                        insertStmt.setString(2, rsReference.getString("reference_type"));
+                        insertStmt.setString(3, rsReference.getString("value"));
+                        insertStmt.setInt(4, newInstructionId);
+
+                        if (newBotJobId != null) {
+                            insertStmt.setInt(5, newBotJobId);
+                        } else {
+                            insertStmt.setNull(5, Types.INTEGER);
+                        }
+
+                        insertStmt.addBatch();
+                        count++;
+                        newReferId++;
+
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            conn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                        }
+                    }
+
+                    insertStmt.executeBatch();
+                    conn.commit();
+                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    ARLogger.getInstance(PerformDataBase.class).info("Inserted reference records: " + count);
+                }
+            }
+
+            // Step 3: get component_block ids after insert
+            List<Integer> idsAfter = new ArrayList<>();
+            try (ResultSet rsIdsAfter = idStmtAfter.executeQuery(selectComponentIdsSQL)) {
+                while (rsIdsAfter.next()) {
+                    idsAfter.add(rsIdsAfter.getInt("id"));
+                }
+            }
+
+            // Step 4: compute new IDs
+            List<Integer> newComponentIds = new ArrayList<>(idsAfter);
+            newComponentIds.removeAll(blockIdsBefore);
+
+            // You can now use `newComponentIds` as needed
+            System.out.println("Newly inserted reference IDs: " + newComponentIds);
+
+            // Step 5: update blockMap with new IDs
+            List<Integer> keys = new ArrayList<>(referenceMap.keySet());
+
+            if (keys.size() != newComponentIds.size()) {
+                System.err.println(
+                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+            } else {
+                for (int i = 0; i < keys.size(); i++) {
+                    Integer oldId = keys.get(i);
+                    Integer newId = newComponentIds.get(i);
+                    referenceMap.put(oldId, newId);
+                }
+            }
+
+            return null;
+
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to clone reference");
+            return new ErrorMessage("Failed to clone reference", "reference Insertion Failure", error.getMessage());
         }
     }
 
@@ -8682,44 +11305,42 @@ GROUP BY
         try (Statement stmt = getConnection().createStatement()) {
 
             // Execute each statement individually
-            stmt.executeUpdate("DELETE FROM job_run_report;");
             stmt.executeUpdate("DELETE FROM variable;");
             stmt.executeUpdate("DELETE FROM reference;");
             stmt.executeUpdate("DELETE FROM instruction;");
             stmt.executeUpdate("DELETE FROM block;");
             stmt.executeUpdate("DELETE FROM bot_job;");
 
+            stmt.executeUpdate("DELETE FROM component_variable;");
             stmt.executeUpdate("DELETE FROM component_reference;");
             stmt.executeUpdate("DELETE FROM component_instruction;");
             stmt.executeUpdate("DELETE FROM component_block;");
 
             // Drop sequences if they exist
-            if (!dataBaseType.equalsIgnoreCase("ACCESS")) {
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"blockLoopInstructionSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"blockSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"botJobSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"variableSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"instructionReferenceSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedInstructionReferenceSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"excelReportSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedInstructionReferenceSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedBlockLoopInstructionSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"complexInstructionSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"configurationSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"homeBankingSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedBlockSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"idgen\";");
-            }
+            //            if (!dataBaseType.equalsIgnoreCase("ACCESS")) {
+            //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"blockLoopInstructionSeq\";");
+            //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"blockSeq\";");
+            //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"botJobSeq\";");
+            //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"variableSeq\";");
+            //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"instructionReferenceSeq\";");
+            //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedInstructionReferenceSeq\";");
+            //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"excelReportSeq\";");
+            //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedInstructionReferenceSeq\";");
+            //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedBlockLoopInstructionSeq\";");
+            //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"complexInstructionSeq\";");
+            //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"configurationSeq\";");
+            //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"homeBankingSeq\";");
+            //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedBlockSeq\";");
+            //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"idgen\";");
+            //            }
             ARLogger.getInstance(PerformDataBase.class)
                     .info("All Rows DELETED for:\n"
-                            + "ExcelReportDTO;\n"
                             + "Variables;\n"
                             + "Instructions References;\n"
                             + "Instructions;\n"
                             + "Blocks;\n"
                             + "Bot Jobs;\n"
-                            + "Saved Components;\n"
-                            + "Sequences dropped.");
+                            + "Saved Components;");
 
             return true;
 
