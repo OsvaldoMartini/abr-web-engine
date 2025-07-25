@@ -4994,10 +4994,6 @@ ORDER BY bot.id ASC;
                     }
                 }
 
-                insertStmt.executeBatch(); // safe even if empty
-                conn.commit();
-                System.out.println("Inserted final or empty batch.");
-
                 // Final batch
                 if (count % BATCH_SIZE != 0) {
                     insertStmt.executeBatch();
@@ -6228,9 +6224,11 @@ GROUP BY
                 }
 
                 // Final batch
-                insertStmt.executeBatch();
-                accessConn.commit();
-                System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                if (count % BATCH_SIZE != 0) {
+                    insertStmt.executeBatch();
+                    accessConn.commit();
+                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                }
             }
 
             System.out.println("Sync completed.");
@@ -6315,9 +6313,11 @@ GROUP BY
                 }
 
                 // Final batch
-                insertStmt.executeBatch();
-                accessConn.commit();
-                System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                if (count % BATCH_SIZE != 0) {
+                    insertStmt.executeBatch();
+                    accessConn.commit();
+                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                }
             }
 
             System.out.println("Sync completed.");
@@ -6399,9 +6399,11 @@ GROUP BY
                 }
 
                 // Final batch
-                insertStmt.executeBatch();
-                postgresConn.commit();
-                System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                if (count % BATCH_SIZE != 0) {
+                    insertStmt.executeBatch();
+                    postgresConn.commit();
+                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                }
             }
 
             System.out.println("Sync completed.");
@@ -7030,10 +7032,12 @@ GROUP BY
                         }
                     }
 
-                    insertStmt.executeBatch();
-                    postgresConn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted records into home_url: " + count);
+                    // Final batch
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        postgresConn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
                 }
             }
 
@@ -7135,10 +7139,12 @@ GROUP BY
                         }
                     }
 
-                    insertStmt.executeBatch();
-                    accessConn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted records into home_url: " + count);
+                    // Final batch
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        accessConn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
                 }
             }
 
@@ -7226,10 +7232,12 @@ GROUP BY
                         }
                     }
 
-                    insertStmt.executeBatch();
-                    postgresConn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted bot_job records: " + count);
+                    // Final batch
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        postgresConn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
                 }
             }
 
@@ -7314,10 +7322,12 @@ GROUP BY
                         }
                     }
 
-                    insertStmt.executeBatch();
-                    accessConn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted bot_job records: " + count);
+                    // Final batch
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        accessConn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
                 }
             }
 
@@ -7422,10 +7432,12 @@ GROUP BY
                         }
                     }
 
-                    insertStmt.executeBatch();
-                    postgresConn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted block records: " + count);
+                    // Final batch
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        postgresConn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
                 }
             }
 
@@ -7533,10 +7545,12 @@ GROUP BY
                         }
                     }
 
-                    insertStmt.executeBatch();
-                    accessConn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted block records: " + count);
+                    // Final batch
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        accessConn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
                 }
             }
 
@@ -7651,12 +7665,12 @@ GROUP BY
                         }
                     }
 
+                    // Final batch
                     if (count % BATCH_SIZE != 0) {
                         insertStmt.executeBatch();
                         postgresConn.commit();
                         System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
                     }
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted instruction records: " + count);
                 }
             }
 
@@ -7778,7 +7792,6 @@ GROUP BY
                         accessConn.commit();
                         System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
                     }
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted instruction records: " + count);
                 }
             }
 
@@ -7883,10 +7896,12 @@ GROUP BY
                         }
                     }
 
-                    insertStmt.executeBatch();
-                    postgresConn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted variable records: " + count);
+                    // Final batch
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        postgresConn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
                 }
             }
 
@@ -7993,10 +8008,12 @@ GROUP BY
                         }
                     }
 
-                    insertStmt.executeBatch();
-                    accessConn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted variable records: " + count);
+                    // Final batch
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        accessConn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
                 }
             }
 
@@ -8249,10 +8266,12 @@ GROUP BY
                         }
                     }
 
-                    insertStmt.executeBatch();
-                    postgresConn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted reference records: " + count);
+                    // Final batch
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        postgresConn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
                 }
             }
 
@@ -8342,10 +8361,12 @@ GROUP BY
                         }
                     }
 
-                    insertStmt.executeBatch();
-                    accessConn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted reference records: " + count);
+                    // Final batch
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        accessConn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
                 }
             }
 
@@ -8452,10 +8473,12 @@ GROUP BY
                         }
                     }
 
-                    insertStmt.executeBatch();
-                    postgresConn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted component_block records: " + count);
+                    // Final batch
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        postgresConn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
                 }
             }
 
@@ -8564,10 +8587,12 @@ GROUP BY
                         }
                     }
 
-                    insertStmt.executeBatch();
-                    accessConn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted component_block records: " + count);
+                    // Final batch
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        accessConn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
                 }
             }
 
@@ -8688,8 +8713,6 @@ GROUP BY
                         postgresConn.commit();
                         System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
                     }
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .info("Inserted component_instruction records: " + count);
                 }
             }
 
@@ -8812,8 +8835,6 @@ GROUP BY
                         accessConn.commit();
                         System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
                     }
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .info("Inserted component_instruction records: " + count);
                 }
             }
 
@@ -8920,10 +8941,12 @@ GROUP BY
                         }
                     }
 
-                    insertStmt.executeBatch();
-                    postgresConn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted component_variable records: " + count);
+                    // Final batch
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        postgresConn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
                 }
             }
 
@@ -9032,10 +9055,12 @@ GROUP BY
                         }
                     }
 
-                    insertStmt.executeBatch();
-                    accessConn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted component_variable records: " + count);
+                    // Final batch
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        accessConn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
                 }
             }
 
@@ -9293,10 +9318,12 @@ GROUP BY
                         }
                     }
 
-                    insertStmt.executeBatch();
-                    postgresConn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted component_reference records: " + count);
+                    // Final batch
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        postgresConn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
                 }
             }
 
@@ -9392,10 +9419,12 @@ GROUP BY
                         }
                     }
 
-                    insertStmt.executeBatch();
-                    accessConn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted component_reference records: " + count);
+                    // Final batch
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        accessConn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
                 }
             }
 
@@ -9504,10 +9533,12 @@ GROUP BY
                         }
                     }
 
-                    insertStmt.executeBatch();
-                    conn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted component_block records: " + count);
+                    // Final batch
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        conn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
                 }
             }
 
@@ -9649,11 +9680,12 @@ GROUP BY
                         }
                     }
 
-                    insertStmt.executeBatch();
-                    conn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .info("Inserted component_instruction records: " + count);
+                    // Final batch
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        conn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
                 }
             }
 
@@ -9793,10 +9825,12 @@ GROUP BY
                         }
                     }
 
-                    insertStmt.executeBatch();
-                    conn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted component_variable records: " + count);
+                    // Final batch
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        conn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
                 }
             }
 
@@ -10018,10 +10052,12 @@ GROUP BY
                         }
                     }
 
-                    insertStmt.executeBatch();
-                    conn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted component_reference records: " + count);
+                    // Final batch
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        conn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
                 }
             }
 
@@ -10155,10 +10191,12 @@ GROUP BY
                         }
                     }
 
-                    insertStmt.executeBatch();
-                    conn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted block records: " + count);
+                    // Final batch
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        conn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
                 }
             }
 
@@ -10300,10 +10338,12 @@ GROUP BY
                         }
                     }
 
-                    insertStmt.executeBatch();
-                    conn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted instruction records: " + count);
+                    // Final batch
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        conn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
                 }
             }
 
@@ -10440,10 +10480,12 @@ GROUP BY
                         }
                     }
 
-                    insertStmt.executeBatch();
-                    conn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted variable records: " + count);
+                    // Final batch
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        conn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
                 }
             }
 
@@ -10658,10 +10700,12 @@ GROUP BY
                         }
                     }
 
-                    insertStmt.executeBatch();
-                    conn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted reference records: " + count);
+                    // Final batch
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        conn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
                 }
             }
 
@@ -10880,10 +10924,12 @@ GROUP BY
                         }
                     }
 
-                    insertStmt.executeBatch();
-                    conn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted block records: " + count);
+                    // Final batch
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        conn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
                 }
             }
 
@@ -11026,10 +11072,12 @@ GROUP BY
                         }
                     }
 
-                    insertStmt.executeBatch();
-                    conn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted instruction records: " + count);
+                    // Final batch
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        conn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
                 }
             }
 
@@ -11161,10 +11209,12 @@ GROUP BY
                         }
                     }
 
-                    insertStmt.executeBatch();
-                    conn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted variable records: " + count);
+                    // Final batch
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        conn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
                 }
             }
 
@@ -11381,10 +11431,12 @@ GROUP BY
                         }
                     }
 
-                    insertStmt.executeBatch();
-                    conn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                    ARLogger.getInstance(PerformDataBase.class).info("Inserted reference records: " + count);
+                    // Final batch
+                    if (count % BATCH_SIZE != 0) {
+                        insertStmt.executeBatch();
+                        conn.commit();
+                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    }
                 }
             }
 
@@ -12318,9 +12370,11 @@ GROUP BY
                 }
 
                 // Final batch
-                insertStmt.executeBatch();
-                access2.commit();
-                ARLogger.getInstance(getClass()).info("Inserted final batch of " + (count % BATCH_SIZE));
+                if (count % BATCH_SIZE != 0) {
+                    insertStmt.executeBatch();
+                    access2.commit();
+                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                }
             }
 
             ARLogger.getInstance(getClass()).info("Migration completed.");
