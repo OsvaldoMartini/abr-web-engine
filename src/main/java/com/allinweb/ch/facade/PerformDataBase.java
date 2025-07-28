@@ -4,7 +4,6 @@ import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BlockOrderDetailDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
-import com.allinweb.ch.component.model.ComplexInstructionLoadDTO;
 import com.allinweb.ch.component.model.DeleteBlockDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.model.HomeUrlDTO;
@@ -22,7 +21,6 @@ import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ComboBoxVars;
 import com.allinweb.ch.util.ErrorMessage;
-import com.google.common.base.Strings;
 import java.io.File;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -3655,24 +3653,37 @@ ORDER BY bot.id ASC;
                 int id = rs.getInt("instruction_id");
                 String name = rs.getString("instruction_name").trim();
                 String actions = rs.getString("actions").trim();
-                Integer blockId = rs.getInt("block_id");
-                String tagName = rs.getString("tag_name").trim();
-                Integer orderNumber = rs.getInt("instruction_order_number");
 
                 // Filter out "SET", "GET", "CK", adn "H"
-                if (actions != null
-                        && !actions.equalsIgnoreCase(ARConstants.SET_VALUE)
-                        && !actions.equalsIgnoreCase(ARConstants.GET_VALUE)
-                        && !actions.equalsIgnoreCase(ARConstants.CHECK_VALUE)
-                        && !actions.equalsIgnoreCase(ARConstants.HOLD)) {
-                    webPageItems.add(new ComboBoxVars(
-                            "(" + id + ")" + name, name, id, blockId, -1, -1, tagName, orderNumber, null));
+                if (actions == null
+                        || actions.equalsIgnoreCase(ARConstants.SET_VALUE)
+                        || actions.equalsIgnoreCase(ARConstants.GET_VALUE)
+                        || actions.equalsIgnoreCase(ARConstants.CHECK_VALUE)
+                        || actions.equalsIgnoreCase(ARConstants.HOLD)
+                        || actions.equalsIgnoreCase(ARConstants.PAUSE)
+                        || actions.equalsIgnoreCase(ARConstants.EXCEL_GOTO)) {
+                    continue;
                 }
+
+                Integer blockId = rs.getInt("block_id");
+
+                String tagName = rs.getString("tag_name");
+                tagName = (tagName != null) ? tagName.trim() : null;
+
+                Integer orderNumber = rs.getInt("instruction_order_number");
+
+                // Filter out "SET", "GET", "CK", adn "H" "PAUSE"
+                webPageItems.add(
+                        new ComboBoxVars("(" + id + ")" + name, name, id, blockId, -1, -1, tagName, orderNumber, null));
             }
         } catch (SQLException e) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "loadWebPageFields - Error selecting Web Page Fields. Error: %s", e.getMessage()));
+        } catch (Exception error) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "loadWebPageFields - Error selecting Web Page Fields. Error: %s", error.getMessage()));
         }
         return webPageItems;
     }
@@ -3702,25 +3713,38 @@ ORDER BY bot.id ASC;
                 int id = rs.getInt("instruction_id");
                 String name = rs.getString("instruction_name").trim();
                 String actions = rs.getString("actions").trim();
+
+                // Filter out "SET", "GET", "CK", adn "H"
+                if (actions == null
+                        || actions.equalsIgnoreCase(ARConstants.SET_VALUE)
+                        || actions.equalsIgnoreCase(ARConstants.GET_VALUE)
+                        || actions.equalsIgnoreCase(ARConstants.CHECK_VALUE)
+                        || actions.equalsIgnoreCase(ARConstants.HOLD)
+                        || actions.equalsIgnoreCase(ARConstants.PAUSE)
+                        || actions.equalsIgnoreCase(ARConstants.EXCEL_GOTO)) {
+                    continue;
+                }
+
                 Integer blockId = rs.getInt("block_id");
-                String tagName = rs.getString("tag_name").trim();
+
+                String tagName = rs.getString("tag_name");
+                tagName = (tagName != null) ? tagName.trim() : null;
+
                 Integer orderNumber = rs.getInt("instruction_order_number");
 
                 // Filter out "SET", "GET", "CK", adn "H"
-                if (actions != null
-                        && !actions.equalsIgnoreCase(ARConstants.SET_VALUE)
-                        && !actions.equalsIgnoreCase(ARConstants.GET_VALUE)
-                        && !actions.equalsIgnoreCase(ARConstants.CHECK_VALUE)
-                        && !actions.equalsIgnoreCase(ARConstants.HOLD)) {
-                    webPageItems.add(new ComboBoxVars(
-                            "(" + id + ")" + name, name, id, blockId, -1, -1, tagName, orderNumber, null));
-                }
+                webPageItems.add(
+                        new ComboBoxVars("(" + id + ")" + name, name, id, blockId, -1, -1, tagName, orderNumber, null));
             }
         } catch (SQLException e) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "loadCompWebPageFields - Error selecting Component Web Page Fields. Error: %s",
                             e.getMessage()));
+        } catch (Exception error) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "loadWebPageFields - Error selecting Web Page Fields. Error: %s", error.getMessage()));
         }
         return webPageItems;
     }
@@ -3810,430 +3834,6 @@ ORDER BY bot.id ASC;
         return -1;
     }
 
-    public ErrorMessage dropTablesMigrationScriptsv2_7f() {
-        // Build the SQL update statement
-        try (Statement stmt = getConnection().createStatement()) {
-            int rowsAffected = 0;
-
-            if (POSTGRES_DB) {
-
-                stmt.executeUpdate("DROP TABLE job_run_report;");
-                stmt.executeUpdate("DROP TABLE  variable;");
-                stmt.executeUpdate("DROP TABLE  instruction_reference;");
-                stmt.executeUpdate("DROP TABLE  block_loop_instruction;");
-
-                stmt.executeUpdate("DROP TABLE  saved_instruction_reference;");
-                stmt.executeUpdate("DROP TABLE  saved_block_loop_instruction;");
-                stmt.executeUpdate("DROP TABLE  saved_blocks;");
-
-                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"blockLoopInstructionSeq\";");
-                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"blockSeq\";");
-                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"botJobSeq\";");
-                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"variableSeq\";");
-                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"instructionReferenceSeq\";");
-                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedInstructionReferenceSeq\";");
-                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"excelReportSeq\";");
-                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedInstructionReferenceSeq\";");
-                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedBlockLoopInstructionSeq\";");
-                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"complexInstructionSeq\";");
-                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"configurationSeq\";");
-                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"homeBankingSeq\";");
-                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedBlockSeq\";");
-                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"idgen\";");
-
-                // Update the bot_job_id in reference using the instruction_id from
-
-            } else {
-
-                stmt.executeUpdate("DROP TABLE job_run_report;");
-                stmt.executeUpdate("DROP TABLE  variable;");
-                stmt.executeUpdate("DROP TABLE  instruction_reference;");
-                stmt.executeUpdate("DROP TABLE  complex_instruction;");
-                stmt.executeUpdate("DROP TABLE  block_loop_instruction;");
-
-                stmt.executeUpdate("DROP TABLE  saved_instruction_reference;");
-                stmt.executeUpdate("DROP TABLE  saved_block_loop_instruction;");
-                stmt.executeUpdate("DROP TABLE  saved_blocks;");
-
-                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"blockLoopInstructionSeq\";");
-                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"blockSeq\";");
-                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"botJobSeq\";");
-                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"variableSeq\";");
-                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"instructionReferenceSeq\";");
-                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedInstructionReferenceSeq\";");
-                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"excelReportSeq\";");
-                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedInstructionReferenceSeq\";");
-                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedBlockLoopInstructionSeq\";");
-                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"complexInstructionSeq\";");
-                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"configurationSeq\";");
-                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"homeBankingSeq\";");
-                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedBlockSeq\";");
-                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"idgen\";");
-            }
-
-            if (rowsAffected > 0) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .warning(String.format("Migration DB Scripts - RowsUpdated - %s", rowsAffected));
-            } else {
-                ARLogger.getInstance(PerformDataBase.class).info("Migration DB Scripts - No Rows were updated");
-            }
-            return null;
-        } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class).warning("Migration DB Scripts - Error: " + error.getMessage());
-            return new ErrorMessage(
-                    "Error Drop Tables Migration 2.7f", "Error dropping OLD objects", error.getMessage());
-        }
-    }
-
-    public List<VariableLoadDTO> instVariablesToDuplicateNEW(
-            Connection conn, int homeBankingId, int oldBotJobId, int oldBlockId, String targetTable)
-            throws SQLException {
-
-        // Determine if we need to use home_banking_id instead of bot_job_id
-        String idColumn = targetTable.equals("component_variable") ? "home_banking_id" : "bot_job_id";
-
-        // Build the base query
-        String query =
-                "SELECT var.id, var.name, var.type, var.value, var.instruction_id, var.local_format, var.delimiter, var."
-                        + idColumn;
-
-        // Adjust the query based on oldBlockId
-        query += " FROM " + targetTable + " var";
-
-        if (oldBlockId > -1) {
-            query += " JOIN instruction bli ON bli.id = var.instruction_id AND var." + idColumn
-                    + " = ? AND bli.block_id = ? ";
-        } else {
-            query += " WHERE var." + idColumn + " = ? ";
-        }
-
-        query += " ORDER BY var.id";
-
-        List<VariableLoadDTO> variableDTOList = new ArrayList<>();
-
-        try (PreparedStatement stmt = conn.prepareStatement(query)) {
-
-            // Set parameters based on the existence of oldBlockId
-            if (oldBlockId > -1) {
-                if (targetTable.equals("component_variable")) {
-                    stmt.setInt(1, homeBankingId);
-                    stmt.setInt(2, oldBlockId);
-                } else if (targetTable.equals("variable")) {
-                    stmt.setInt(1, oldBotJobId);
-                    stmt.setInt(2, oldBlockId);
-                }
-            } else {
-                if (targetTable.equals("component_variable")) {
-                    stmt.setInt(1, homeBankingId);
-                } else if (targetTable.equals("variable")) {
-                    stmt.setInt(1, oldBotJobId);
-                }
-            }
-
-            // Execute the query and process results
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-
-                int id = rs.getInt("id");
-                int botJobId = -1;
-                homeBankingId = -1;
-                if (targetTable.equalsIgnoreCase("instruction")) {
-                    botJobId = rs.getInt("bot_job_id");
-                } else if (targetTable.equalsIgnoreCase("component_instruction")) {
-                    homeBankingId = rs.getInt("home_banking_id");
-                }
-
-                int instructionId = rs.getInt("instruction_id");
-                String type = rs.getString("type");
-                String name = rs.getString("name");
-                String value = rs.getString("value");
-                String localFormat = rs.getString("local_format");
-                String delimiter = rs.getString("delimiter");
-                //                int usedVars = rs.getInt("UsedVars");
-                variableDTOList.add(new VariableLoadDTO(
-                        id, homeBankingId, botJobId, instructionId, type, name, value, localFormat, delimiter, 0));
-            }
-        }
-
-        return variableDTOList; // Return the list of variable DTOs
-    }
-
-    public List<InstructionReferenceLoadDTO> instReferenceToDuplicateOld(
-            Connection conn, int oldBotJobId, String targetTable) throws SQLException {
-        String query = "SELECT id, reference_type, value, block_loop_instruction_id, bot_job_id "
-                + "  FROM " + targetTable
-                + "  WHERE bot_job_id = ? "
-                + "  ORDER BY id";
-
-        List<InstructionReferenceLoadDTO> referenceDTOList = new ArrayList<>();
-
-        try (PreparedStatement stmt = conn.prepareStatement(query)) {
-            stmt.setInt(1, oldBotJobId);
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                InstructionReferenceLoadDTO referenceDTO = new InstructionReferenceLoadDTO();
-                referenceDTO.setId(rs.getInt("id"));
-                referenceDTO.setReferenceType(rs.getString("reference_type"));
-                referenceDTO.setValue(rs.getString("value"));
-                referenceDTO.setBlockLoopInstructionId(rs.getInt("block_loop_instruction_id"));
-                referenceDTO.setBotJobId(rs.getInt("bot_job_id"));
-
-                referenceDTOList.add(referenceDTO);
-            }
-        }
-
-        return referenceDTOList;
-    }
-
-    public List<InstructionReferenceLoadDTO> referenceToDuplicateNew(
-            Connection conn, int homeBankingId, int oldBotJobId, int oldBlockId, String table1, String table2)
-            throws SQLException {
-
-        // Determine the column to use for filtering based on table1
-        String idColumn = table1.equalsIgnoreCase("component_reference") ? "home_banking_id" : "bot_job_id";
-
-        // Build the query string
-        String query = "SELECT ref.id, ref.reference_type, ref.value, ref.instruction_id, ref." + idColumn;
-
-        // Adjust the query based on oldBlockId
-        query += " FROM " + table1 + " ref";
-
-        // Adjust the query for oldBlockId
-        if (oldBlockId > -1) {
-            query += " JOIN " + table2 + " bli ON bli.id = ref.instruction_id and ref." + idColumn
-                    + " = ? and bli.block_id = ? ";
-        } else {
-            query += " WHERE ref." + idColumn + " = ? ";
-        }
-
-        query += " ORDER BY ref.id";
-
-        List<InstructionReferenceLoadDTO> referenceDTOList = new ArrayList<>();
-
-        try (PreparedStatement stmt = conn.prepareStatement(query)) {
-
-            // Set the parameters based on oldBlockId presence
-            if (oldBlockId > -1) {
-                if (table1.equals("component_reference")) {
-                    stmt.setInt(1, homeBankingId);
-                    stmt.setInt(2, oldBlockId);
-                } else if (table1.equals("reference")) {
-                    stmt.setInt(1, oldBotJobId);
-                    stmt.setInt(2, oldBlockId);
-                }
-            } else {
-                if (table1.equals("component_reference")) {
-                    stmt.setInt(1, homeBankingId);
-                } else if (table1.equals("reference")) {
-                    stmt.setInt(1, oldBotJobId);
-                }
-            }
-
-            // Execute the query and process the results
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                InstructionReferenceLoadDTO referenceDTO = new InstructionReferenceLoadDTO();
-                referenceDTO.setId(rs.getInt("id"));
-                referenceDTO.setReferenceType(rs.getString("reference_type"));
-                referenceDTO.setValue(rs.getString("value"));
-                referenceDTO.setBlockLoopInstructionId(rs.getInt("instruction_id"));
-
-                if (table1.equalsIgnoreCase("reference")) {
-                    referenceDTO.setBotJobId(rs.getInt("bot_job_id"));
-                } else if (table1.equalsIgnoreCase("component_reference")) {
-                    referenceDTO.setHomeBankingId(rs.getInt("home_banking_id"));
-                }
-
-                referenceDTOList.add(referenceDTO); // Add to the list
-            }
-        }
-
-        return referenceDTOList; // Return the list of reference DTOs
-    }
-
-    public List<ComplexInstructionLoadDTO> instComplexToDuplicate(
-            Connection conn, int oldBotJobId, int oldBlockId, String table1, String table2) throws SQLException {
-        String query = " SELECT \n" + "  cp.id, \n"
-                + "  cp.instruction, \n"
-                + "  cp.order_number, \n"
-                + "  cp.way, \n"
-                + "  cp.instruction_id, \n"
-                + "  cp.bot_job_id \n"
-                + "FROM \n"
-                + table1 + " cp";
-
-        if (oldBlockId > -1) {
-            query += " JOIN " + table2
-                    + " bli ON bli.id = cp.instruction_id and cp.bot_job_id = ? and bli.block_id = ?  ";
-        } else {
-            query += " WHERE cp.bot_job_id = ? ";
-        }
-
-        query += " ORDER BY cp.id";
-
-        List<ComplexInstructionLoadDTO> referenceDTOList = new ArrayList<>();
-
-        try (PreparedStatement stmt = conn.prepareStatement(query)) {
-
-            if (oldBlockId > -1) {
-                stmt.setInt(1, oldBotJobId);
-                stmt.setInt(2, oldBlockId);
-            } else {
-                stmt.setInt(1, oldBotJobId);
-            }
-
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                ComplexInstructionLoadDTO complexInstructionLoadDTO = new ComplexInstructionLoadDTO();
-                complexInstructionLoadDTO.setId(rs.getInt("id")); // Set the ID from complex_instruction
-                complexInstructionLoadDTO.setInstructionId(
-                        rs.getInt("instruction_id")); // Set the instruction_id as instructionId
-                complexInstructionLoadDTO.setBotJobId(rs.getInt("bot_job_id")); // Set bot_job_id
-                complexInstructionLoadDTO.setOrderNumber(rs.getInt("order_number"));
-                complexInstructionLoadDTO.setInstruction(rs.getString("instruction"));
-                complexInstructionLoadDTO.setWay(rs.getString("way"));
-
-                referenceDTOList.add(complexInstructionLoadDTO);
-            }
-        }
-
-        return referenceDTOList;
-    }
-
-    public List<InstructionLoadDTO> instructionsToDuplicate(
-            Connection conn, int homeBankingId, int oldBotJobId, int oldBlockId, String table1, String table2)
-            throws SQLException {
-
-        // Determine the column to use for filtering
-        String idColumn = table1.equalsIgnoreCase("component_instruction") ? "home_banking_id" : "bot_job_id";
-        String botJobIdColumn =
-                table2.equalsIgnoreCase("component_block") ? "" : "and blk.bot_job_id = bli.bot_job_id ";
-
-        // Build the query
-        String query = "SELECT bli.id, bli.action_custom_max_wait_sec, bli.actions, bli.active, bli.block_marked, "
-                + "bli.codified, bli.default_value, bli.description, bli.export_to_abr, bli.instruction_order_number, "
-                + "bli.name, bli.on_hold_seconds, bli.operation, bli.optional, bli.parent_id, bli.xpath, bli.coordinates, "
-                + "bli.iframe_xpath,  bli.tag_name, bli.shadow_host, bli.shadow_root, bli.css_selector, bli.force_coordinates, "
-                + "bli.variable_id, bli.block_id, blk.block_order_number, bli."
-                + idColumn;
-
-        query += " FROM " + table1 + " bli "
-                + " JOIN " + table2 + " blk ON bli.block_id = blk.id " + botJobIdColumn
-                + " WHERE bli." + idColumn + " = ? ";
-
-        if (oldBlockId > -1) {
-            query += " and blk.id = ? ";
-        }
-        query += " order by blk.block_order_number, bli.instruction_order_number ";
-        List<InstructionLoadDTO> InstructionLoadDTOList = new ArrayList<>();
-
-        try (PreparedStatement stmt = conn.prepareStatement(query)) {
-            if (table1.equalsIgnoreCase("instruction")) {
-                stmt.setInt(1, oldBotJobId);
-            } else if (table1.equalsIgnoreCase("component_instruction")) {
-                stmt.setInt(1, homeBankingId);
-            }
-
-            if (oldBlockId > -1) {
-                if (table1.equals("component_instruction")) {
-                    stmt.setInt(1, homeBankingId);
-                    stmt.setInt(2, oldBlockId);
-                } else if (table1.equals("instruction")) {
-                    stmt.setInt(1, oldBotJobId);
-                    stmt.setInt(2, oldBlockId);
-                }
-            } else {
-                if (table1.equals("component_instruction")) {
-                    stmt.setInt(1, homeBankingId);
-                } else if (table1.equals("instruction")) {
-                    stmt.setInt(1, oldBotJobId);
-                }
-            }
-
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                InstructionLoadDTO InstructionLoadDTO = new InstructionLoadDTO();
-                InstructionLoadDTO.setId(rs.getInt("id")); // Holds the Current Ids
-                InstructionLoadDTO.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
-                InstructionLoadDTO.setActions(rs.getString("actions"));
-                InstructionLoadDTO.setInstructionActive(rs.getBoolean("active"));
-                InstructionLoadDTO.setBlockMarked(rs.getBoolean("block_marked"));
-                InstructionLoadDTO.setCodified(rs.getBoolean("codified"));
-                InstructionLoadDTO.setDefaultValue(rs.getString("default_value"));
-                InstructionLoadDTO.setDescription(rs.getString("description"));
-                InstructionLoadDTO.setExportToABR(rs.getBoolean("export_to_abr"));
-                InstructionLoadDTO.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
-                InstructionLoadDTO.setInstructionName(rs.getString("name"));
-                InstructionLoadDTO.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
-                InstructionLoadDTO.setOperation(rs.getString("operation"));
-                InstructionLoadDTO.setOptional(rs.getBoolean("optional"));
-                InstructionLoadDTO.setParentId(rs.getInt("parent_id"));
-                InstructionLoadDTO.setXpath(rs.getString("xpath"));
-                InstructionLoadDTO.setCoordinates(rs.getString("coordinates"));
-                InstructionLoadDTO.setForceCoordinates(rs.getBoolean("force_coordinates"));
-                InstructionLoadDTO.setIFrameXPath(rs.getString("iframe_xpath"));
-
-                InstructionLoadDTO.setTagName(rs.getString("tag_name"));
-                InstructionLoadDTO.setShadowHost(rs.getString("shadow_host"));
-                InstructionLoadDTO.setShadowRoot(rs.getString("shadow_root"));
-                InstructionLoadDTO.setCssSelector(rs.getString("css_selector"));
-
-                InstructionLoadDTO.setVariableId(rs.getInt("variable_id"));
-                InstructionLoadDTO.setBlockId(rs.getInt("block_id"));
-                InstructionLoadDTO.setBlockOrderNumber(rs.getInt("block_order_number"));
-
-                if (table1.equalsIgnoreCase("instruction")) {
-                    InstructionLoadDTO.setBotJobId(rs.getInt("bot_job_id"));
-                } else if (table1.equalsIgnoreCase("component_instruction")) {
-                    InstructionLoadDTO.setHomeBankingId(rs.getInt("home_banking_id"));
-                }
-
-                InstructionLoadDTOList.add(InstructionLoadDTO);
-            }
-        }
-
-        return InstructionLoadDTOList;
-    }
-
-    public ErrorMessage duplicateBotJobById(
-            Connection conn,
-            int homeBankId,
-            int homeUrlId,
-            int oldBotJobId,
-            int newBotJobId,
-            String newName,
-            String newDescription,
-            String[] arrayTables) {
-
-        String botJobInsertQuery =
-                "INSERT INTO bot_job (id, name, description, priority, home_banking_id, home_url_id, active) "
-                        + "SELECT ?, ?, ?, priority, home_banking_id, ?, ? FROM bot_job WHERE id = ?";
-
-        try (PreparedStatement stmt = conn.prepareStatement(botJobInsertQuery)) {
-            stmt.setInt(1, newBotJobId); // Set new name
-            stmt.setString(2, newName); // Set new name
-            stmt.setString(3, newDescription); // Set new description
-            stmt.setInt(4, homeUrlId); //
-            stmt.setInt(5, 1); //
-            stmt.setInt(6, oldBotJobId); // Set original botJobId for the SELECT query
-            stmt.executeUpdate();
-
-            System.out.println("Generated BotJob ID: " + newBotJobId);
-
-            // Now you can proceed with duplicating the related tables
-            // arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
-            ErrorMessage errorMessage = duplicateRelatedTables(conn, homeBankId, oldBotJobId, newBotJobId, arrayTables);
-            if (errorMessage != null) {
-                return errorMessage;
-            }
-
-            return null;
-        } catch (SQLException error) {
-            System.out.println(error.getMessage());
-            return new ErrorMessage("Error Duplicating Bot Job", "Bot Job Name", newName);
-        }
-    }
-
     public int getMaxId(Connection conn, String tableName) throws SQLException {
         String query = "SELECT MAX(id) FROM " + tableName;
         try (Statement stmt = conn.createStatement()) {
@@ -4243,1024 +3843,6 @@ ORDER BY bot.id ASC;
             }
         }
         return 0;
-    }
-
-    //    public ErrorMessage migration2_6f(Connection conn, int oldBotJobId, int newBotJobId, String[] arrayTables)
-    //            throws SQLException {
-    //
-    //        Map<Integer, Integer> blocksOlderAndNewId = new HashMap<>();
-    //
-    //        List<BlockLoadDTO> blockList = blocksToDuplicate(conn, oldBotJobId);
-    //        if (blockList.size() > 0) {
-    //            // tablesMigration = {"block", "block_loop_instruction", "instruction",
-    // "instruction_reference","reference",
-    //            // "variable"};
-    //            // Assuming instList is a List<InstructionLoadDTO> and refersList is a
-    // List<InstructionReferenceLoadDTO>
-    //            for (BlockLoadDTO block : blockList) {
-    //                blocksOlderAndNewId.put(block.getId(), block.getId());
-    //                block.setId(block.getId());
-    //                block.setBotJobId(newBotJobId);
-    //            }
-    //        }
-    //
-    //        Map<Integer, Integer> parentOlderAndNewId = new HashMap<>();
-    //        Map<Integer, Integer> variableOlderAndNewId = new HashMap<>();
-    //
-    //        //  "block", "block_loop_instruction", "instruction", "instruction_reference", "reference", "variable"
-    //        List<InstructionLoadDTO> instList = instructionsToDuplicate(
-    //                conn, oldBotJobId, -1, arrayTables[1], arrayTables[0]); // "block_loop_instruction", "instruction"
-    //
-    //        List<VariableLoadDTO> varsList = instVariablesToDuplicateOLD(conn, oldBotJobId, arrayTables[5]);
-    //
-    //        // tablesMigration = {"block", "block_loop_instruction", "instruction",
-    // "instruction_reference","reference",
-    //        // "variable"};
-    //        if (varsList.size() > 0) {
-    //            for (VariableLoadDTO variable : varsList) {
-    //                if (!variableOlderAndNewId.containsKey(variable.getId())) {
-    //                    variableOlderAndNewId.put(variable.getId(), variable.getId());
-    //                    variable.setId(variable.getId());
-    //                }
-    //            }
-    //        }
-    //
-    //        if (instList.size() > 0) {
-    //
-    //            // Prepare the Ids
-    //            // tablesMigration = {"block", "block_loop_instruction", "instruction",
-    // "instruction_reference","reference",
-    //            // "variable"};
-    //            //            int currentId = getMaxId(conn, arrayTables[2]) + 1;
-    //            for (InstructionLoadDTO instruction : instList) {
-    //                instruction.setInstructionId(instruction.getId()); // Holds the News Ids
-    //                instruction.setBotJobId(newBotJobId); // Holds the News Ids
-    //
-    //                if (!parentOlderAndNewId.containsKey(instruction.getParentId())) {
-    //                    parentOlderAndNewId.put(instruction.getId(), instruction.getId());
-    //                }
-    //
-    //                // Loop through the instList and find a matching InstructionLoadDTO
-    //                for (BlockLoadDTO block : blockList) {
-    //                    if (instruction.getBlockOrderNumber().equals(block.getBlockOrderNumber())) {
-    //                        // Once found, update the blockLoopInstructionId with the new instructionId
-    //                        instruction.setBlockId(block.getId());
-    //                        break; // Exit the inner loop since we've found a match
-    //                    }
-    //                }
-    //                //                currentId++;
-    //            }
-    //            // Duplicate instruction
-    //            // tablesMigration = {"block", "block_loop_instruction", "instruction",
-    // "instruction_reference","reference",
-    //            // "variable"};
-    //            ErrorMessage errorMessage = duplicateBlockLoopInstructions(
-    //                    conn, instList, parentOlderAndNewId, variableOlderAndNewId, blocksOlderAndNewId,
-    // arrayTables[2]);
-    //            if (errorMessage != null) {
-    //                return errorMessage;
-    //            }
-    //
-    //            if (varsList.size() > 0) {
-    //
-    //                // Assuming instList is a List<InstructionLoadDTO> and refersList is a
-    // List<InstructionReferenceLoadDTO>
-    //                for (VariableLoadDTO variable : varsList) {
-    //                    //                    variable.setId(currentVarId);
-    //
-    //                    // Loop through the instList and find a matching InstructionLoadDTO
-    //                    for (InstructionLoadDTO instruction : instList) {
-    //                        if (variable.getInstructionId().equals(instruction.getId())) {
-    //                            // Once found, update the blockLoopInstructionId with the new instructionId
-    //                            variable.setInstructionId(instruction.getInstructionId());
-    //                            variable.setBotJobId(newBotJobId);
-    //                            break; // Exit the inner loop since we've found a match
-    //                        }
-    //                    }
-    //                    //                    currentVarId++;
-    //                }
-    //
-    //                // Update variables
-    //                // tablesMigration = {"block", "block_loop_instruction", "instruction", "instruction_reference",
-    //                // "reference", "variable"};
-    //                errorMessage = updateVariables(conn, varsList, arrayTables[5]);
-    //                if (errorMessage != null) {
-    //                    return errorMessage;
-    //                }
-    //            }
-    //
-    //            // tablesMigration = {"block", "block_loop_instruction", "instruction", "instruction_reference",
-    //            // "reference", "variable"};
-    //            List<InstructionReferenceLoadDTO> refersList =
-    //                    instReferenceToDuplicateOld(conn, oldBotJobId, arrayTables[3]);
-    //            if (refersList.size() > 0) {
-    //
-    //                //                currentId = getMaxId(conn, arrayTables[2]) + 1;
-    //
-    //                // Assuming instList is a List<InstructionLoadDTO> and refersList is a
-    // List<InstructionReferenceLoadDTO>
-    //                for (InstructionReferenceLoadDTO reference : refersList) {
-    //                    //                    reference.setId(currentId++);
-    //
-    //                    // Loop through the instList and find a matching InstructionLoadDTO
-    //                    for (InstructionLoadDTO instruction : instList) {
-    //                        if (reference.getBlockLoopInstructionId().equals(instruction.getId())) {
-    //                            // Once found, update the blockLoopInstructionId with the new instructionId
-    //                            reference.setBlockLoopInstructionId(instruction.getInstructionId());
-    //                            reference.setBotJobId(newBotJobId);
-    //                            break; // Exit the inner loop since we've found a match
-    //                        }
-    //                    }
-    //                }
-    //
-    //                // Duplicate reference
-    //                // tablesMigration = {"block", "block_loop_instruction", "instruction", "instruction_reference",
-    //                // "reference", "variable"};
-    //                errorMessage = duplicateInstructionReferences(conn, refersList, arrayTables[4]);
-    //                if (errorMessage != null) {
-    //                    return errorMessage;
-    //                }
-    //            }
-    //        }
-    //        return null;
-    //    }
-
-    /***
-     *  First Sequence   From Instructions tom Components
-     * @param conn
-     * @param blockDetailsDTO
-     * @param arrayTables      // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
-     *
-     * @return
-     * @throws SQLException
-     */
-    public ErrorMessage saveNewComponent(
-            Connection conn, BlockDetailsDTO blockDetailsDTO, boolean injected, String[] arrayTables)
-            throws SQLException {
-
-        // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
-        // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
-        int newBotJobId = blockDetailsDTO.getBotJobId();
-        int oldBlockId = blockDetailsDTO.getBlockId();
-        int homeBankId = blockDetailsDTO.getHomeBankingId();
-
-        Map<Integer, Integer> blocksOlderAndNewId = new HashMap<>();
-
-        List<BlockLoadDTO> blockList = blockToComponent(conn, homeBankId, oldBlockId, arrayTables[0]); // block
-        // Duplicate related blocks
-        if (blockList.size() > 0) {
-
-            // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
-            // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
-            int currentId = getMaxId(conn, arrayTables[1]) + 1; // block  or component_block
-
-            int nextBlockOrder = -1;
-            if (injected) {
-                nextBlockOrder = loadNextBlockOrderNumber(blockDetailsDTO.getBotJobId()) + 1;
-            }
-
-            // Assuming instList is a List<InstructionLoadDTO> and refersList is a List<InstructionReferenceLoadDTO>
-            for (BlockLoadDTO block : blockList) {
-                blocksOlderAndNewId.put(block.getId(), currentId);
-                block.setId(currentId);
-                block.setBotJobId(newBotJobId); // NEW BOT JOB
-                block.setHomeBankingId(homeBankId);
-                block.setName(blockDetailsDTO.getBlockName());
-                block.setDescription(blockDetailsDTO.getBlockDescription());
-
-                if (injected) {
-                    block.setBlockOrderNumber(nextBlockOrder);
-                }
-
-                currentId++;
-            }
-            // Duplicate Blocks
-            // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
-            // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
-            ErrorMessage errorMessage = duplicateBlocks(conn, blockList, arrayTables[1]);
-            if (errorMessage != null) {
-                return errorMessage;
-            }
-        }
-
-        Map<Integer, Integer> parentOlderAndNewId = new HashMap<>();
-        Map<Integer, Integer> variableOlderAndNewId = new HashMap<>();
-
-        // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
-        // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
-        List<InstructionLoadDTO> instList = instructionsToDuplicate(
-                conn, homeBankId, newBotJobId, oldBlockId, arrayTables[2], arrayTables[0]); // instruction vs block
-
-        // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
-        List<VariableLoadDTO> varsList =
-                instVariablesToDuplicateNEW(conn, homeBankId, newBotJobId, oldBlockId, arrayTables[6]); // variable
-
-        // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
-        // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
-        int currentVarId = getMaxId(conn, arrayTables[7]) + 1; // component_variable
-
-        if (varsList.size() > 0) {
-            for (VariableLoadDTO variable : varsList) {
-                if (!variableOlderAndNewId.containsKey(variable.getId())) {
-                    variableOlderAndNewId.put(variable.getId(), currentVarId);
-                    variable.setId(currentVarId);
-                }
-                currentVarId++;
-            }
-        }
-
-        if (instList.size() > 0) {
-
-            // Prepare the Ids
-            // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
-            // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
-            int currentId = getMaxId(conn, arrayTables[3]) + 1; // component_instruction
-            for (InstructionLoadDTO instruction : instList) {
-                instruction.setInstructionId(currentId); // Holds the News Ids
-                instruction.setBotJobId(newBotJobId); // Holds the News Ids
-
-                if (!parentOlderAndNewId.containsKey(instruction.getParentId())) {
-                    parentOlderAndNewId.put(instruction.getId(), currentId);
-                }
-
-                // Loop through the instList and find a matching InstructionLoadDTO
-                if (injected) {
-                    for (BlockLoadDTO block : blockList) {
-                        // Once found, update the blockLoopInstructionId with the new instructionId
-                        instruction.setBlockId(block.getId());
-                        instruction.setHomeBankingId(block.getHomeBankingId());
-                    }
-                } else {
-                    for (BlockLoadDTO block : blockList) {
-                        if (instruction.getBlockOrderNumber().equals(block.getBlockOrderNumber())) {
-                            // Once found, update the blockLoopInstructionId with the new instructionId
-                            instruction.setBlockId(block.getId());
-                            instruction.setHomeBankingId(block.getHomeBankingId());
-                            break; // Exit the inner loop since we've found a match
-                        }
-                    }
-                }
-                currentId++;
-            }
-            // Duplicate instruction
-            // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
-            // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
-            ErrorMessage errorMessage = duplicateInstructions(
-                    conn,
-                    instList,
-                    parentOlderAndNewId,
-                    variableOlderAndNewId,
-                    blocksOlderAndNewId,
-                    arrayTables[3]); // component_instruction
-            if (errorMessage != null) {
-                return errorMessage;
-            }
-
-            if (varsList.size() > 0) {
-
-                // Assuming instList is a List<InstructionLoadDTO> and refersList is a List<InstructionReferenceLoadDTO>
-                for (VariableLoadDTO variable : varsList) {
-                    //                    variable.setId(currentVarId);
-                    // Loop through the instList and find a matching InstructionLoadDTO
-                    for (InstructionLoadDTO instruction : instList) {
-                        if (variable.getInstructionId().equals(instruction.getId())) {
-                            // Once found, update the blockLoopInstructionId with the new instructionId
-                            variable.setInstructionId(instruction.getInstructionId());
-                            variable.setBotJobId(newBotJobId);
-                            variable.setHomeBankingId(instruction.getHomeBankingId());
-
-                            break; // Exit the inner loop since we've found a match
-                        }
-                    }
-                    //                    currentVarId++;
-                }
-
-                // Duplicate variable
-                // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
-                // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
-                errorMessage = duplicateVariables(conn, varsList, arrayTables[7]); // component_variable
-                if (errorMessage != null) {
-                    return errorMessage;
-                }
-            }
-
-            // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
-            // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
-            List<InstructionReferenceLoadDTO> refersList = referenceToDuplicateNew(
-                    conn, homeBankId, newBotJobId, oldBlockId, arrayTables[4], arrayTables[2]); // reference
-            if (refersList.size() > 0) {
-
-                currentId = getMaxId(conn, arrayTables[5]) + 1; // component_reference vs reference
-
-                // Assuming instList is a List<InstructionLoadDTO> and refersList is a List<InstructionReferenceLoadDTO>
-                for (InstructionReferenceLoadDTO reference : refersList) {
-                    reference.setId(currentId++);
-
-                    // Loop through the instList and find a matching InstructionLoadDTO
-                    for (InstructionLoadDTO instruction : instList) {
-                        if (reference.getBlockLoopInstructionId().equals(instruction.getId())) {
-                            // Once found, update the blockLoopInstructionId with the new instructionId
-                            reference.setBlockLoopInstructionId(instruction.getInstructionId());
-                            reference.setBotJobId(newBotJobId);
-                            reference.setHomeBankingId(instruction.getHomeBankingId());
-                            break; // Exit the inner loop since we've found a match
-                        }
-                    }
-                }
-
-                // Duplicate reference
-                // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
-                // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
-                errorMessage = duplicateReferences(conn, refersList, arrayTables[5]); // component_reference
-                if (errorMessage != null) {
-                    return errorMessage;
-                }
-            }
-
-            // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
-            // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
-            //            List<ComplexInstructionLoadDTO> complexList =
-            //                    instComplexToDuplicate(conn, newBotJobId, oldBlockId, arrayTables[8], arrayTables[2]);
-            // // complex
-            //            if (complexList.size() > 0) {
-            //
-            //                //
-            // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
-            //                //
-            // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
-            //                currentId = getMaxId(conn, arrayTables[9]) + 1; // component_complex
-            //
-            //                // Assuming instList is a List<InstructionLoadDTO> and refersList is a
-            // List<InstructionReferenceLoadDTO>
-            //                for (ComplexInstructionLoadDTO complex : complexList) {
-            //                    complex.setId(currentId++);
-            //
-            //                    // Loop through the instList and find a matching InstructionLoadDTO
-            //                    for (InstructionLoadDTO instruction : instList) {
-            //                        if (complex.getInstructionId().equals(instruction.getId())) {
-            //                            // Once found, update the blockLoopInstructionId with the new instructionId
-            //                            complex.setInstructionId(instruction.getInstructionId());
-            //                            complex.setBotJobId(newBotJobId);
-            //                            break; // Exit the inner loop since we've found a match
-            //                        }
-            //                    }
-            //                }
-            //
-            //                // Duplicate complex_instruction
-            //                //
-            // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
-            //                //
-            // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
-            //                errorMessage = duplicateComplexInstructions(conn, complexList, arrayTables[9]); // //
-            // component_complex
-            //                if (errorMessage != null) {
-            //                    return errorMessage;
-            //                }
-            //            }
-        }
-        return null;
-    }
-
-    public ErrorMessage duplicateRelatedTables(
-            Connection conn, int homeBankId, int oldBotJobId, int newBotJobId, String[] arrayTables)
-            throws SQLException {
-
-        Map<Integer, Integer> blocksOlderAndNewId = new HashMap<>();
-
-        List<BlockLoadDTO> blockList = blocksToDuplicate(conn, oldBotJobId);
-        // Duplicate related blocks
-        if (blockList.size() > 0) {
-
-            // arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
-            int currentId = getMaxId(conn, arrayTables[0]) + 1; // block  or component_block
-
-            // Assuming instList is a List<InstructionLoadDTO> and refersList is a List<InstructionReferenceLoadDTO>
-            for (BlockLoadDTO block : blockList) {
-                blocksOlderAndNewId.put(block.getId(), currentId);
-                block.setId(currentId);
-                block.setBotJobId(newBotJobId);
-                currentId++;
-            }
-
-            // Duplicate Blocks
-            ErrorMessage errorMessage = duplicateBlocks(conn, blockList, arrayTables[0]);
-            if (errorMessage != null) {
-                return errorMessage;
-            }
-        }
-
-        Map<Integer, Integer> parentOlderAndNewId = new HashMap<>();
-        Map<Integer, Integer> variableOlderAndNewId = new HashMap<>();
-
-        // arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
-        List<InstructionLoadDTO> instList = instructionsToDuplicate(
-                conn, homeBankId, oldBotJobId, -1, arrayTables[1], arrayTables[0]); // instruction
-
-        List<VariableLoadDTO> varsList = instVariablesToDuplicateNEW(conn, homeBankId, oldBotJobId, -1, arrayTables[4]);
-
-        // arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
-        int currentVarId = getMaxId(conn, arrayTables[4]) + 1;
-
-        if (varsList.size() > 0) {
-            for (VariableLoadDTO variable : varsList) {
-                if (!variableOlderAndNewId.containsKey(variable.getId())) {
-                    variableOlderAndNewId.put(variable.getId(), currentVarId);
-                    variable.setId(currentVarId);
-                }
-                currentVarId++;
-            }
-        }
-
-        if (instList.size() > 0) {
-
-            // Prepare the Ids
-            // arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
-            int currentId = getMaxId(conn, arrayTables[1]) + 1;
-            for (InstructionLoadDTO instruction : instList) {
-                instruction.setInstructionId(currentId); // Holds the News Ids
-                instruction.setBotJobId(newBotJobId); // Holds the News Ids
-
-                if (!parentOlderAndNewId.containsKey(instruction.getParentId())) {
-                    parentOlderAndNewId.put(instruction.getId(), currentId);
-                }
-
-                // Loop through the instList and find a matching InstructionLoadDTO
-                for (BlockLoadDTO block : blockList) {
-                    if (instruction.getBlockOrderNumber().equals(block.getBlockOrderNumber())) {
-                        // Once found, update the blockLoopInstructionId with the new instructionId
-                        instruction.setBlockId(block.getId());
-                        instruction.setHomeBankingId(block.getHomeBankingId());
-                        break; // Exit the inner loop since we've found a match
-                    }
-                }
-                currentId++;
-            }
-            // Duplicate instruction
-            // arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
-            ErrorMessage errorMessage = duplicateInstructions(
-                    conn, instList, parentOlderAndNewId, variableOlderAndNewId, blocksOlderAndNewId, arrayTables[1]);
-            if (errorMessage != null) {
-                return errorMessage;
-            }
-
-            if (varsList.size() > 0) {
-
-                // Assuming instList is a List<InstructionLoadDTO> and refersList is a List<InstructionReferenceLoadDTO>
-                for (VariableLoadDTO variable : varsList) {
-                    //                    variable.setId(currentVarId);
-
-                    // Loop through the instList and find a matching InstructionLoadDTO
-                    for (InstructionLoadDTO instruction : instList) {
-                        if (variable.getInstructionId().equals(instruction.getId())) {
-                            // Once found, update the blockLoopInstructionId with the new instructionId
-                            variable.setInstructionId(instruction.getInstructionId());
-                            variable.setBotJobId(newBotJobId);
-                            variable.setHomeBankingId(instruction.getHomeBankingId());
-                            break; // Exit the inner loop since we've found a match
-                        }
-                    }
-                    //                    currentVarId++;
-                }
-
-                // Duplicate variable
-                // arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
-                errorMessage = duplicateVariables(conn, varsList, arrayTables[4]);
-                if (errorMessage != null) {
-                    return errorMessage;
-                }
-            }
-
-            // arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
-            List<InstructionReferenceLoadDTO> refersList =
-                    referenceToDuplicateNew(conn, homeBankId, oldBotJobId, -1, arrayTables[2], arrayTables[1]);
-            if (refersList.size() > 0) {
-
-                currentId = getMaxId(conn, arrayTables[2]) + 1;
-
-                // Assuming instList is a List<InstructionLoadDTO> and refersList is a List<InstructionReferenceLoadDTO>
-                for (InstructionReferenceLoadDTO reference : refersList) {
-                    reference.setId(currentId++);
-                    reference.setHomeBankingId(reference.getHomeBankingId());
-
-                    // Loop through the instList and find a matching InstructionLoadDTO
-                    for (InstructionLoadDTO instruction : instList) {
-                        if (reference.getBlockLoopInstructionId().equals(instruction.getId())) {
-                            // Once found, update the blockLoopInstructionId with the new instructionId
-                            reference.setBlockLoopInstructionId(instruction.getInstructionId());
-                            reference.setBotJobId(newBotJobId);
-                            break; // Exit the inner loop since we've found a match
-                        }
-                    }
-                }
-
-                // Duplicate reference
-                // arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
-                errorMessage = duplicateReferences(conn, refersList, arrayTables[2]);
-                if (errorMessage != null) {
-                    return errorMessage;
-                }
-            }
-
-            // arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
-            //            List<ComplexInstructionLoadDTO> complexList =
-            //                    instComplexToDuplicate(conn, oldBotJobId, -1, arrayTables[3], arrayTables[1]);
-            //            if (complexList.size() > 0) {
-            //
-            //                currentId = getMaxId(conn, arrayTables[3]) + 1;
-            //
-            //                // Assuming instList is a List<InstructionLoadDTO> and refersList is a
-            // List<InstructionReferenceLoadDTO>
-            //                for (ComplexInstructionLoadDTO complex : complexList) {
-            //                    complex.setId(currentId++);
-            //
-            //                    // Loop through the instList and find a matching InstructionLoadDTO
-            //                    for (InstructionLoadDTO instruction : instList) {
-            //                        if (complex.getInstructionId().equals(instruction.getId())) {
-            //                            // Once found, update the blockLoopInstructionId with the new instructionId
-            //                            complex.setInstructionId(instruction.getInstructionId());
-            //                            complex.setBotJobId(newBotJobId);
-            //                            break; // Exit the inner loop since we've found a match
-            //                        }
-            //                    }
-            //                }
-            //
-            //                // Duplicate complex_instruction
-            //                // arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
-            //                errorMessage = duplicateComplexInstructions(conn, complexList, arrayTables[3]);
-            //                if (errorMessage != null) {
-            //                    return errorMessage;
-            //                }
-            //            }
-        }
-        return null;
-    }
-
-    public List<BlockLoadDTO> blockToComponent(Connection conn, int homeBankingId, int oldBlockId, String tableName)
-            throws SQLException {
-        String query = "SELECT * FROM " + tableName + " WHERE id = ? ";
-
-        if (tableName.equals("component_block")) {
-            query += "and home_banking_id = ?";
-        }
-
-        List<BlockLoadDTO> blockDTOList = new ArrayList<>();
-
-        try (PreparedStatement stmt = conn.prepareStatement(query)) {
-            stmt.setInt(1, oldBlockId);
-            if (tableName.equals("component_block")) {
-                stmt.setInt(2, homeBankingId);
-            }
-            // Set the oldBotJobId parameter
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                BlockLoadDTO blockDTO = new BlockLoadDTO();
-
-                if (tableName.equals("component_block")) {
-                    blockDTO.setHomeBankingId(rs.getInt("home_banking_id"));
-                }
-
-                blockDTO.setId(rs.getInt("id"));
-                blockDTO.setBlockOrderNumber(rs.getInt("block_order_number"));
-                blockDTO.setName(rs.getString("name"));
-                blockDTO.setDescription(rs.getString("description"));
-                blockDTO.setTypeId(rs.getInt("type_id"));
-                blockDTO.setWait(rs.getInt("wait"));
-                blockDTO.setExportFile(rs.getString("export_file"));
-
-                // Include bot_job_id if tableName is "block"
-                if (tableName.equalsIgnoreCase("block")) {
-                    blockDTO.setBotJobId(rs.getInt("bot_job_id"));
-                }
-                // Include home_banking_id if tableName is "component_block"
-                if (tableName.equalsIgnoreCase("component_block")) {
-                    blockDTO.setHomeBankingId(rs.getInt("home_banking_id"));
-                }
-
-                blockDTO.setActive(true); // You can set this based on your logic, assuming active as true for now
-
-                blockDTOList.add(blockDTO); // Add to the list
-            }
-        }
-
-        return blockDTOList; // Return the list of block DTOs
-    }
-
-    public List<BlockLoadDTO> blocksToDuplicate(Connection conn, int oldBotJobId) throws SQLException {
-        String query = "SELECT id, block_order_number, description, export_file, name, type_id, wait "
-                + "FROM block WHERE bot_job_id = ?";
-
-        List<BlockLoadDTO> blockDTOList = new ArrayList<>();
-
-        try (PreparedStatement stmt = conn.prepareStatement(query)) {
-            stmt.setInt(1, oldBotJobId); // Set the oldBotJobId parameter
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                BlockLoadDTO blockDTO = new BlockLoadDTO();
-                blockDTO.setId(rs.getInt("id"));
-                blockDTO.setBlockOrderNumber(rs.getInt("block_order_number"));
-                blockDTO.setName(rs.getString("name"));
-                blockDTO.setDescription(rs.getString("description"));
-                blockDTO.setTypeId(rs.getInt("type_id"));
-                blockDTO.setWait(rs.getInt("wait"));
-                blockDTO.setExportFile(rs.getString("export_file"));
-                blockDTO.setBotJobId(oldBotJobId); // Use the oldBotJobId
-                blockDTO.setActive(true); // You can set this based on your logic, assuming active as true for now
-
-                blockDTOList.add(blockDTO); // Add to the list
-            }
-        }
-
-        return blockDTOList; // Return the list of block DTOs
-    }
-
-    private ErrorMessage duplicateBlocks(Connection conn, List<BlockLoadDTO> blockList, String tableTarget)
-            throws SQLException {
-        String blockInsertQuery;
-        String strValues;
-
-        if (tableTarget.equals("component_block")) {
-            // component_block should have home_banking_id but no bot_job_id
-            blockInsertQuery = "INSERT INTO component_block "
-                    + "(id, block_order_number, name, description, type_id, export_file, active, wait, home_banking_id) ";
-            strValues = "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        } else {
-            // block should have bot_job_id but no home_banking_id
-            blockInsertQuery = "INSERT INTO block "
-                    + "(id, block_order_number, name, description, type_id, bot_job_id, export_file, active, wait) ";
-            strValues = "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        }
-
-        blockInsertQuery = blockInsertQuery + strValues;
-
-        try (PreparedStatement blockStmt = conn.prepareStatement(blockInsertQuery)) {
-            for (BlockLoadDTO block : blockList) {
-                int index = 1;
-                blockStmt.setInt(index++, block.getId());
-                blockStmt.setInt(index++, block.getBlockOrderNumber());
-                blockStmt.setString(index++, block.getName());
-                blockStmt.setString(index++, block.getDescription());
-                blockStmt.setInt(index++, block.getTypeId());
-
-                if (tableTarget.equals("block")) {
-                    // Set bot_job_id only for "block"
-                    blockStmt.setInt(index++, block.getBotJobId());
-                }
-
-                blockStmt.setString(index++, block.getExportFile());
-                blockStmt.setInt(index++, (block.getActive() ? 1 : 0));
-                blockStmt.setInt(index++, block.getWait());
-
-                if (tableTarget.equals("component_block")) {
-                    // Set home_banking_id only for "component_block"
-                    blockStmt.setInt(index++, block.getHomeBankingId());
-                }
-
-                blockStmt.addBatch(); // Add the current block to the batch
-            }
-
-            blockStmt.executeBatch(); // Execute the batch insert
-            return null;
-        } catch (SQLException error) {
-            System.out.println(error.getMessage());
-            return new ErrorMessage("Error Duplicating Blocks", "Block Insertion Failure", error.getMessage());
-        }
-    }
-
-    private ErrorMessage duplicateInstructions(
-            Connection conn,
-            List<InstructionLoadDTO> instList,
-            Map<Integer, Integer> parentOlderAndNewId,
-            Map<Integer, Integer> variableOlderAndNewId,
-            Map<Integer, Integer> blocksOlderAndNewId,
-            String targetTable)
-            throws SQLException {
-
-        // Dynamically construct the INSERT query
-        String blockLoopInstructionInsertQuery = "INSERT INTO " + targetTable
-                + " (id, action_custom_max_wait_sec, actions, active, block_marked, codified, "
-                + "default_value, description, export_to_abr, instruction_order_number, name, on_hold_seconds, operation, optional, "
-                + "parent_id, xpath, coordinates, force_coordinates, iframe_xpath, variable_id, block_id, tag_name, shadow_host, shadow_root, css_selector";
-
-        if (targetTable.equalsIgnoreCase("instruction")) {
-            blockLoopInstructionInsertQuery += ", bot_job_id";
-        } else if (targetTable.equalsIgnoreCase("component_instruction")) {
-            blockLoopInstructionInsertQuery += ", home_banking_id";
-        }
-
-        blockLoopInstructionInsertQuery +=
-                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?";
-
-        if (targetTable.equalsIgnoreCase("instruction") || targetTable.equalsIgnoreCase("component_instruction")) {
-            blockLoopInstructionInsertQuery += ", ?";
-        }
-
-        blockLoopInstructionInsertQuery += ")";
-
-        final int BATCH_SIZE = 100;
-        int count = 0;
-
-        conn.setAutoCommit(false);
-
-        try (PreparedStatement insertStmt = conn.prepareStatement(blockLoopInstructionInsertQuery)) {
-            for (InstructionLoadDTO instruction : instList) {
-                Integer newParentId = instruction.getActions().equals(ARConstants.GOTO)
-                        ? blocksOlderAndNewId.get(instruction.getParentId())
-                        : parentOlderAndNewId.get(instruction.getParentId());
-
-                Integer newVariableId = variableOlderAndNewId.get(instruction.getVariableId());
-
-                insertStmt.setInt(1, instruction.getInstructionId());
-                insertStmt.setInt(2, instruction.getActionCustomMaxWaitSec());
-                insertStmt.setString(3, instruction.getActions());
-                insertStmt.setInt(4, instruction.getInstructionActive() ? 1 : 0);
-                insertStmt.setInt(5, instruction.getBlockMarked() ? 1 : 0);
-                insertStmt.setInt(6, instruction.getCodified() ? 1 : 0);
-
-                if (instruction.getDefaultValue() != null) {
-                    insertStmt.setString(7, instruction.getDefaultValue());
-                } else {
-                    insertStmt.setNull(7, Types.VARCHAR);
-                }
-
-                insertStmt.setString(8, instruction.getDescription());
-                insertStmt.setInt(9, instruction.getExportToABR() ? 1 : 0);
-                insertStmt.setInt(10, instruction.getInstructionOrderNumber());
-                insertStmt.setString(11, instruction.getInstructionName());
-                insertStmt.setInt(12, instruction.getOnHoldSeconds());
-
-                if (instruction.getOperation() != null) {
-                    insertStmt.setString(13, instruction.getOperation());
-                } else {
-                    insertStmt.setNull(13, Types.VARCHAR);
-                }
-
-                insertStmt.setInt(14, instruction.getOptional() ? 1 : 0);
-
-                if (instruction.getParentId() != null && instruction.getParentId() > 0) {
-                    insertStmt.setInt(15, newParentId != null ? newParentId : instruction.getParentId());
-                } else {
-                    insertStmt.setNull(15, Types.INTEGER);
-                }
-
-                if (instruction.getXpath() != null) {
-                    insertStmt.setString(16, instruction.getXpath());
-                } else {
-                    insertStmt.setNull(16, Types.VARCHAR);
-                }
-
-                if (!Strings.isNullOrEmpty(instruction.getCoordinates())) {
-                    insertStmt.setString(17, instruction.getCoordinates());
-                } else {
-                    insertStmt.setNull(17, Types.VARCHAR);
-                }
-
-                insertStmt.setInt(18, instruction.getForceCoordinates() ? 1 : 0);
-
-                if (!Strings.isNullOrEmpty(instruction.getIFrameXPath())) {
-                    insertStmt.setString(19, instruction.getIFrameXPath());
-                } else {
-                    insertStmt.setNull(19, Types.VARCHAR);
-                }
-
-                if (instruction.getVariableId() != null && instruction.getVariableId() > 0) {
-                    insertStmt.setInt(20, newVariableId != null ? newVariableId : instruction.getVariableId());
-                } else {
-                    insertStmt.setNull(20, Types.INTEGER);
-                }
-
-                insertStmt.setInt(21, instruction.getBlockId());
-
-                insertStmt.setString(22, instruction.getTagName());
-                insertStmt.setString(23, instruction.getShadowHost());
-                insertStmt.setString(24, instruction.getShadowRoot());
-                insertStmt.setString(25, instruction.getCssSelector());
-
-                int paramIndex = 26;
-                if (targetTable.equalsIgnoreCase("instruction")) {
-                    insertStmt.setInt(paramIndex, instruction.getBotJobId());
-                } else if (targetTable.equalsIgnoreCase("component_instruction")) {
-                    insertStmt.setInt(paramIndex, instruction.getHomeBankingId());
-                }
-
-                insertStmt.addBatch();
-                count++;
-
-                if (count % BATCH_SIZE == 0) {
-                    insertStmt.executeBatch();
-                    conn.commit(); // ensure autoCommit is false
-                    System.out.println("Inserted batch of " + BATCH_SIZE);
-                }
-            }
-
-            // Final batch
-            if (count % BATCH_SIZE != 0) {
-                insertStmt.executeBatch();
-                conn.commit();
-                System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-            }
-            return null;
-        } catch (SQLException error) {
-            System.out.println(error.getMessage());
-            return new ErrorMessage("Error Duplicating Instructions", "Block Insertion Failure", error.getMessage());
-        }
-    }
-
-    private ErrorMessage duplicateReferences(
-            Connection conn, List<InstructionReferenceLoadDTO> refersList, String targetTable) {
-
-        String insertQuery = "INSERT INTO " + targetTable + " (id, reference_type, value, instruction_id";
-
-        if (targetTable.equalsIgnoreCase("reference")) {
-            insertQuery += ", bot_job_id";
-        } else if (targetTable.equalsIgnoreCase("component_reference")) {
-            insertQuery += ", home_banking_id";
-        }
-
-        insertQuery += ") VALUES (?, ?, ?, ?";
-
-        if (targetTable.equalsIgnoreCase("reference") || targetTable.equalsIgnoreCase("component_reference")) {
-            insertQuery += ", ?";
-        }
-
-        insertQuery += ")";
-
-        final int BATCH_SIZE = 100;
-        int count = 0;
-
-        try {
-            conn.setAutoCommit(false);
-
-            try (PreparedStatement insertStmt = conn.prepareStatement(insertQuery)) {
-                for (InstructionReferenceLoadDTO reference : refersList) {
-                    insertStmt.setInt(1, reference.getId());
-                    insertStmt.setString(2, reference.getReferenceType());
-                    insertStmt.setString(3, reference.getValue());
-                    insertStmt.setInt(4, reference.getBlockLoopInstructionId());
-
-                    int paramIndex = 5;
-                    if (targetTable.equalsIgnoreCase("reference")) {
-                        insertStmt.setInt(paramIndex, reference.getBotJobId());
-                    } else if (targetTable.equalsIgnoreCase("component_reference")) {
-                        insertStmt.setInt(paramIndex, reference.getHomeBankingId());
-                    }
-
-                    insertStmt.addBatch();
-                    count++;
-
-                    if (count % BATCH_SIZE == 0) {
-                        insertStmt.executeBatch();
-                        conn.commit();
-                        System.out.println("Inserted batch of " + BATCH_SIZE);
-                    }
-                }
-
-                // Final batch
-                if (count % BATCH_SIZE != 0) {
-                    insertStmt.executeBatch();
-                    conn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                }
-
-                return null;
-
-            } catch (SQLException e) {
-                conn.rollback(); // rollback changes on failure
-                ARLogger.getInstance(PerformDataBase.class).severe("Failed to duplicateReferences");
-                return new ErrorMessage("Error Duplicating References", "Reference Insertion Failure", e.getMessage());
-            } finally {
-                try {
-                    conn.setAutoCommit(true); // restore autocommit
-                } catch (SQLException e) {
-                    ARLogger.getInstance(PerformDataBase.class).severe("Failed to duplicateReferences");
-                    return new ErrorMessage(
-                            "Error Duplicating References", "Reference Insertion Failure", e.getMessage());
-                }
-            }
-
-        } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Failed to duplicateReferences");
-            return new ErrorMessage("Error Duplicating References", "Reference Insertion Failure", error.getMessage());
-        }
-    }
-
-    private ErrorMessage duplicateComplexInstructions(
-            Connection conn, List<ComplexInstructionLoadDTO> complexList, String targetTable) throws SQLException {
-        // Prepare the insert statement for complex instructions
-        String complexInstructionInsertQuery = "INSERT INTO " + targetTable
-                + " (instruction, order_number, way, instruction_id, bot_job_id) " + "VALUES (?, ?, ?, ?, ?)";
-
-        try (PreparedStatement complexStmt = conn.prepareStatement(complexInstructionInsertQuery)) {
-            // Loop through each ComplexInstructionLoadDTO in the complexList
-            for (ComplexInstructionLoadDTO complexInstruction : complexList) {
-                // Set the parameters for the INSERT statement
-                complexStmt.setString(1, complexInstruction.getInstruction());
-                complexStmt.setInt(2, complexInstruction.getOrderNumber());
-                complexStmt.setString(3, complexInstruction.getWay());
-                complexStmt.setInt(4, complexInstruction.getInstructionId()); // Assuming you have the updated ID
-                complexStmt.setInt(5, complexInstruction.getBotJobId()); // Set the new bot job ID
-
-                // Execute the insert statement for each complex instruction
-                // complexStmt.executeUpdate();
-
-                complexStmt.addBatch(); // Add to batch
-            }
-
-            complexStmt.executeBatch(); // Execute the batch insert
-            return null;
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-            return new ErrorMessage(
-                    "Error Duplicating Complex Instructions", "Block Insertion Failure", e.getMessage());
-        }
-    }
-
-    private ErrorMessage duplicateVariables(Connection conn, List<VariableLoadDTO> varsList, String targetTable) {
-        final int BATCH_SIZE = 100;
-        int count = 0;
-
-        String variableInsertQuery = "INSERT INTO " + targetTable + " (id, name, type, value, instruction_id";
-
-        if (targetTable.equalsIgnoreCase("variable")) {
-            variableInsertQuery += ", bot_job_id";
-        } else if (targetTable.equalsIgnoreCase("component_variable")) {
-            variableInsertQuery += ", home_banking_id";
-        }
-
-        variableInsertQuery += ") VALUES (?, ?, ?, ?, ?";
-
-        if (targetTable.equalsIgnoreCase("variable") || targetTable.equalsIgnoreCase("component_variable")) {
-            variableInsertQuery += ", ?";
-        }
-
-        variableInsertQuery += ")";
-
-        try {
-            conn.setAutoCommit(false); // ensure autocommit is OFF
-
-            try (PreparedStatement varStmt = conn.prepareStatement(variableInsertQuery)) {
-                for (VariableLoadDTO variableDTO : varsList) {
-                    varStmt.setInt(1, variableDTO.getId());
-                    varStmt.setString(2, variableDTO.getName());
-                    varStmt.setString(3, variableDTO.getType());
-                    varStmt.setString(4, variableDTO.getValue());
-                    varStmt.setInt(5, variableDTO.getInstructionId());
-
-                    if (targetTable.equalsIgnoreCase("variable")) {
-                        varStmt.setInt(6, variableDTO.getBotJobId());
-                    } else if (targetTable.equalsIgnoreCase("component_variable")) {
-                        varStmt.setInt(6, variableDTO.getHomeBankingId());
-                    }
-
-                    varStmt.addBatch();
-                    count++;
-
-                    if (count % BATCH_SIZE == 0) {
-                        varStmt.executeBatch();
-                        conn.commit(); // commit after batch
-                        System.out.println("Inserted batch of " + BATCH_SIZE);
-                    }
-                }
-
-                // Final batch
-                if (count % BATCH_SIZE != 0) {
-                    varStmt.executeBatch();
-                    conn.commit(); // commit final batch
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
-                }
-
-                return null;
-            } catch (SQLException e) {
-                conn.rollback(); // rollback on error
-                ARLogger.getInstance(PerformDataBase.class).severe("Failed to Duplicating Variables");
-                return new ErrorMessage("Error Duplicating Variables", "Variable Insertion Failure", e.getMessage());
-            } finally {
-                conn.setAutoCommit(true); // restore autocommit
-            }
-        } catch (SQLException outerEx) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Database Error.Could not configure transaction: " + outerEx.getMessage());
-            return new ErrorMessage("Database Error", "Could not configure transaction", outerEx.getMessage());
-        }
-    }
-
-    private ErrorMessage updateVariables(Connection conn, List<VariableLoadDTO> varsList, String targetTable)
-            throws SQLException {
-        String variableInsertQuery = "update " + targetTable + " set instruction_id = ?  where id = ?";
-
-        try (PreparedStatement varStmt = conn.prepareStatement(variableInsertQuery)) {
-            for (VariableLoadDTO variableDTO : varsList) {
-                varStmt.setInt(1, variableDTO.getInstructionId());
-                varStmt.setInt(2, variableDTO.getId());
-
-                varStmt.addBatch(); // Add to batch
-            }
-
-            varStmt.executeBatch(); // Execute the batch insert
-            return null;
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-            return new ErrorMessage("Error Duplicating Variables", "Block Insertion Failure", e.getMessage());
-        }
     }
 
     public List<InstructionLoadDTO> filterInstructions(List<InstructionLoadDTO> instructionList) {
@@ -7483,8 +6065,6 @@ GROUP BY
                         "INSERT INTO block (block_order_number, name, description, type_id, export_file, active, wait, bot_job_id) "
                                 + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
-                blockMap = new TreeMap<>();
-
                 try (PreparedStatement insertStmt = postgresConn.prepareStatement(insertSQL);
                         PreparedStatement checkStmt = postgresConn.prepareStatement(checkExistsSQL)) {
 
@@ -7593,8 +6173,6 @@ GROUP BY
                 String insertSQL =
                         "INSERT INTO block (block_order_number, name, description, type_id, export_file, active, wait, bot_job_id, id) "
                                 + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-
-                blockMap = new TreeMap<>();
 
                 try (PreparedStatement insertStmt = accessConn.prepareStatement(insertSQL);
                         PreparedStatement checkStmt = accessConn.prepareStatement(checkExistsSQL)) {
@@ -8523,8 +7101,6 @@ GROUP BY
                         "INSERT INTO component_block (block_order_number, name, description, type_id, export_file, active, wait, home_banking_id) "
                                 + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
-                blockMap = new TreeMap<>();
-
                 try (PreparedStatement insertStmt = postgresConn.prepareStatement(insertSQL);
                         PreparedStatement checkStmt = postgresConn.prepareStatement(checkExistsSQL)) {
 
@@ -8634,8 +7210,6 @@ GROUP BY
                 String insertSQL =
                         "INSERT INTO component_block (block_order_number, name, description, type_id, export_file, active, wait, home_banking_id, id) "
                                 + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-
-                blockMap = new TreeMap<>();
 
                 try (PreparedStatement insertStmt = accessConn.prepareStatement(insertSQL);
                         PreparedStatement checkStmt = accessConn.prepareStatement(checkExistsSQL)) {
@@ -9205,7 +7779,7 @@ GROUP BY
                     "SELECT id, name, parent_id, variable_id FROM component_instruction WHERE parent_id IS NOT NULL OR variable_id IS NOT NULL ORDER BY id";
             try (ResultSet rsInstruction = postgresStmt.executeQuery(selectPostgresSQL)) {
 
-                String updateSQL = "UPDATE instruction SET variable_id = ?, parent_id = ? WHERE id = ? ";
+                String updateSQL = "UPDATE component_instruction SET variable_id = ?, parent_id = ? WHERE id = ? ";
 
                 try (PreparedStatement updateStmt = postgresConn.prepareStatement(updateSQL)) {
                     int count = 0;
@@ -9287,7 +7861,7 @@ GROUP BY
                     "SELECT id, name, parent_id, variable_id FROM component_instruction WHERE parent_id IS NOT NULL OR variable_id IS NOT NULL ORDER BY id";
             try (ResultSet rsInstruction = accessStmt.executeQuery(selectAccessSQL)) {
 
-                String updateSQL = "UPDATE instruction SET variable_id = ?, parent_id = ? WHERE id = ? ";
+                String updateSQL = "UPDATE component_instruction SET variable_id = ?, parent_id = ? WHERE id = ? ";
 
                 try (PreparedStatement updateStmt = accessConn.prepareStatement(updateSQL)) {
                     int count = 0;
@@ -12092,40 +10666,6 @@ GROUP BY
         }
     }
 
-    /***
-     *  Second Sequence  From Components to Instructions
-     * @param blockDetailsDTO
-     * // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
-     *
-     * @return
-     * @throws SQLException
-     */
-    public ErrorMessage injectNewComponent(BlockDetailsDTO blockDetailsDTO) {
-        ARLogger.getInstance(PerformDataBase.class)
-                .fine("Saving New Component Block: " + blockDetailsDTO.getBlockName());
-
-        try (Connection conn = getConnection()) {
-            String[] arrayTables = {
-                "component_block", // 0
-                "block", // 1
-                "component_instruction", // 2
-                "instruction", // 3
-                "component_reference", // 4
-                "reference", // 5
-                "component_variable", // 6
-                "variable", // 7
-                "component_complex", // 8
-                "complex" // 9
-            };
-            // Now you can proceed with duplicating the related tables
-            return saveNewComponent(conn, blockDetailsDTO, true, arrayTables);
-
-        } catch (SQLException error) {
-            System.out.println(error.getMessage());
-            return new ErrorMessage("Error Duplicating Variables", "Block Insertion Failure", error.getMessage());
-        }
-    }
-
     public boolean deleteAllJobDetails(String dataBaseType) {
         // Build the SQL delete statement
         try (Statement stmt = getConnection().createStatement()) {
@@ -12237,6 +10777,44 @@ GROUP BY
                 String usedVars = rs.getString("UsedVars");
                 variablesList.add(new VariableUserDTO(
                         id, type, name, value, botJobId, parentId, localFormat, delimiter, usedVars));
+            }
+            return variablesList;
+        } catch (SQLException e) {
+            // Handle the exception properly (log, throw, etc.)
+            ARLogger.getInstance(PerformDataBase.class).severe("loadAllVariblesByCriteria. Error: " + e.getMessage());
+        }
+        return null;
+    }
+
+    public ObservableList<VariableUserDTO> loadAllCompVariablesByCriteria(int homeBankId, int parentId) {
+        variablesList.clear();
+        String selectSQL =
+                "SELECT vars.id, vars.type, vars.name, vars.value, vars.local_format, vars.delimiter, COUNT(blk.variable_id) UsedVars "
+                        + "FROM component_variable vars "
+                        + "LEFT JOIN component_instruction blk ON blk.variable_id = vars.id "
+                        + "WHERE vars.home_banking_id = " + homeBankId;
+
+        if (parentId != -1) { // Check if instructionId is provided (not -1)
+            selectSQL += " AND instruction_id = " + parentId;
+        }
+
+        selectSQL += " GROUP BY vars.id, vars.type, vars.Name, vars.value, vars.local_format, vars.delimiter";
+
+        selectSQL += " ORDER BY vars.id";
+
+        try (Statement stmt = getConnection().createStatement(); // Assuming you have getConnection() method
+                ResultSet rs = stmt.executeQuery(selectSQL)) {
+
+            while (rs.next()) {
+                int id = rs.getInt("ID");
+                String type = rs.getString("type");
+                String name = rs.getString("name");
+                String value = rs.getString("value");
+                String localFormat = rs.getString("local_format");
+                String delimiter = rs.getString("delimiter");
+                String usedVars = rs.getString("UsedVars");
+                variablesList.add(new VariableUserDTO(
+                        id, type, name, value, homeBankId, parentId, localFormat, delimiter, usedVars));
             }
             return variablesList;
         } catch (SQLException e) {
