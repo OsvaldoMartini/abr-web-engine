@@ -370,7 +370,7 @@ public class Engine {
 
             String mainMsg = "";
             boolean byPassNotFound = false;
-            boolean byPassFlagLoop;
+            boolean byPassFlagLoop = false;
             boolean success = true;
             boolean stopAll = false;
             long botJobStartTime = System.nanoTime();
@@ -1342,7 +1342,7 @@ public class Engine {
                                                 && currentInstruction.getForceCoordinates();
                                         try {
                                             webElementFound = performActions.searchElement(
-                                                    currentInstruction, botJobId, forceCoordinates);
+                                                    currentInstruction, botJobId, forceCoordinates, byPassFlagLoop);
                                         } catch (Exception ex) {
                                             success = false;
                                         }
@@ -1931,8 +1931,8 @@ public class Engine {
                                     && currentInstruction.getForceCoordinates();
 
                             try {
-                                webElementFound =
-                                        performActions.searchElement(currentInstruction, botJobId, forceCoordinates);
+                                webElementFound = performActions.searchElement(
+                                        currentInstruction, botJobId, forceCoordinates, byPassFlagLoop);
                             } catch (Exception ex) {
                             }
 

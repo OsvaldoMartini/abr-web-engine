@@ -2380,6 +2380,62 @@ public class PerformDataBase {
         return instructions;
     }
 
+    public InstructionLoadDTO getInstructionById(int botJobId, int instructionId) {
+        // List to store the fetched instructions
+
+        // Build the SQL query statement
+        String querySQL = "SELECT * FROM instruction WHERE bot_job_id = " + botJobId + " and id = " + instructionId;
+        InstructionLoadDTO instruction = null;
+
+        // Execute the query and process the result set
+        try (Statement stmt = getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(querySQL)) {
+
+            while (rs.next()) {
+                // Assuming you have an Instruction class, populate it with data from the ResultSet
+                instruction = new InstructionLoadDTO();
+                instruction.setId(rs.getInt("id"));
+
+                instruction.setBlockId(rs.getInt("block_id"));
+
+                instruction.setInstructionName(rs.getString("name"));
+                instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
+                instruction.setBlockOrderNumber(instruction.getBlockOrderNumber());
+                instruction.setBotJobId(botJobId);
+
+                instruction.setActions(rs.getString("actions"));
+                instruction.setXpath(rs.getString("xpath"));
+                instruction.setCoordinates(rs.getString("coordinates"));
+                instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
+                instruction.setIFrameXPath(rs.getString("iframe_xpath"));
+
+                instruction.setTagName(rs.getString("tag_name"));
+                instruction.setShadowHost(rs.getString("shadow_host"));
+                instruction.setShadowRoot(rs.getString("shadow_root"));
+                instruction.setCssSelector(rs.getString("css_selector"));
+
+                instruction.setDescription(rs.getString("description"));
+                instruction.setOptional(rs.getBoolean("optional"));
+                instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
+                instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
+                instruction.setCodified(rs.getBoolean("codified"));
+                instruction.setExportToABR(rs.getBoolean("export_to_abr"));
+                instruction.setInstructionActive(rs.getBoolean("active"));
+
+                instruction.setVariableId(rs.getInt("variable_id"));
+                instruction.setParentId(rs.getInt("parent_id"));
+            }
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "Error fetching Instruction Bot Job ID %d - Instruc %d . Error: %s: ",
+                            botJobId, instructionId, e.getMessage()));
+        }
+
+        return instruction;
+    }
+
     public List<BotJobLoadDTO> loadAllBotJobs(Connection conn) {
         this.botJobLoadList.clear();
         String query =
