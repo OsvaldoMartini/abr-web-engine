@@ -156,11 +156,12 @@ public class PerformActions {
         this.arPriorities = arPriorities;
     }
 
-    public WebElement searchElement(InstructionLoadDTO instruction, int botJobId, boolean forceCoordinates) {
+    public WebElement searchElement(
+            InstructionLoadDTO instruction, int botJobId, boolean forceCoordinates, boolean byPassFlagLoop) {
         WebElement instructionElement = null;
 
         if (!StringUtils.isBlank(instruction.getXpath())) {
-            instructionElement = locateElement(instruction, botJobId, forceCoordinates);
+            instructionElement = locateElement(instruction, botJobId, forceCoordinates, byPassFlagLoop);
         }
         return instructionElement;
     }
@@ -762,7 +763,8 @@ public class PerformActions {
         }
     }
 
-    private WebElement locateElement(InstructionLoadDTO currentInstruction, int botJobId, boolean forceCoordinates) {
+    private WebElement locateElement(
+            InstructionLoadDTO currentInstruction, int botJobId, boolean forceCoordinates, boolean byPassFlagLoop) {
         String instructionPath = currentInstruction.getXpath();
         String tagName = null;
 
@@ -850,7 +852,7 @@ public class PerformActions {
         }
 
         int attempts = 0;
-        int maxAttempts = forceCoordinates ? 5 : 30;
+        int maxAttempts = forceCoordinates || byPassFlagLoop ? 5 : 15; // x 5 Hold seconds
 
         while (elementFound == null && attempts < maxAttempts) {
 
@@ -3463,6 +3465,23 @@ public class PerformActions {
             }
         }
         return targetDefine;
+    }
+
+    public ElementDTO buildElementDTO(InstructionLoadDTO instructionDTO) {
+        // Reset Previous Values
+        ElementDTO elemenDTO = new ElementDTO();
+        elemenDTO.setTagName(instructionDTO.getTagName());
+        elemenDTO.setCoordinates(instructionDTO.getCoordinates());
+        elemenDTO.setXPath(instructionDTO.getXpath());
+        elemenDTO.setIFrameXPath(instructionDTO.getIFrameXPath());
+
+        elemenDTO.setShadowHost(instructionDTO.getShadowHost());
+        elemenDTO.setShadowRoot(instructionDTO.getShadowRoot());
+        elemenDTO.setCssSelector(instructionDTO.getCssSelector());
+        //            elemenDTO.setNestedShadow(instructionDTO.getNestedShadow());
+        elemenDTO.setCustomXPath(instructionDTO.getXpath());
+
+        return elemenDTO;
     }
 
     public static String truncateAndNormalize(String someText, int limit) {
