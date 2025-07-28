@@ -10,10 +10,7 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.CellType;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 public class ExcelReader {
@@ -24,6 +21,7 @@ public class ExcelReader {
         arPropertyManager = ARPropertyManager.getInstance();
     }
 
+    private static final DataFormatter formatter = new DataFormatter();
     private static final int EXCEL_DATA_COLUMN_INTESTATION_ROW = 1;
 
     private static String executed = "EXECUTED";
@@ -223,25 +221,29 @@ public class ExcelReader {
     }
     */
 
+    // Basically, it mirrors exactly what Excel displays, without altering formats.
     private static String getCellValue(Cell cell) {
-        String cellValue = null;
-        CellType type = cell.getCellType();
-        switch (type) {
-            case STRING -> {
-                String val = cell.getStringCellValue();
-                if (!val.isBlank()) {
-                    cellValue = val;
-                }
-            }
-            case NUMERIC -> {
-                cellValue = String.valueOf(cell.getNumericCellValue());
-                //                if (cellValue.contains(".0")) {
-                //                    cellValue = cellValue.substring(0, cellValue.indexOf(".0"));
-                //                }
-                return cellValue;
-            }
-            case BOOLEAN, BLANK, FORMULA, ERROR -> {}
-        }
-        return cellValue;
+        if (cell == null) return null;
+        return formatter.formatCellValue(cell);
+
+        //        String cellValue = null;
+        //        CellType type = cell.getCellType();
+        //        switch (type) {
+        //            case STRING -> {
+        //                String val = cell.getStringCellValue();
+        //                if (!val.isBlank()) {
+        //                    cellValue = val;
+        //                }
+        //            }
+        //            case NUMERIC -> {
+        //                cellValue = String.valueOf(cell.getNumericCellValue());
+        //                //                if (cellValue.contains(".0")) {
+        //                //                    cellValue = cellValue.substring(0, cellValue.indexOf(".0"));
+        //                //                }
+        //                return cellValue;
+        //            }
+        //            case BOOLEAN, BLANK, FORMULA, ERROR -> {}
+        //        }
+        //        return cellValue;
     }
 }
