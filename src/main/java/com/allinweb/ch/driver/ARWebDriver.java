@@ -208,8 +208,10 @@ public class ARWebDriver {
         // Split the text into lines using the detected line separator
         String[] optionsConfigLines = new String[0];
         try {
-
             optionsConfigLines = optionsConfig.split(lineSeparator);
+            if (optionsConfigLines[0].contains("£")) {
+                optionsConfigLines = optionsConfigLines[0].split("£");
+            }
         } catch (Exception ex) {
             ARLogger.getInstance(ARWebDriver.class).severe("Error WebDriver config Options : \n" + ex.getMessage());
         }

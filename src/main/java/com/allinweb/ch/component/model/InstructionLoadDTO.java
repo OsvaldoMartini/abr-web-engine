@@ -53,6 +53,7 @@ public class InstructionLoadDTO {
     private Integer instructionId;
     private String instructionName;
     private String sessionId;
+    private Integer parentBlockId;
 
     private List<ComplexInstructionLoadDTO> complexInstructionLoadDTOList;
     private List<InstructionReferenceLoadDTO> instructionReferenceLoadDTOList;
@@ -73,6 +74,7 @@ public class InstructionLoadDTO {
             Boolean instructionActive,
             Integer blockWait,
             String actions,
+            Integer parentBlockId,
             Integer parentId,
             Integer variableId,
             String operation,
@@ -92,6 +94,7 @@ public class InstructionLoadDTO {
         this.instructionActive = instructionActive;
         this.blockWait = blockWait;
         this.actions = actions;
+        this.parentBlockId = parentBlockId;
         this.parentId = parentId;
         this.variableId = variableId;
         this.operation = operation;

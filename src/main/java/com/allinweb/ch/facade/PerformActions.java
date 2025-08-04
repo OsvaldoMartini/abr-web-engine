@@ -3078,9 +3078,9 @@ public class PerformActions {
         return null; // or throw an exception if the block is not found
     }
 
-    public int getBlockOrderNumber(List<BlockLoadDTO> blocksLoaded, Integer parent) {
+    public int getBlockOrderNumber(List<BlockLoadDTO> blocksLoaded, Integer parentBlockId) {
         for (BlockLoadDTO block : blocksLoaded) {
-            if (block.getId() != null && block.getId().equals(parent)) {
+            if (block.getId() != null && block.getId().equals(parentBlockId)) {
                 return block.getBlockOrderNumber();
             }
         }

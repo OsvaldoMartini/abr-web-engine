@@ -11,4 +11,5 @@ public class HomeUrlDTO {
     private Integer id;
     private String url;
     private Integer homeBankingId;
+    private String orgName;
 }
