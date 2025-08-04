@@ -444,7 +444,8 @@ public class Engine {
                 int blockInitial = currentBlock;
 
                 if (!excelDataGoto.isEmpty() && !blocksLoaded.isEmpty()) {
-                    Integer parentBlockId = excelDataGoto.get(excelDataGoto.size() - 1).getParentBlockId();
+                    Integer parentBlockId =
+                            excelDataGoto.get(excelDataGoto.size() - 1).getParentBlockId();
                     blockInitial = performActions.getBlockOrderNumber(blocksLoaded, parentBlockId) - 1;
                 }
 
