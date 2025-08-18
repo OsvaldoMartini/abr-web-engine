@@ -62,6 +62,7 @@ public class ARConstants {
     public static final Double SPACE_ZERO = 0D;
     public static final Double SPACE_XS = 5D;
     public static final Double SPACE_SM = 10D;
+    public static final Double SPACE_S = 24D;
     public static final Double SPACE_M = 20D;
     public static final Double SPACE_L = 30D;
     public static final Double SPACE_XL = 40D;

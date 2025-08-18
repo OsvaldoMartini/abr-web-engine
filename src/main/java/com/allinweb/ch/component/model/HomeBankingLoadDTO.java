@@ -17,6 +17,7 @@ public class HomeBankingLoadDTO {
     private String driverSession;
     private String username;
     private String password;
+    private Integer jobs;
     private List<HomeUrlDTO> homeUrlDTOs = new ArrayList<>(); // Initialize directly here!
 
     // Optional: Add a helper method to add URLs

@@ -3,7 +3,7 @@ package com.allinweb.ch.component.model;
 import lombok.Data;
 
 @Data
-public class InstructionReferenceLoadDTO {
+public class ReferenceLoadDTO {
     private Integer id;
     private Integer homeBankingId;
     private Integer botJobId;

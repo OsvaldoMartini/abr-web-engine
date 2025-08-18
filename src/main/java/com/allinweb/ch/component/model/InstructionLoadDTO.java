@@ -56,7 +56,7 @@ public class InstructionLoadDTO {
     private Integer parentBlockId;
 
     private List<ComplexInstructionLoadDTO> complexInstructionLoadDTOList;
-    private List<InstructionReferenceLoadDTO> instructionReferenceLoadDTOList;
+    private List<ReferenceLoadDTO> referenceLoadDTOList;
 
     // Custom constructor
     public InstructionLoadDTO(

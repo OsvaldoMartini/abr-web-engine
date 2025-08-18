@@ -1,16 +1,10 @@
 package com.allinweb.ch;
 
-import com.allinweb.ch.component.model.BlockLoadDTO;
-import com.allinweb.ch.component.model.BotJobLoadDTO;
-import com.allinweb.ch.component.model.HomeBankingLoadDTO;
-import com.allinweb.ch.component.model.HomeUrlDTO;
-import com.allinweb.ch.component.model.InstructionLoadDTO;
-import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
-import com.allinweb.ch.component.model.RowStatus;
-import com.allinweb.ch.component.model.VariableLoadDTO;
+import com.allinweb.ch.component.model.*;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
@@ -56,22 +50,15 @@ public class Engine {
     private static RowStatus rowStatus = new RowStatus();
 
     private static List<BotJobLoadDTO> botLoadJobs = new ArrayList<>();
+    private static BotJobLoadDTO currentBotJob;
 
-    private static final ARPropertyManager arPropertyManager;
-    private static final PerformMessage performMessage;
-    private static final PerformDataBase performDataBase;
-    private static final PerformActions performActions;
-    private static ARPriorities abrPriorities;
+    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
+    private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    private static final PerformActions performActions = PerformActions.getInstance();
+    private static ARPriorities abrPriorities = ARPriorities.getInstance();
     private static ARWebDriver currentARWebDriver;
-
-    // Static block to initialize
-    static {
-        arPropertyManager = ARPropertyManager.getInstance();
-        performMessage = PerformMessage.getInstance();
-        performDataBase = PerformDataBase.getInstance();
-        performActions = PerformActions.getInstance();
-        abrPriorities = ARPriorities.getInstance();
-    }
 
     public static void main(String[] args) {
         System.out.println("ENGINE STARTED");
@@ -238,8 +225,8 @@ public class Engine {
             System.out.println("Running All Blocks");
         }
 
-        List<HomeBankingLoadDTO> homeBankingList = performDataBase.loadHomeBanking(homeBankingId);
-        HomeBankingLoadDTO homeBanking = homeBankingList.isEmpty() ? null : homeBankingList.get(0);
+        performDataBase.loadHomeBanking(homeBankingId);
+        HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(homeBankingId);
 
         botLoadJobs = performDataBase.loadCompleteJobs(botJobId);
 
@@ -253,17 +240,19 @@ public class Engine {
             return false;
         }
 
-        BotJobLoadDTO botLoadJob = performDataBase.loadBotJobById(botJobId);
-        if (homeBanking != null) {
-            botLoadJob.setHomeBankingLoadDTO(homeBanking);
-            HomeUrlDTO homeUrlDTO = findMatchingHomeUrlDTO(botLoadJob);
-            if (homeUrlDTO != null) {
-                botLoadJob.setHomeUrlId(homeUrlDTO.getId());
-                homeBanking.setUrl(homeUrlDTO.getUrl());
-            }
+        currentBotJob = botLoadJobs.get(0);
+        currentBotJob.setHomeBankingLoadDTO(homeBanking);
+        HomeUrlDTO homeUrlDTO =
+                performLists.getHomeUrlByBankId(currentBotJob.getHomeBankingId(), currentBotJob.getHomeUrlId());
+
+        if (homeUrlDTO != null) {
+            currentBotJob.setHomeUrlId(homeUrlDTO.getId());
+            homeBanking.setUrl(homeUrlDTO.getUrl());
         }
 
-        List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
+        //        performDataBase.loadBlocks(this.botJobLoad.getId(), this.botJobLoad.getName(), "block");
+        List<BlockLoadDTO> blocksLoaded = performLists.getListBotJob().get(0).getBlockLoadDTOList();
+        String botJobName = performLists.getListBotJob().get(0).getName();
 
         String excelPath = idsAndPaths[2];
 
@@ -310,12 +299,12 @@ public class Engine {
                     browserType, webDriverPath, homeBanking.getUrl(), homeBanking.getOptionsConfig(), null, false, 0);
 
             // Ensure botJob and abrPriorities are not null before accessing their methods
-            if (botLoadJobs.get(0) != null && abrPriorities != null) {
+            if (currentBotJob != null && abrPriorities != null) {
                 // Check if we need to update abrPriorities
                 if (abrPriorities.getJobId() == null
-                        || !abrPriorities.getJobId().equals(botLoadJobs.get(0).getId())) {
+                        || !abrPriorities.getJobId().equals(currentBotJob.getId())) {
                     // Set Job ID in abrPriorities
-                    abrPriorities.setJobId(botLoadJobs.get(0).getId());
+                    abrPriorities.setJobId(currentBotJob.getId());
 
                     // Check for non-null HomeBanking and Priority
                     if (homeBanking != null) {
@@ -347,17 +336,12 @@ public class Engine {
                         Duration.ofSeconds(Integer.parseInt(interactionTimeout)));
             }
 
-            String botJobName = botLoadJobs.get(0).getName();
-
-            String baseLogString = blocksLoaded.get(0).getBotJobName()
-                    + ARConstants.FIELDS_SEPARATOR
-                    + labelsValue.getProperty(Labels.START);
+            String baseLogString = botJobName + ARConstants.FIELDS_SEPARATOR + labelsValue.getProperty(Labels.START);
 
             printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
 
-            ExcelWriter.ExcelChain writerReport = new ExcelWriter(
-                            botLoadJobs.get(0).getName(), currentARWebDriver.getCurrentDriver(), false)
-                    .withPurpose("report");
+            ExcelWriter.ExcelChain writerReport =
+                    new ExcelWriter(botJobName, currentARWebDriver.getCurrentDriver(), false).withPurpose("report");
             writerReport.insertReportHead();
 
             ExcelWriter.ExcelChain writerExport = null;
@@ -385,7 +369,8 @@ public class Engine {
             // int executeSpecificBlock = comboBoxBlocks.getValue().getVarId();
             String sessionRowStatus = "botJobTasks-" + botJobId;
 
-            variablesLoaded = performDataBase.loadAllVariables(botJobId);
+            performDataBase.loadAllVariables(botJobId);
+            variablesLoaded = performLists.getListVariable();
             Map<String, String> mapSavedLocators = new HashMap<>();
 
             Set<Integer> parentIdsForLoop = null;
@@ -404,8 +389,16 @@ public class Engine {
             boolean webElementWork = false;
 
             if (extractedData.getNumberOfDataRows() > 0) {
-                List<InstructionLoadDTO> excelDataGoto =
-                        performDataBase.loadExcelGotoBlock(homeBanking.getId(), botJobId);
+
+                List<InstructionLoadDTO> excelDataGoto = new ArrayList<>();
+                String tableName = "instruction";
+                int whereId = botJobId;
+                try {
+                    excelDataGoto = performDataBase.loadExcelGotoBlock(whereId, tableName);
+                } catch (Exception error) {
+                    ARLogger.getInstance(Engine.class)
+                            .severe("Error reading 'EXCEL GOTO' instructions: " + error.getMessage());
+                }
 
                 //                if (extractedData.getNumberOfDataRows() > 1 && excelDataGoto.isEmpty()) {
                 //
@@ -712,9 +705,8 @@ public class Engine {
                                 mapSavedLocators.clear();
 
                                 // Loop through the instructionReferenceLoadDTOList
-                                if (currentInstruction.getInstructionReferenceLoadDTOList() != null) {
-                                    for (InstructionReferenceLoadDTO reference :
-                                            currentInstruction.getInstructionReferenceLoadDTOList()) {
+                                if (currentInstruction.getReferenceLoadDTOList() != null) {
+                                    for (ReferenceLoadDTO reference : currentInstruction.getReferenceLoadDTOList()) {
                                         // Populate the map with referenceType as the key and value as the value
                                         mapSavedLocators.put(reference.getReferenceType(), reference.getValue());
                                     }
@@ -2019,7 +2011,7 @@ public class Engine {
 
             // PRINT END BASE LOG//
             if (success) {
-                baseLogString = botLoadJobs.get(0).getName()
+                baseLogString = botJobName
                         + ARConstants.FIELDS_SEPARATOR
                         + labelsValue.getProperty(Labels.END)
                         + ARConstants.FIELDS_SEPARATOR
@@ -2040,7 +2032,7 @@ public class Engine {
                         5);
 
             } else {
-                baseLogString = botLoadJobs.get(0).getName()
+                baseLogString = currentBotJob.getName()
                         + ARConstants.FIELDS_SEPARATOR
                         + labelsValue.getProperty(Labels.END)
                         + ARConstants.FIELDS_SEPARATOR

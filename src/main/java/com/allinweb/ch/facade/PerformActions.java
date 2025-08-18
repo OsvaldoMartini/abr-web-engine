@@ -9,21 +9,11 @@ import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.ComplexInstructionLoadDTO;
 import com.allinweb.ch.component.model.ElementDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
-import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
+import com.allinweb.ch.component.model.ReferenceLoadDTO;
 import com.allinweb.ch.component.model.VariableLoadDTO;
 import com.allinweb.ch.persistence.TargetElement;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
-import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
-import com.allinweb.ch.util.ARPriorities;
-import com.allinweb.ch.util.ARPropertyEnum;
-import com.allinweb.ch.util.ARPropertyManager;
-import com.allinweb.ch.util.ARWebUtil;
-import com.allinweb.ch.util.CryptationAlgorithm;
-import com.allinweb.ch.util.ExcelReportStatusEnum;
-import com.allinweb.ch.util.Priority;
-import com.allinweb.ch.util.PriorityTypeEnum;
-import com.allinweb.ch.util.UtilsMethods;
+import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -98,6 +88,7 @@ public class PerformActions {
     }
 
     private static final PerformMessage performMessage;
+    private static final PerformLists performLists;
     private static final PerformDataBase performDataBase;
     private static final IframeInputLocator iframeInputLocator;
     private static final ARPropertyManager arPropertyManager;
@@ -106,6 +97,7 @@ public class PerformActions {
     static {
         arPropertyManager = ARPropertyManager.getInstance();
         performMessage = PerformMessage.getInstance();
+        performLists = PerformLists.getInstance();
         performDataBase = PerformDataBase.getInstance();
         iframeInputLocator = IframeInputLocator.getInstance();
     }
@@ -539,8 +531,7 @@ public class PerformActions {
                             "Error RemoveTrailingSlash for %s -> xPath  %s -> Cause: %s",
                             tagName, instructionPath, e.getMessage()));
         }
-        List<InstructionReferenceLoadDTO> instructionReferenceList =
-                currentInstruction.getInstructionReferenceLoadDTOList();
+        List<ReferenceLoadDTO> instructionReferenceList = currentInstruction.getReferenceLoadDTOList();
 
         if (instructionReferenceList.size() == 0) {
             ARLogger.getInstance(PerformActions.class)
@@ -602,7 +593,7 @@ public class PerformActions {
                 //                    .findFirst();
 
                 // Find the first matching instruction reference
-                Optional<InstructionReferenceLoadDTO> instructionReference = instructionReferenceList.stream()
+                Optional<ReferenceLoadDTO> instructionReference = instructionReferenceList.stream()
                         .filter(reference -> priority.getName().stream()
                                 .anyMatch(p -> p.equalsIgnoreCase(reference.getReferenceType())))
                         .findFirst();
@@ -787,8 +778,7 @@ public class PerformActions {
                             tagName, instructionPath, e.getMessage()));
         }
 
-        List<InstructionReferenceLoadDTO> instructionReferenceList =
-                currentInstruction.getInstructionReferenceLoadDTOList();
+        List<ReferenceLoadDTO> instructionReferenceList = currentInstruction.getReferenceLoadDTOList();
 
         if (instructionReferenceList.isEmpty()) {
             ARLogger.getInstance(PerformActions.class)
@@ -876,7 +866,7 @@ public class PerformActions {
                     return null;
                 }
 
-                Optional<InstructionReferenceLoadDTO> instructionReference = instructionReferenceList.stream()
+                Optional<ReferenceLoadDTO> instructionReference = instructionReferenceList.stream()
                         .filter(reference -> priority.getName().stream()
                                 .anyMatch(p -> p.equalsIgnoreCase(reference.getReferenceType())))
                         .findFirst();
@@ -3995,8 +3985,8 @@ public class PerformActions {
     public int createBlockIfNone(String blockName, int botJobId) {
 
         // It Prevents Start without blocks
-        List<BlockLoadDTO> blockLoadList = performDataBase.loadBlocksByBotJobId(botJobId);
-        if (blockLoadList.isEmpty()) {
+        performDataBase.loadBlocks(botJobId, null, "block");
+        if (performLists.getListBlock().isEmpty()) {
 
             BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
             newBlockDetails.setBlockName(blockName);
@@ -4007,19 +3997,25 @@ public class PerformActions {
 
             newBlockDetails.setBotJobId(botJobId);
 
-            int newBlockId = performDataBase.createNewBlock(newBlockDetails);
+            ErrorMessage errorMessage = performDataBase.initiateNewBlock(newBlockDetails, botJobId);
 
-            if (newBlockId < 0) {
+            if (errorMessage == null) {
+                if (!performDataBase.getIdsBlockAfter().isEmpty()
+                        && performDataBase.getIdsBlockAfter().get(0) > 0) {
+                    return performDataBase.getIdsBlockAfter().get(0);
+                } else {
+                    return -1;
+                }
+            } else {
+
                 performMessage.errorMessage(
-                        "Error Creating new Block",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Verify the Bot Job Name if you have any</span>",
-                        "<span style='color: #E65100; font-weight: bold;'>Check if you already have a Bot Job Created!</span>",
-                        null,
+                        errorMessage.getErrorTitle(),
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                + errorMessage.getErrorTitle(),
+                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
                         null,
                         0);
-                return -1;
-            } else {
-                return newBlockId;
             }
         }
         return -1;
