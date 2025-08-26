@@ -14,9 +14,7 @@ public class PerformCloneLoad {
     protected static volatile PerformCloneLoad instance;
 
     // Private constructor to prevent instantiation
-    private PerformCloneLoad() {
-        // Initialize if necessary
-    }
+    private PerformCloneLoad() {}
 
     public static PerformCloneLoad getInstance() {
         if (instance == null) {
@@ -1164,7 +1162,7 @@ public class PerformCloneLoad {
 //    if (wSocket && wSocket.readyState === WebSocket.OPEN) {
 //      const message = {
 //        type: "CLOSE_BROWSER",
-//        sessionId: `scannerReceiver`, //-${window.homeBankingId}`,
+//        sessionId: `scanner-element-pane`, //-${window.homeBankingId}`,
 //        operationId: "closeBrowser",
 //        homeBankingId: window.homeBankingId,
 //        details: window.allElementInfo, // Send allElementInfo

@@ -16,9 +16,7 @@ public class ARPriorities {
     protected static volatile ARPriorities instance;
 
     // Private constructor to prevent instantiation
-    private ARPriorities() {
-        // Initialize if necessary
-    }
+    private ARPriorities() {}
 
     // Public method to access the singleton instance
     public static ARPriorities getInstance() {

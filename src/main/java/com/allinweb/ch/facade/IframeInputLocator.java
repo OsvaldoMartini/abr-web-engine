@@ -28,9 +28,7 @@ public class IframeInputLocator {
         return instance;
     }
 
-    private IframeInputLocator() {
-        // Initialize if necessary
-    }
+    private IframeInputLocator() {}
 
     private WebDriver driver;
     private Map<WebElement, List<WebElement>> iframeElementsMap;

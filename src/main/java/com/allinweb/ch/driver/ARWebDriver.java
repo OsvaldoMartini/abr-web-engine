@@ -556,4 +556,39 @@ public class ARWebDriver {
             return true; // If exception occurs, browser is closed
         }
     }
+
+    public void closeAllDrivers() {
+        try {
+            for (WebDriver driver : webDriverList) {
+                if (driver != null) {
+                    try {
+                        driver.quit();
+                    } catch (Exception e) {
+                        ARLogger.getInstance(ARWebDriver.class).warning("Error quitting driver: " + e.getMessage());
+                    }
+                }
+            }
+        } finally {
+            webDriverList.clear();
+            currentDriver = null;
+            edgeVersion = null;
+            webDriverEdgeVersion = null;
+            optionsEdge = null;
+            optionsChrome = null;
+            optionsFirefox = null;
+            instance = null; // reset the singleton
+        }
+    }
+
+    public void closeCurrentDriver() {
+        if (currentDriver != null) {
+            try {
+                currentDriver.quit();
+            } catch (Exception e) {
+                ARLogger.getInstance(ARWebDriver.class).warning("Error quitting current driver: " + e.getMessage());
+            } finally {
+                currentDriver = null;
+            }
+        }
+    }
 }

@@ -16,9 +16,7 @@ public class ARPropertyManager {
     protected static volatile ARPropertyManager instance;
 
     // Private constructor to prevent instantiation
-    private ARPropertyManager() {
-        // Initialize if necessary
-    }
+    private ARPropertyManager() {}
 
     public static ARPropertyManager getInstance() {
         if (instance == null) {

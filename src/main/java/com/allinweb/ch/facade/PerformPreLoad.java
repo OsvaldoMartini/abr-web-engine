@@ -17,9 +17,7 @@ public class PerformPreLoad {
     protected static volatile PerformPreLoad instance;
 
     // Private constructor to prevent instantiation
-    private PerformPreLoad() {
-        // Initialize if necessary
-    }
+    private PerformPreLoad() {}
 
     public static PerformPreLoad getInstance() {
         if (instance == null) {
@@ -1797,7 +1795,7 @@ public class PerformPreLoad {
   //   if (wSocket && wSocket.readyState === WebSocket.OPEN) {
   //     const message = {
   //       type: "CLOSE_BROWSER",
-  //       sessionId: `scannerReceiver`, //-${window.homeBankingId}`,
+  //       sessionId: `scanner-element-pane`, //-${window.homeBankingId}`,
   //       operationId: "closeBrowser",
   //       homeBankingId: window.homeBankingId,
   //       details: window.allElementInfo, // Send allElementInfo

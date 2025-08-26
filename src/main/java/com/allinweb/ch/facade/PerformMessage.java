@@ -42,9 +42,7 @@ public class PerformMessage {
     protected static volatile PerformMessage instance;
 
     // Private constructor to prevent instantiation
-    private PerformMessage() {
-        // Initialize if necessary
-    }
+    private PerformMessage() {}
 
     // Public method to access the singleton instance
     public static PerformMessage getInstance() {
@@ -906,7 +904,7 @@ public class PerformMessage {
 
     public void outputJson(List<InstructionLoadDTO> blockLoopInstructions, String fileName, boolean genTestData) {
         // Get the directory path from ARPropertyManager
-        String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
+        String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
 
         List<InstructionLoadDTO> updatedList = new ArrayList<>(); // Create a new list for updated instructions
 

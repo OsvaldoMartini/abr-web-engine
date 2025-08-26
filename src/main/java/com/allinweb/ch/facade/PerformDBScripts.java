@@ -20,9 +20,7 @@ public class PerformDBScripts {
     public Connection conn = null;
 
     // Private constructor to prevent instantiation
-    private PerformDBScripts() {
-        // Initialize if necessary
-    }
+    private PerformDBScripts() {}
 
     public static PerformDBScripts getInstance() {
         if (instance == null) {

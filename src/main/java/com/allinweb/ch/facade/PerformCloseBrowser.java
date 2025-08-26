@@ -14,9 +14,7 @@ public class PerformCloseBrowser {
     protected static volatile PerformCloseBrowser instance;
 
     // Private constructor to prevent instantiation
-    private PerformCloseBrowser() {
-        // Initialize if necessary
-    }
+    private PerformCloseBrowser() {}
 
     public static PerformCloseBrowser getInstance() {
         if (instance == null) {
@@ -316,7 +314,7 @@ public class PerformCloseBrowser {
     if (wSocket && wSocket.readyState === WebSocket.OPEN) {
       const message = {
         type: "CLOSE_BROWSER",
-        sessionId: `scannerReceiver`, //-${window.homeBankingId}`,
+        sessionId: `scanner-element-pane`, //-${window.homeBankingId}`,
         operationId: "closeBrowser",
         homeBankingId: window.homeBankingId,
         details: window.allElementInfo, // Send allElementInfo
@@ -358,7 +356,7 @@ public class PerformCloseBrowser {
 // })(
 //   61757,
 //   "closeBrowser",
-//   "scannerReceiver-2",
+//   "scanner-element-pane-2",
 //   "closeBrowser",
 //   2,
 //   "https://www.tradingview.com/",

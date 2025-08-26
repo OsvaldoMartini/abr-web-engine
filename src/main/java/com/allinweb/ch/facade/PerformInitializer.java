@@ -20,9 +20,7 @@ public class PerformInitializer {
     public Connection conn = null;
 
     // Private constructor to prevent instantiation
-    private PerformInitializer() {
-        // Initialize if necessary
-    }
+    private PerformInitializer() {}
 
     public static PerformInitializer getInstance() {
         if (instance == null) {
@@ -67,7 +65,7 @@ public class PerformInitializer {
 
                 // Create home_banking table
                 String createHomeBankingTableSQL = "CREATE TABLE home_banking ("
-                        + "ID SERIAL PRIMARY KEY, "
+                        + "ID INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, "
                         + "url TEXT, "
                         + "name TEXT, "
                         + "priority TEXT, "
@@ -81,14 +79,14 @@ public class PerformInitializer {
 
                 // Create bot_job table with a foreign key reference to home_banking
                 String createURLTableSQL = "CREATE TABLE home_url ("
-                        + "ID SERIAL PRIMARY KEY, "
+                        + "ID INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, "
                         + "url TEXT, "
                         + "home_banking_id INTEGER REFERENCES home_banking(id) ON DELETE CASCADE)";
                 stmt.executeUpdate(createURLTableSQL);
 
                 // Create bot_job table with a foreign key reference to home_banking
                 String createBotJobTableSQL = "CREATE TABLE bot_job ("
-                        + "id SERIAL PRIMARY KEY, "
+                        + "id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, "
                         + "name TEXT UNIQUE, "
                         + "description TEXT, "
                         + "priority TEXT, "
@@ -99,7 +97,7 @@ public class PerformInitializer {
 
                 // Create block table with a foreign key reference to bot_job
                 String createBlockTableSQL = "CREATE TABLE block ("
-                        + "id SERIAL PRIMARY KEY, "
+                        + "id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, "
                         + "block_order_number INTEGER NOT NULL, "
                         + "name TEXT NOT NULL, "
                         + "description TEXT, "
@@ -112,7 +110,7 @@ public class PerformInitializer {
 
                 // Create instruction table with foreign key references to block and bot_job
                 String createInstructionTableSQL = "CREATE TABLE instruction ("
-                        + "id SERIAL PRIMARY KEY, "
+                        + "id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, "
                         + "instruction_order_number INTEGER NOT NULL, "
                         + "actions TEXT, "
                         + "name TEXT, "
@@ -136,13 +134,13 @@ public class PerformInitializer {
                         + "active INTEGER NOT NULL, "
                         + "block_id INTEGER REFERENCES block(id) ON DELETE CASCADE, "
                         + "variable_id INTEGER, "
-                        + "parent_block_id INTEGER REFERENCES block(id) ON DELETE SET NULL, "
+                        + "parent_block_id INTEGER REFERENCES block(id) ON DELETE CASCADE, "
                         + "parent_id INTEGER, "
                         + "bot_job_id INTEGER REFERENCES bot_job(id) ON DELETE CASCADE)";
                 stmt.executeUpdate(createInstructionTableSQL);
 
                 String createReferenceTableSQL = "CREATE TABLE reference ("
-                        + "id SERIAL PRIMARY KEY, "
+                        + "id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, "
                         + "reference_type TEXT, "
                         + "value TEXT, "
                         + "instruction_id INTEGER NOT NULL REFERENCES instruction(id) ON DELETE CASCADE, "
@@ -150,7 +148,7 @@ public class PerformInitializer {
                 stmt.executeUpdate(createReferenceTableSQL);
 
                 String createVariableTableSQL = "CREATE TABLE variable ("
-                        + "id SERIAL PRIMARY KEY, "
+                        + "id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, "
                         + "type TEXT, "
                         + "name TEXT, "
                         + "value TEXT, "
@@ -161,7 +159,7 @@ public class PerformInitializer {
                 stmt.executeUpdate(createVariableTableSQL);
 
                 String createComponentBlockTableSQL = "CREATE TABLE component_block ("
-                        + "id SERIAL PRIMARY KEY, "
+                        + "id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, "
                         + "home_banking_id INTEGER REFERENCES home_banking(id) ON DELETE CASCADE, "
                         + "block_order_number INTEGER NOT NULL, "
                         + "name TEXT NOT NULL, "
@@ -173,7 +171,7 @@ public class PerformInitializer {
                 stmt.executeUpdate(createComponentBlockTableSQL);
 
                 String createComponentInstructionTableSQL = "CREATE TABLE component_instruction ("
-                        + "id SERIAL PRIMARY KEY, "
+                        + "id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, "
                         + "instruction_order_number INTEGER NOT NULL, "
                         + "actions TEXT, "
                         + "name TEXT, "
@@ -197,13 +195,13 @@ public class PerformInitializer {
                         + "active INTEGER NOT NULL, "
                         + "block_id INTEGER REFERENCES component_block(id) ON DELETE CASCADE, "
                         + "variable_id INTEGER, "
-                        + "parent_block_id INTEGER REFERENCES component_block(id) ON DELETE SET NULL, "
+                        + "parent_block_id INTEGER REFERENCES component_block(id) ON DELETE CASCADE, "
                         + "parent_id INTEGER, "
                         + "home_banking_id INTEGER REFERENCES home_banking(id) ON DELETE CASCADE)";
                 stmt.executeUpdate(createComponentInstructionTableSQL);
 
                 String createComponentReferenceTableSQL = "CREATE TABLE component_reference ("
-                        + "id SERIAL PRIMARY KEY, "
+                        + "id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, "
                         + "reference_type TEXT, "
                         + "value TEXT, "
                         + "instruction_id INTEGER NOT NULL REFERENCES component_instruction(id) ON DELETE CASCADE, "
@@ -211,7 +209,7 @@ public class PerformInitializer {
                 stmt.executeUpdate(createComponentReferenceTableSQL);
 
                 String createComponentVariableTableSQL = "CREATE TABLE component_variable ("
-                        + "id SERIAL PRIMARY KEY, "
+                        + "id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, "
                         + "type TEXT, "
                         + "name TEXT, "
                         + "value TEXT, "
@@ -224,14 +222,17 @@ public class PerformInitializer {
                 // Foreign Keys with ON DELETE CASCADE
                 stmt.executeUpdate(
                         "ALTER TABLE variable ADD CONSTRAINT fk_variable_instruction FOREIGN KEY (instruction_id) REFERENCES instruction(id) ON DELETE CASCADE");
-                stmt.executeUpdate(
-                        "ALTER TABLE instruction ADD CONSTRAINT fk_instruction_variable FOREIGN KEY (variable_id) REFERENCES variable(id) ON DELETE SET NULL");
+                //                stmt.executeUpdate(
+                //                        "ALTER TABLE instruction ADD CONSTRAINT fk_instruction_variable FOREIGN KEY
+                // (variable_id) REFERENCES variable(id) ON DELETE CASCADE");
 
                 stmt.executeUpdate(
                         "ALTER TABLE component_variable ADD CONSTRAINT fk_component_variable_instruction FOREIGN KEY (instruction_id) REFERENCES component_instruction(id) ON DELETE CASCADE");
 
-                stmt.executeUpdate(
-                        "ALTER TABLE component_instruction ADD CONSTRAINT fk_component_instruction_variable FOREIGN KEY (variable_id) REFERENCES component_variable(id) ON DELETE SET NULL");
+                //                stmt.executeUpdate(
+                //                        "ALTER TABLE component_instruction ADD CONSTRAINT
+                // fk_component_instruction_variable FOREIGN KEY (variable_id) REFERENCES component_variable(id) ON
+                // DELETE CASCADE");
             }
             return null;
         } catch (SQLException error) {
@@ -413,10 +414,11 @@ public class PerformInitializer {
                 stmt.executeUpdate(
                         "ALTER TABLE instruction ADD CONSTRAINT fk_instruction_block FOREIGN KEY (block_id) REFERENCES block(id) ON DELETE CASCADE");
 
+                //                stmt.executeUpdate(
+                //                        "ALTER TABLE instruction ADD CONSTRAINT fk_instruction_variable FOREIGN KEY
+                // (variable_id) REFERENCES variable(id) ON DELETE CASCADE");
                 stmt.executeUpdate(
-                        "ALTER TABLE instruction ADD CONSTRAINT fk_instruction_variable FOREIGN KEY (variable_id) REFERENCES variable(id) ON DELETE SET NULL");
-                stmt.executeUpdate(
-                        "ALTER TABLE instruction ADD CONSTRAINT fk_instruction_parent_block FOREIGN KEY (parent_block_id) REFERENCES block(id) ON DELETE SET NULL");
+                        "ALTER TABLE instruction ADD CONSTRAINT fk_instruction_parent_block FOREIGN KEY (parent_block_id) REFERENCES block(id) ON DELETE CASCADE");
 
                 //                // NOT POSSIBLE SELF REFERENCE IN ACCESS
                 //                stmt.executeUpdate(
@@ -444,11 +446,13 @@ public class PerformInitializer {
                 stmt.executeUpdate(
                         "ALTER TABLE component_instruction ADD CONSTRAINT fk_component_instruction_block FOREIGN KEY (block_id) REFERENCES component_block(id) ON DELETE CASCADE");
 
-                stmt.executeUpdate(
-                        "ALTER TABLE component_instruction ADD CONSTRAINT fk_component_instruction_variable FOREIGN KEY (variable_id) REFERENCES component_variable(id) ON DELETE SET NULL");
+                //                stmt.executeUpdate(
+                //                        "ALTER TABLE component_instruction ADD CONSTRAINT
+                // fk_component_instruction_variable FOREIGN KEY (variable_id) REFERENCES component_variable(id) ON
+                // DELETE CASCADE");
 
                 stmt.executeUpdate(
-                        "ALTER TABLE component_instruction ADD CONSTRAINT fk_component_instruction_parent_block FOREIGN KEY (parent_block_id) REFERENCES component_block(id) ON DELETE SET NULL");
+                        "ALTER TABLE component_instruction ADD CONSTRAINT fk_component_instruction_parent_block FOREIGN KEY (parent_block_id) REFERENCES component_block(id) ON DELETE CASCADE");
 
                 // NOT POSSIBLE SELF REFERENCE IN ACCESS
                 //                stmt.executeUpdate(
@@ -560,8 +564,9 @@ public class PerformInitializer {
                         + "parent_block_id INTEGER, "
                         + "parent_id INTEGER, "
                         + "bot_job_id INTEGER, "
-                        + "FOREIGN KEY(variable_id) REFERENCES variable(id) ON DELETE SET NULL, "
-                        + "FOREIGN KEY(parent_block_id) REFERENCES block(id) ON DELETE SET NULL, "
+                        //                        + "FOREIGN KEY(variable_id) REFERENCES variable(id) ON DELETE CASCADE,
+                        // "
+                        + "FOREIGN KEY(parent_block_id) REFERENCES block(id) ON DELETE CASCADE, "
                         + "FOREIGN KEY(block_id) REFERENCES block(id) ON DELETE CASCADE, "
                         + "FOREIGN KEY(bot_job_id) REFERENCES bot_job(id) ON DELETE CASCADE)";
                 stmt.executeUpdate(createInstructionTableSQL);
@@ -630,8 +635,9 @@ public class PerformInitializer {
                         + "parent_block_id INTEGER, "
                         + "parent_id INTEGER, "
                         + "home_banking_id INTEGER, "
-                        + "FOREIGN KEY(variable_id) REFERENCES variable(id) ON DELETE SET NULL, "
-                        + "FOREIGN KEY(parent_block_id) REFERENCES block(id) ON DELETE SET NULL, "
+                        //                        + "FOREIGN KEY(variable_id) REFERENCES variable(id) ON DELETE CASCADE,
+                        // "
+                        + "FOREIGN KEY(parent_block_id) REFERENCES block(id) ON DELETE CASCADE, "
                         + "FOREIGN KEY(block_id) REFERENCES component_block(id) ON DELETE CASCADE, "
                         + "FOREIGN KEY(home_banking_id) REFERENCES home_banking(id) ON DELETE CASCADE)";
                 stmt.executeUpdate(createComponentInstructionTableSQL);

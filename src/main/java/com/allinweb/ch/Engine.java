@@ -268,7 +268,6 @@ public class Engine {
         try {
             extractedData = excelReader.extractData(excelPath, allActions);
         } catch (Exception e) {
-
             performMessage.errorMessage(
                     "Excel File Error",
                     "<span style='color: #000080; font-weight: bold; font-size: 14px;'>Check All Excel Columns and Values!</span>",
@@ -276,8 +275,18 @@ public class Engine {
                     "<span style='font-style: italic;'>Details:</span>",
                     "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Error loading Excel Rows.  Maybe it is better to re-generate the file.</span>",
                     0);
+        }
 
-            //            Platform.exit();
+        if (extractedData.getNumberOfDataRows() == 0) {
+            extractedData.addField("$EMPTY");
+            extractedData.addFieldValue("$EMPTY", "$EMPTY", 0);
+        }
+
+        if (extractedData != null && extractedData.getErrorMessage() != null) {
+            performMessage.errorMessage(
+                    "Excel Error", "Could Not Execute Excel File", extractedData.getErrorMessage(), null, null, 0);
+
+            return false;
         }
 
         try {
@@ -400,37 +409,40 @@ public class Engine {
                             .severe("Error reading 'EXCEL GOTO' instructions: " + error.getMessage());
                 }
 
-                //                if (extractedData.getNumberOfDataRows() > 1 && excelDataGoto.isEmpty()) {
-                //
-                //                    respModal = performMessage.showCustomModalDialogDragWin11(
-                //                            "Multiple Excel Rows Detected",
-                //                            "<span style='font-weight: bold;'>Your Excel data file contains multiple
-                // rows.</span>",
-                //                            "By default, each Excel test row <span style='font-weight: bold; color:
-                // #e854c8;'>will be processed through all blocks</span>, and after  will jump back to <span
-                // style='font-weight: bold;'>first block (Use Case).</span>",
-                //                            "Add the <span style='font-weight: bold; color: #FF4500;'>'Excel
-                // GOTO'</span> operation to your flow to modify the <span style='font-weight: bold;'>default
-                // behaviour.</span>",
-                //                            "The <span style='font-weight: bold; color: #FF4500;'>Excel GOTO</span>
-                // allows you to specify which block <span style='font-weight: bold;'>the flow should continue
-                // from</span>, after the execution of the first row across all blocks.",
-                //                            false,
-                //                            "Continue",
-                //                            "Stop All",
-                //                            0);
-                //
-                //                    if (respModal.equals(ARConstants.DialogModal.STOP)) {
-                //
-                //                        launchBotJobButton.setDisable(false);
-                //                        performActions.setInterceptBotJob(true);
-                //                        setInterceptBotJob(true);
-                //                        isJobRunning.set(false);
-                //
-                //                        if (!lastBrowserTab()) {
-                //                            return false;
-                //                        }
-                //                    }
+                if (extractedData.getNumberOfDataRows() > 1 && excelDataGoto.isEmpty()) {
+
+                    ARLogger.getInstance(Engine.class)
+                            .warning("Multiple Excel Rows Detected: each row wll return to first block");
+
+                    //                    respModal = performMessage.showCustomModalDialogDragWin11(
+                    //                            "Multiple Excel Rows Detected",
+                    //                            "<span style='font-weight: bold;'>Your Excel data file contains
+                    // multiple rows.</span>",
+                    //                            "By default, each Excel test row <span style='font-weight: bold;
+                    // color: #e854c8;'>will be processed through all blocks</span>, and after  will jump back to <span
+                    // style='font-weight: bold;'>first block (Use Case).</span>",
+                    //                            "Add the <span style='font-weight: bold; color: #FF4500;'>'Excel
+                    // GOTO'</span> operation to your flow to modify the <span style='font-weight: bold;'>default
+                    // behaviour.</span>",
+                    //                            "The <span style='font-weight: bold; color: #FF4500;'>Excel
+                    // GOTO</span> allows you to specify which block <span style='font-weight: bold;'>the flow should
+                    // continue from</span>, after the execution of the first row across all blocks.",
+                    //                            false,
+                    //                            "Continue",
+                    //                            "Stop All",
+                    //                            0);
+
+                    //                    if (respModal.equals(ARConstants.DialogModal.STOP)) {
+                    //                        launchBotJobButton.setDisable(false);
+                    //                        performActions.setInterceptBotJob(true);
+                    //                        setInterceptBotJob(true);
+                    //                        isJobRunning.set(false);
+                    //
+                    //                        if (!lastBrowserTab()) {
+                    //                            return false;
+                    //                        }
+                    //                    }
+                }
 
                 // Execute All Blocks starting from executeSpecificBlock if Defined
                 int currentBlock = (executeSpecificBlock > -1) ? executeSpecificBlock - 1 : 0;

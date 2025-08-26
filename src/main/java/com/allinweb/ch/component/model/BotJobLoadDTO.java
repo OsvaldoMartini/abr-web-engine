@@ -12,6 +12,7 @@ public class BotJobLoadDTO {
     private String priority;
     private Integer blockOrderNumber;
     private String blockName;
+    private Integer blockId;
     private String blockDescription;
     private Integer homeBankingId;
     private Integer homeUrlId;

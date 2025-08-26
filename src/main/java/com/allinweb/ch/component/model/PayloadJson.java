@@ -1,12 +1,14 @@
 package com.allinweb.ch.component.model;
 
 public class PayloadJson {
-    private int id;
+    private Integer id;
+    private Integer blockId;
     private String name;
-    private int instructionId;
+    private Integer instructionId;
 
-    public PayloadJson(int botJobId, String name, int instructionId) {
+    public PayloadJson(Integer botJobId, Integer blockId, String name, Integer instructionId) {
         this.id = botJobId;
+        this.blockId = blockId;
         this.name = name;
         this.instructionId = instructionId;
     }
