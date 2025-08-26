@@ -173,12 +173,13 @@ public class Engine {
             idsAndPaths = Arrays.copyOfRange(args, 1, args.length);
         }
 
-        Boolean executeJob = Arrays.stream(args).anyMatch(EXECUTE_JOB::equals);
+        boolean executeJob = Arrays.stream(args).anyMatch(EXECUTE_JOB::equals);
 
         idsAndPaths = removeElementsBefore(args, EXECUTE_JOB);
 
         if (executeJob) {
             executeJob(idsAndPaths);
+            System.exit(0);
         }
     }
 
@@ -1936,7 +1937,6 @@ public class Engine {
                 //                        260);
 
             }
-            printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
             printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
 
             if (resultActions.equalsIgnoreCase("Close Browser") || respModal.equals(ARConstants.DialogModal.STOP)) {
