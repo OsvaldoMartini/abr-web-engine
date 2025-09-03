@@ -90,7 +90,7 @@ public class ARConstants {
     public static final String ICON_INFO = "/info.png";
     public static final String ICON_CONFIG = "/cogwheel.png";
     public static final String ICON_PLAY = "/play.png";
-    public static final String ICON_CHROME = "/open_browser.png";
+    public static final String ICON_BROWSER = "/open_browser.png";
     public static final String ICON_EXCEL = "/excel.png";
     public static final String ICON_EXCEL2 = "/excel2.png";
     public static final String ICON_EXCEL3 = "/excel3.png";
