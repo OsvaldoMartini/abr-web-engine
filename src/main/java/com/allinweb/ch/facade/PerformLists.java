@@ -5,6 +5,7 @@ import com.allinweb.ch.persistence.DatabaseUserDTO;
 import com.allinweb.ch.persistence.ReferenceDTO;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARLogger;
+import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ComboBoxVars;
 import com.google.common.base.Strings;
@@ -87,12 +88,16 @@ public class PerformLists {
 
         String port =
                 System.getProperty("ARWebChosenPort"); // arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
+        if (Strings.isNullOrEmpty(port)) {
+            port = arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
+        }
+
         if (!Strings.isNullOrEmpty(port)) {
             portSocketInitial = Integer.parseInt(port);
         }
 
         if (!isConnectWebSocket) {
-            connectWebSocketClient(portSocketInitial, "perform-list-data");
+            connectWebSocketClient(portSocketInitial, "engine-perform-list-data");
         }
     }
 
@@ -109,7 +114,7 @@ public class PerformLists {
                     try {
                         if (session != null && session.isOpen()) {
                             session.getBasicRemote()
-                                    .sendText("ping-perform-list-data"); // Or a specific keep-alive message
+                                    .sendText("ping-engine-perform-list-data"); // Or a specific keep-alive message
                         }
                     } catch (IOException e) {
                         System.err.println("Error sending ping: " + e.getMessage());
@@ -166,7 +171,8 @@ public class PerformLists {
                 isConnectWebSocket = true;
             } catch (Exception e) {
                 isConnectWebSocket = false;
-                System.err.println("WebSocket connection failed sessionId: " + sessionId + " error: " + e.getMessage());
+                ARLogger.getInstance(PerformLists.class)
+                        .warning("WebSocket connection failed sessionId: " + sessionId + " error: " + e.getMessage());
             }
         });
     }
