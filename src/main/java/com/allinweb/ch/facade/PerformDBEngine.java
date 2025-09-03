@@ -57,96 +57,97 @@ public class PerformDBEngine {
                 POSTGRES_DB = true;
             } else if (dataBaseType.equalsIgnoreCase("SQLITE")) {
                 SQLITE_DB = true;
-            } else
+            } else {
                 // else default to Access
                 ACCESS_DB = true;
+            }
         }
 
-        try {
-            if (POSTGRES_DB) {
-                // Postgres connection
-                String dbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
-                String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
-                String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+        int maxAttempts = 20;
+        int attempt = 0;
+        long retryDelayMs = 2000; // wait 2 seconds before retry
 
-                ARLogger.getInstance(PerformDBEngine.class).info("POSTGRES connection URL: " + dbUrl);
-                // ARLogger.getInstance(PerformDataBase.class).info("User Details: " + userDB + " - [PROTECTED]");
+        while (attempt < maxAttempts) {
+            try {
+                attempt++;
+                if (POSTGRES_DB) {
+                    // Postgres connection
+                    String dbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+                    String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+                    String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
 
-                Class.forName("org.postgresql.Driver");
-                Connection conn = DriverManager.getConnection(dbUrl, userDB, userPwd);
-                conn.setReadOnly(false);
-                connDBWorks = true;
-                return conn;
+                    ARLogger.getInstance(PerformDBEngine.class)
+                            .info("Attempt " + attempt + " - POSTGRES connection URL: " + dbUrl);
 
-                //                // Reset open connections counter if too many
-                //                if (getOpenConnectionsCount() > 10) {
-                //                    this.openConnections = 0;
-                //                }
-                //                incrementOpenConnections();
+                    Class.forName("org.postgresql.Driver");
+                    Connection conn = DriverManager.getConnection(dbUrl, userDB, userPwd);
+                    conn.setReadOnly(false);
+                    connDBWorks = true;
+                    return conn;
 
-            } else if (SQLITE_DB) {
-                // SQLite connection
-                String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-                String sqliteUrl = CONNECTION_TYPE_SQLITE
-                        + dbPath
-                        + ARConstants.FILE_NAME_SQLITE; // make sure you have FILE_NAME_SQLITE constant
+                } else if (SQLITE_DB) {
+                    // SQLite connection
+                    String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+                    String sqliteUrl = CONNECTION_TYPE_SQLITE + dbPath + ARConstants.FILE_NAME_SQLITE;
 
-                ARLogger.getInstance(PerformDBEngine.class).info("SQLITE connection URL: " + sqliteUrl);
+                    ARLogger.getInstance(PerformDBEngine.class)
+                            .info("Attempt " + attempt + " - SQLITE connection URL: " + sqliteUrl);
 
-                Class.forName("org.sqlite.JDBC");
+                    Class.forName("org.sqlite.JDBC");
 
-                SQLiteConfig config = new SQLiteConfig();
-                config.enforceForeignKeys(true);
+                    SQLiteConfig config = new SQLiteConfig();
+                    config.enforceForeignKeys(true);
 
-                Connection conn = DriverManager.getConnection(sqliteUrl, config.toProperties());
-                //                    conn = SQLiteHelper.getConnection(sqliteUrl);
-                conn.setReadOnly(false);
-                connDBWorks = true;
-                return conn;
+                    Connection conn = DriverManager.getConnection(sqliteUrl, config.toProperties());
+                    conn.setReadOnly(false);
+                    connDBWorks = true;
+                    return conn;
 
-                //                // Reset open connections counter if too many
-                //                if (getOpenConnectionsCount() > 10) {
-                //                    this.openConnections = 0;
-                //                }
-                //                incrementOpenConnections();
+                } else {
+                    // Default to Access connection
+                    String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+                    String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
 
-            } else {
-                // Default to Access connection
-                String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-                String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
+                    ARLogger.getInstance(PerformDBEngine.class)
+                            .info("Attempt " + attempt + " - ACCESS connection URL: " + dbUrl);
 
-                ARLogger.getInstance(PerformDBEngine.class).info("ACCESS connection URL: " + dbUrl);
+                    Class.forName("net.ucanaccess.jdbc.UcanaccessDriver");
+                    Connection conn = DriverManager.getConnection(dbUrl);
+                    conn.setReadOnly(false);
+                    connDBWorks = true;
+                    return conn;
+                }
 
-                Class.forName("net.ucanaccess.jdbc.UcanaccessDriver");
-                Connection conn = DriverManager.getConnection(dbUrl);
-                conn.setReadOnly(false);
-                connDBWorks = true;
-                return conn;
+            } catch (SQLException | ClassNotFoundException error) {
+                ARLogger.getInstance(PerformDBEngine.class)
+                        .warning("Connection attempt " + attempt + " failed: " + error.getMessage());
 
-                //                // Reset open connections counter if too many
-                //                if (getOpenConnectionsCount() > 10) {
-                //                    this.openConnections = 0;
-                //                }
-                //                incrementOpenConnections();
+                // If not last attempt, wait and retry
+                if (attempt < maxAttempts) {
+                    try {
+                        Thread.sleep(retryDelayMs);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                    }
+                } else {
+                    // On final failure, log and throw
+                    String database = POSTGRES_DB ? "Postgres" : (SQLITE_DB ? "SQLite" : "Access");
+                    connDBWorks = false;
+                    performMessage.errorMessage(
+                            "Database connection Failed",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>An error occurred during the Database connection.</span>",
+                            "<span style='font-weight: bold;'>" + database + "</span>.",
+                            "<span style='color: #E65100; font-weight: bold;'>Please ensure the Database connections are correct.</span>",
+                            "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
+                            0);
+
+                    if (error instanceof SQLException) {
+                        throw (SQLException) error;
+                    } else {
+                        throw new SQLException("Driver not found: " + error.getMessage(), error);
+                    }
+                }
             }
-
-        } catch (SQLException error) {
-            ARLogger.getInstance(PerformDBEngine.class).severe("getConnection Error: " + error.getMessage());
-
-            String database = POSTGRES_DB ? "Postgres" : (SQLITE_DB ? "SQLite" : "Access");
-            connDBWorks = false;
-            performMessage.errorMessage(
-                    "Database connection Failed",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>An error occurred during the Database connection.</span>",
-                    "<span style='font-weight: bold;'>" + database + "</span>.",
-                    "<span style='color: #E65100; font-weight: bold;'>Please ensure the Database connections are correct.</span>",
-                    "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
-                    0);
-
-            throw error;
-        } catch (ClassNotFoundException error) {
-            ARLogger.getInstance(PerformDBEngine.class)
-                    .severe("Driver DB Class not Found Error: " + error.getMessage());
         }
 
         connDBWorks = false;

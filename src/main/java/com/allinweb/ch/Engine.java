@@ -10,8 +10,10 @@ import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
+import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
+import com.google.gson.Gson;
 import io.opentelemetry.api.internal.StringUtils;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -19,7 +21,12 @@ import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.IntStream;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.util.Pair;
 import javax.swing.*;
 import org.openqa.selenium.WebDriver;
@@ -46,7 +53,10 @@ public class Engine {
 
     private static List<VariableLoadDTO> variablesLoaded;
 
+    private static final Gson gson = new Gson();
+
     private static String sessionRowStatus;
+    private static String jsonStatus;
     private static RowStatus rowStatus = new RowStatus();
 
     private static String excelPath = null;
@@ -56,6 +66,7 @@ public class Engine {
     private static int executeSpecificBlock;
     private static int currentBlockId;
 
+    private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     private static final ARPriorities arPriorities = ARPriorities.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
@@ -63,6 +74,26 @@ public class Engine {
     private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformActions performActions = PerformActions.getInstance();
     private static final ARWebDriver currentARWebDriver = ARWebDriver.getInstance();
+
+    public static final AtomicBoolean isJobRunning = new AtomicBoolean(false);
+    protected static BooleanProperty interceptBotJob = new SimpleBooleanProperty(false);
+
+    public BooleanProperty interceptBotJobProperty() {
+        return interceptBotJob;
+    }
+
+    public boolean isInterceptBotJob() {
+        return interceptBotJob.get();
+    }
+
+    public static void setInterceptBotJob(boolean value) {
+        interceptBotJob.set(value);
+    }
+
+    private static Set<String> windowHandles;
+
+    private static ExecutorService executorServicePreLaunch;
+
     private static int portSocketInitial = 54525;
     private static boolean searchHiddenFields;
     private static String[] defaultSearch;
@@ -260,7 +291,7 @@ public class Engine {
 
         if (executeJob) {
             initializeWebDriver();
-            executeJob();
+            recallJob();
             System.exit(0);
         }
     }
@@ -327,6 +358,37 @@ public class Engine {
         return Arrays.copyOfRange(array, index + 1, array.length);
     }
 
+    private static void recallJob() {
+        if (isJobRunning.compareAndSet(false, true)) { // Try to set to true if currently false
+            try {
+                if (executorServicePreLaunch == null || executorServicePreLaunch.isShutdown()) {
+                    executorServicePreLaunch = Executors.newSingleThreadExecutor();
+                }
+
+                executorServicePreLaunch.submit(() -> {
+                    try {
+                        executeJob();
+                    } finally {
+                        isJobRunning.set(false);
+                    }
+                });
+            } catch (Exception ignore) {
+                // Log the error properly instead of ignoring
+                ARLogger.getInstance(Engine.class)
+                        .severe("Error submitting to executorServicePreLaunch: " + ignore.getMessage());
+                isJobRunning.set(false); // Ensure flag is reset on submission failure
+            }
+        } else {
+            // Optionally log that a new execution was requested but is already running
+            System.out.println("recallJob() requested, but executeJob() is already running.");
+            ARLogger.getInstance(Engine.class).info("recallJob() requested while executeJob() was running.");
+        }
+
+        if (performActions.getCurrentDriver().getWindowHandles().size() != performActions.windowHandlesList.size()) {
+            performActions.updateWindowHandlesList();
+        }
+    }
+
     private static boolean executeJob() {
         if (PerformActions.waitForPage == null) {
             String updateTimeout = arPropertyManager.getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
@@ -341,14 +403,13 @@ public class Engine {
         Properties labelsValue = Labels.labelsValue;
 
         List<BlockLoadDTO> blocksLoaded = performLists.getListBotJob().get(0).getBlockLoadDTOList();
-        if (!(new File(excelPath)).exists()) {
-
+        if (!new File(excelPath).exists()) {
             performMessage.errorMessage(
-                    "Duplicate Name",
-                    "<span style='color: #000080; font-weight: bold; font-size: 14px;'>File Excel Does not Exist</span>",
-                    "<span style='color: #000080; font-weight: bold; font-size: 14px;'>Excel file: </span>",
-                    "<span style='color: #000080; font-weight: bold;'>" + excelPath + "</span>",
-                    "<span style='color: red; font-weight: bold;'>IS MANDATORY TO HAVE EXCEL FILE FOR TESTS!!!</span>",
+                    "Action Required: Prepare Excel Data",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Crucial Step: Prepare Excel Data Before Launch!</span>",
+                    "<span style='color: #2E7D32; font-weight: bold;'>To successfully initiate the bot job, the Excel data file must be generated and compiled *first*.</span>",
+                    "<span style='font-style: italic;'>Ensure this preparation is complete before attempting to launch the automation process.</span>",
+                    null,
                     0);
 
             return false;
@@ -371,29 +432,17 @@ public class Engine {
             return false;
         }
 
-        if (!new File(excelPath).exists()) {
-            performMessage.errorMessage(
-                    "Action Required: Prepare Excel Data",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Crucial Step: Prepare Excel Data Before Launch!</span>",
-                    "<span style='color: #2E7D32; font-weight: bold;'>To successfully initiate the bot job, the Excel data file must be generated and compiled *first*.</span>",
-                    "<span style='font-style: italic;'>Ensure this preparation is complete before attempting to launch the automation process.</span>",
-                    null,
-                    0);
-
-            return false;
-        }
-
         ExcelReader excelReader = new ExcelReader();
         ExtractedData extractedData = null;
         try {
             extractedData = excelReader.extractData(excelPath, performLists.getAllActions());
         } catch (Exception e) {
             performMessage.errorMessage(
-                    "Excel File Error",
-                    "<span style='color: #000080; font-weight: bold; font-size: 14px;'>Check All Excel Columns and Values!</span>",
-                    "<span style='color: #000080; font-weight: bold;'></span>",
-                    "<span style='font-style: italic;'>Details:</span>",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Error loading Excel Rows.  Maybe it is better to re-generate the file.</span>",
+                    "Error Processing Excel File",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to Execute Excel File!</span> ⚠️",
+                    "<span style='color: #E65100; font-weight: bold;'>Please carefully review all Excel columns and their values for potential errors.</span>",
+                    "<span style='font-style: italic;'>Inconsistent or incorrect data can prevent the application from processing the file.</span>",
+                    null,
                     0);
         }
 
@@ -419,7 +468,7 @@ public class Engine {
 
         ExcelWriter.ExcelChain writerExport = null;
         //                new ExcelWriter(blocksLoaded.get(0).getName(),
-        // arWebDriver.getCurrentDriver()).withPurpose("export");
+        // performActions.getCurrentDriver()).withPurpose("export");
         boolean excelExportOnceCreation = true;
         //        writerExport.insertReportHead();
 
@@ -488,34 +537,26 @@ public class Engine {
                 ARLogger.getInstance(Engine.class)
                         .warning("Multiple Excel Rows Detected: each row wll return to first block");
 
-                //                    respModal = performMessage.showCustomModalDialogDragWin11(
-                //                            "Multiple Excel Rows Detected",
-                //                            "<span style='font-weight: bold;'>Your Excel data file contains
-                // multiple rows.</span>",
-                //                            "By default, each Excel test row <span style='font-weight: bold;
-                // color: #e854c8;'>will be processed through all blocks</span>, and after  will jump back to <span
-                // style='font-weight: bold;'>first block (Use Case).</span>",
-                //                            "Add the <span style='font-weight: bold; color: #FF4500;'>'Excel
-                // GOTO'</span> operation to your flow to modify the <span style='font-weight: bold;'>default
-                // behaviour.</span>",
-                //                            "The <span style='font-weight: bold; color: #FF4500;'>Excel
-                // GOTO</span> allows you to specify which block <span style='font-weight: bold;'>the flow should
-                // continue from</span>, after the execution of the first row across all blocks.",
-                //                            false,
-                //                            "Continue",
-                //                            "Stop All",
-                //                            0);
+                respModal = performMessage.showCustomModalDialogDragWin11(
+                        "Multiple Excel Rows Detected",
+                        "<span style='font-weight: bold;'>Your Excel data file contains multiple rows.</span>",
+                        "By default, each Excel test row <span style='font-weight: bold; color: #e854c8;'>will be processed through all blocks</span>, and after  will jump back to <span style='font-weight: bold;'>first block (Use Case).</span>",
+                        "Add the <span style='font-weight: bold; color: #FF4500;'>'Excel GOTO'</span> operation to your flow to modify the <span style='font-weight: bold;'>default behaviour.</span>",
+                        "The <span style='font-weight: bold; color: #FF4500;'>Excel GOTO</span> allows you to specify which block <span style='font-weight: bold;'>the flow should continue from</span>, after the execution of the first row across all blocks.",
+                        false,
+                        "Continue",
+                        "Stop All",
+                        0);
 
-                //                    if (respModal.equals(ARConstants.DialogModal.STOP)) {
-                //                        launchBotJobButton.setDisable(false);
-                //                        performActions.setInterceptBotJob(true);
-                //                        setInterceptBotJob(true);
-                //                        isJobRunning.set(false);
-                //
-                //                        if (!lastBrowserTab()) {
-                //                            return false;
-                //                        }
-                //                    }
+                if (respModal.equals(ARConstants.DialogModal.STOP)) {
+                    performActions.setInterceptBotJob(true);
+                    setInterceptBotJob(true);
+                    isJobRunning.set(false);
+
+                    if (!lastBrowserTab()) {
+                        return false;
+                    }
+                }
             }
 
             // Execute All Blocks starting from executeSpecificBlock if Defined
@@ -822,33 +863,30 @@ public class Engine {
                                 continue;
                             }
 
-                            // sendMessageJson(int homeBankingId, String sessionId, String msg1, String msg2)
-                            String jsonStatus;
+                            // webSocketSessionManager.sendMessageJson(int homeBankingId, String sessionId, String msg1,
+                            // String msg2)
                             if (rowStatus.getInstructionId() == null) {
                                 rowStatus.setInstructionId(currentInstruction.getId());
-                                rowStatus.setColor("#fcba03"); // deep carmine yellow
-                                //                                jsonStatus = gson.toJson(rowStatus);
-                                //                                sendMessageJson(homeBanking.getId(),
-                                // sessionRowStatus,
-                                // jsonStatus, "rowStatus");
+                                rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
+                                jsonStatus = gson.toJson(rowStatus);
+                                webSocketSessionManager.sendMessageJson(
+                                        currentBotJob.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
                             } else {
                                 // Previous
-                                rowStatus.setColor("#1d9c06"); // green
-                                //                                jsonStatus = gson.toJson(rowStatus);
-                                //                                sendMessageJson(homeBanking.getId(),
-                                // sessionRowStatus,
-                                // jsonStatus, "rowStatus");
+                                rowStatus.setColor("green"); // #1d9c06 green
+                                jsonStatus = gson.toJson(rowStatus);
+                                webSocketSessionManager.sendMessageJson(
+                                        currentBotJob.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
                                 try {
                                     Thread.sleep(300);
                                 } catch (Exception e) {
                                 }
                                 // Current
                                 rowStatus.setInstructionId(currentInstruction.getId());
-                                rowStatus.setColor("#fcba03"); // deep carmine green
-                                //                                jsonStatus = gson.toJson(rowStatus);
-                                //                                sendMessageJson(homeBanking.getId(),
-                                // sessionRowStatus,
-                                // jsonStatus, "rowStatus");
+                                rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
+                                jsonStatus = gson.toJson(rowStatus);
+                                webSocketSessionManager.sendMessageJson(
+                                        currentBotJob.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
                             }
 
                             //                        String[] operation =
@@ -1148,12 +1186,11 @@ public class Engine {
                                 parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
                                 variableField =
                                         performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
-                                //                                    if (delimiterCSV == null) {
-                                //                                        delimiterCSV =
+                                //                                if (delimiterCSV == null) {
+                                //                                    delimiterCSV =
                                 // performActions.getInstructionVariableDelimiter(
-                                //                                                currentInstruction,
-                                // variablesLoaded);
-                                //                                    }
+                                //                                            currentInstruction, variablesLoaded);
+                                //                                }
                                 if (variableField == null) {
                                     variableField = "Not Variable defined";
                                 }
@@ -1908,14 +1945,12 @@ public class Engine {
                 } else if (excelFieldName != null
                         && excelFieldName.toLowerCase().endsWith(".xlsx")) {
                     //
-                    //                    writerExport.insertFieldNameAndValueLastColumn(mapExportRows, exportIndex
-                    // -
+                    //                    writerExport.insertFieldNameAndValueLastColumn(mapExportRows, exportIndex -
                     // 1);
                     writerExport.insertCSVContentIntoExcel(columnsCSV, rowsCSV, exportIndex - 1);
                 }
             }
         }
-        //            launchBotJobButton.setDisable(false);
 
         totalExecutionTime = performActions.getTotalExecutionTime();
 
@@ -1926,6 +1961,7 @@ public class Engine {
         }
 
         // PRINT END BASE LOG//
+
         if (success) {
             baseLogString = currentBotJobName
                     + ARConstants.FIELDS_SEPARATOR
@@ -1953,6 +1989,7 @@ public class Engine {
                     + labelsValue.getProperty(Labels.END)
                     + ARConstants.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.KO)
+                    + ARConstants.FIELDS_SEPARATOR
                     + resultActions;
 
             if (webElementWork) {
@@ -2336,5 +2373,38 @@ public class Engine {
         currentARWebDriver.setCurrentDriver(null); // reset current driver
 
         currentARWebDriver.closeAllDrivers();
+    }
+
+    public static boolean lastBrowserTab() {
+        // Get all window handles (all open tabs/windows)
+        try {
+            windowHandles = performActions.getCurrentDriver().getWindowHandles();
+
+            // Convert the window handles set to a list
+            List<String> windowHandlesList = new ArrayList<>(windowHandles);
+
+            // Switch to the last window (newly opened tab)
+            performActions.getCurrentDriver().switchTo().window(windowHandlesList.get(windowHandlesList.size() - 1));
+
+            return true;
+        } catch (Exception e) {
+
+            browserNotAttached();
+
+            return false;
+        }
+    }
+
+    private static void browserNotAttached() {
+        String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+        performMessage.errorMessage(
+                "The Browser attached with this Web Scanner is Not Active",
+                "<span style='font-style: italic;'>Session deleted as the browser has closed the connection!</span>",
+                "<span style='color: #E65100; font-weight: bold;'>WebDriver path:</span> <span style='font-weight: bold;'>"
+                        + webDriverPath + "</span>",
+                "<span style='font-style: italic;'>Please close and Re-Open the Scanner Tool.</span>",
+                "<span style='font-style: italic;'>Details: " + "Web Browser was closed before the Scanner Tool"
+                        + "</span>",
+                0);
     }
 }
