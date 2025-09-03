@@ -361,7 +361,7 @@ public class EngineRunner {
 
         // clearFields();
 
-        sessionRowStatus = "botJobTasks"; // + botJobId;
+        sessionRowStatus = "engine-perform-bot-job"; // + botJobId;
 
         variablesLoaded = performLists.getListVariable();
         Map<String, String> mapSavedLocators = new HashMap<>();

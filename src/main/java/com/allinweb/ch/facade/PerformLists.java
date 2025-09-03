@@ -97,7 +97,7 @@ public class PerformLists {
         }
 
         if (!isConnectWebSocket) {
-            connectWebSocketClient(portSocketInitial, "engine-perform-list-data");
+            connectWebSocketClient(portSocketInitial, "engine-perform-bot-job");
         }
     }
 
@@ -114,7 +114,7 @@ public class PerformLists {
                     try {
                         if (session != null && session.isOpen()) {
                             session.getBasicRemote()
-                                    .sendText("ping-engine-perform-list-data"); // Or a specific keep-alive message
+                                    .sendText("ping-engine-perform-bot-job"); // Or a specific keep-alive message
                         }
                     } catch (IOException e) {
                         System.err.println("Error sending ping: " + e.getMessage());
@@ -133,6 +133,19 @@ public class PerformLists {
         System.out.println("Connected to WebSocket server at: " + session.getRequestURI());
         // Sending an initial message
         sendMessage("Hello from JavaFX WebSocket client!");
+
+        String sessionId = null;
+        try {
+            sessionId = session.getRequestParameterMap().get("sessionId").get(0);
+
+            if (!Strings.isNullOrEmpty(sessionId)) {
+                webSocketSessionManager.addSession(sessionId, session);
+            } else {
+                //                addSession(generateCustomSessionId(session), session);
+            }
+        } catch (Exception noSessionId) {
+            //            addSession(generateCustomSessionId(session), session);
+        }
     }
 
     @OnClose
