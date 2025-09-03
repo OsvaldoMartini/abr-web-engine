@@ -11,5 +11,5 @@ public class RollBackBlocksDTO {
     private String blockName;
     private Integer homeBankingId;
     private String sessionId;
-    private List<InstructionLoadDTO> instructions;
+    private List<InstructionLoad> instructions;
 }

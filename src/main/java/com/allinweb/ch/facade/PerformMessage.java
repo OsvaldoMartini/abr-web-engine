@@ -1,7 +1,7 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.component.model.ElementDTO;
-import com.allinweb.ch.component.model.InstructionLoadDTO;
+import com.allinweb.ch.component.model.InstructionLoad;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
@@ -822,7 +822,7 @@ public class PerformMessage {
         });
     }
 
-    public String renderInstructionActions(InstructionLoadDTO instruction) {
+    public String renderInstructionActions(InstructionLoad instruction) {
         // List of valid actions
         List<String> validActions = Arrays.asList("SET", "GET", "CK", "E");
 
@@ -902,15 +902,15 @@ public class PerformMessage {
         }
     }
 
-    public void outputJson(List<InstructionLoadDTO> blockLoopInstructions, String fileName, boolean genTestData) {
+    public void outputJson(List<InstructionLoad> blockLoopInstructions, String fileName, boolean genTestData) {
         // Get the directory path from ARPropertyManager
         String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
 
-        List<InstructionLoadDTO> updatedList = new ArrayList<>(); // Create a new list for updated instructions
+        List<InstructionLoad> updatedList = new ArrayList<>(); // Create a new list for updated instructions
 
-        for (InstructionLoadDTO instruction : blockLoopInstructions) {
-            // Create a new InstructionLoadDTO object to avoid modifying the original
-            InstructionLoadDTO updatedInstruction = new InstructionLoadDTO();
+        for (InstructionLoad instruction : blockLoopInstructions) {
+            // Create a new InstructionLoad object to avoid modifying the original
+            InstructionLoad updatedInstruction = new InstructionLoad();
 
             int genData = 0;
             if (genTestData) {
@@ -984,7 +984,7 @@ public class PerformMessage {
                 .setPrettyPrinting()
                 .create();
 
-        // Serialize the list of InstructionLoadDTO to JSON
+        // Serialize the list of InstructionLoad to JSON
         String jsonData = gson.toJson(updatedList);
 
         // Create the file path

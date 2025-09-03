@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class InstructionLoadDTO {
+public class InstructionLoad {
     private Integer homeBankingId;
     private Integer id;
     private Integer botJobId;
@@ -50,16 +50,14 @@ public class InstructionLoadDTO {
     private Boolean loopOnly;
     private Integer variableId;
     private String type;
-    private Integer instructionId;
     private String instructionName;
     private String sessionId;
     private Integer parentBlockId;
 
-    private List<ComplexInstructionLoadDTO> complexInstructionLoadDTOList;
     private List<ReferenceLoadDTO> referenceLoadDTOList;
 
     // Custom constructor
-    public InstructionLoadDTO(
+    public InstructionLoad(
             Integer homeBankingId,
             Integer botJobId,
             String botJobName,

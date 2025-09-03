@@ -3,8 +3,6 @@ package com.allinweb.ch.facade;
 import com.allinweb.ch.util.*;
 import java.io.File;
 import java.sql.*;
-import lombok.Getter;
-import lombok.Setter;
 
 /**
  * PerformActions.
@@ -14,10 +12,6 @@ import lombok.Setter;
  */
 public class PerformInitializer {
     protected static volatile PerformInitializer instance;
-
-    @Getter
-    @Setter
-    public Connection conn = null;
 
     // Private constructor to prevent instantiation
     private PerformInitializer() {}
@@ -41,9 +35,7 @@ public class PerformInitializer {
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
 
-    public void initialize(Connection conn) {
-        this.conn = conn;
-    }
+    public void initialize() {}
 
     public ErrorMessage initializeMainDatabasePostgres() {
         try (Connection conn = performDataBase.getConnection()) {
@@ -678,7 +670,6 @@ public class PerformInitializer {
     public boolean doesNotInstructionTableExistAccess(Connection conn) throws SQLException {
         try {
             if (conn != null && conn.getMetaData() != null) {
-                setConn(conn);
                 try (ResultSet rs = conn.getMetaData().getTables(null, null, "instruction", null)) {
                     return !rs.next(); // true if the table does NOT exist
                 }
@@ -697,7 +688,7 @@ public class PerformInitializer {
     public boolean doesNotInstructionTableExist(Connection conn) throws SQLException {
         try {
             if (conn != null && conn.getMetaData() != null) {
-                setConn(conn);
+
                 try (ResultSet rs = conn.getMetaData().getTables(null, null, "instruction", null)) {
                     return !rs.next(); // true if the table does NOT exist
                 }
@@ -789,22 +780,19 @@ public class PerformInitializer {
         if (performDataBase.POSTGRES_DB) {
             try {
                 if (doesNotInstructionTableExist(performDataBase.getConnection())) {
-                    if (getConn() != null) {
-                        ErrorMessage errorMessage = initializeMainDatabasePostgres();
-                        if (errorMessage != null) {
-                            ARLogger.getInstance(PerformInitializer.class)
-                                    .severe("Database Creation Error: " + errorMessage.getErrorMessage());
+                    ErrorMessage errorMessage = initializeMainDatabasePostgres();
+                    if (errorMessage != null) {
+                        ARLogger.getInstance(PerformInitializer.class)
+                                .severe("Database Creation Error: " + errorMessage.getErrorMessage());
 
-                            performMessage.errorMessage(
-                                    errorMessage.getErrorTitle(),
-                                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span>",
-                                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> Database Creation Error",
-                                    "<span style='color: #2E7D32; font-weight: bold;'>" + errorMessage.getErrorHeader()
-                                            + "</span>",
-                                    "<span style='font-style: italic;'>Detail:</span> "
-                                            + errorMessage.getErrorMessage(),
-                                    0);
-                        }
+                        performMessage.errorMessage(
+                                errorMessage.getErrorTitle(),
+                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span>",
+                                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> Database Creation Error",
+                                "<span style='color: #2E7D32; font-weight: bold;'>" + errorMessage.getErrorHeader()
+                                        + "</span>",
+                                "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                                0);
                     }
                 }
             } catch (Exception error) {
@@ -817,7 +805,7 @@ public class PerformInitializer {
 
             try {
                 if (doesNotInstructionTableExistSQLITE(performDataBase.getConnection())) {
-                    if (getConn() != null) {
+                    if (performDataBase.isConnDBWorks()) {
                         ErrorMessage errorMessage = initializeMainDatabaseSQLite(dbFile);
 
                         if (errorMessage != null) {
@@ -846,7 +834,7 @@ public class PerformInitializer {
 
             try {
                 if (doesNotInstructionTableExistAccess(performDataBase.getConnection())) {
-                    if (getConn() != null) {
+                    if (performDataBase.isConnDBWorks()) {
                         ErrorMessage errorMessage = initializeMainDatabaseAccess(dbFile);
 
                         if (errorMessage != null) {

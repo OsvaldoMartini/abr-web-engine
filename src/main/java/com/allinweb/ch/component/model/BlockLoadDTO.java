@@ -18,5 +18,5 @@ public class BlockLoadDTO {
     private Boolean active;
     private Integer wait;
 
-    private List<InstructionLoadDTO> instructionLoadDTOS;
+    private List<InstructionLoad> instructionLoad;
 }

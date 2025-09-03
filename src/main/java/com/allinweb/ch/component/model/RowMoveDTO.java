@@ -19,5 +19,5 @@ public class RowMoveDTO {
     private Boolean isBetween;
     private Integer homeBankingId;
     private Integer parentBlockId;
-    private List<InstructionLoadDTO> updatedRows;
+    private List<InstructionLoad> updatedRows;
 }

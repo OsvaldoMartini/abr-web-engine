@@ -12,6 +12,7 @@ public class VariableUserDTO {
     private StringProperty value;
     private IntegerProperty botJobId;
     private IntegerProperty parentId;
+    private StringProperty parentName;
     private StringProperty localFormat;
     private StringProperty delimiter;
     private StringProperty usedVars;
@@ -25,6 +26,7 @@ public class VariableUserDTO {
             String value,
             Integer botJobId,
             Integer parentId,
+            String parentName,
             String localFormat,
             String delimiter,
             String usedVars) {
@@ -34,18 +36,21 @@ public class VariableUserDTO {
         this.value = new SimpleStringProperty(value);
         this.botJobId = new SimpleIntegerProperty(botJobId);
         this.parentId = new SimpleIntegerProperty(parentId);
+        this.parentName = new SimpleStringProperty(parentName);
         this.localFormat = new SimpleStringProperty(localFormat);
         this.delimiter = new SimpleStringProperty(delimiter);
         this.usedVars = new SimpleStringProperty(usedVars);
     }
 
-    public VariableUserDTO(Integer id, String type, String name, String value, Integer botJobId, Integer parentId) {
+    public VariableUserDTO(
+            Integer id, String type, String name, String value, Integer botJobId, Integer parentId, String parentName) {
         this.id = new SimpleIntegerProperty(id);
         this.type = new SimpleStringProperty(type);
         this.name = new SimpleStringProperty(name);
         this.value = new SimpleStringProperty(value);
         this.botJobId = new SimpleIntegerProperty(botJobId);
         this.parentId = new SimpleIntegerProperty(parentId);
+        this.parentName = new SimpleStringProperty(parentName);
     }
 
     public Integer getId() {
@@ -118,6 +123,18 @@ public class VariableUserDTO {
 
     public void setParentId(Integer parentId) {
         this.parentId.set(parentId);
+    }
+
+    public String getParentName() {
+        return parentName.get();
+    }
+
+    public StringProperty parentNameProperty() {
+        return parentName;
+    }
+
+    public void setParentName(String parentName) {
+        this.parentName.set(parentName);
     }
 
     public String getUsedVars() {

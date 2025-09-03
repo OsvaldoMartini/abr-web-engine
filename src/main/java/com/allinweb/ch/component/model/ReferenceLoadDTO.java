@@ -9,7 +9,5 @@ public class ReferenceLoadDTO {
     private Integer botJobId;
     private String referenceType;
     private String value;
-    private Integer blockLoopInstructionId;
-
-    private InstructionLoadDTO instructionLoadDTO;
+    private Integer instructionId;
 }
