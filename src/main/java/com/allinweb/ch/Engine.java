@@ -3,7 +3,7 @@ package com.allinweb.ch;
 import com.allinweb.ch.component.model.*;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformActions;
-import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.license.LicenceVal;
@@ -60,7 +60,7 @@ public class Engine {
     private static final ARPriorities arPriorities = ARPriorities.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
     private static final PerformLists performLists = PerformLists.getInstance();
-    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformActions performActions = PerformActions.getInstance();
     private static final ARWebDriver currentARWebDriver = ARWebDriver.getInstance();
     private static int portSocketInitial = 54525;
@@ -154,9 +154,9 @@ public class Engine {
         }
 
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
-        performDataBase.initialize(dataBaseType);
+        performDBEngine.initialize(dataBaseType);
         try {
-            performDataBase.changeDbConnection();
+            performDBEngine.changeDbConnection();
         } catch (Exception error) {
             ARLogger.getInstance(Engine.class).severe("Error Database Connections: " + error.getMessage());
             System.exit(0);
@@ -209,12 +209,12 @@ public class Engine {
             ARLogger.getInstance(Engine.class).severe("Error Defining Excel or BaseLog File: " + error.getMessage());
         }
 
-        ErrorMessage errorMessage = performDataBase.loadHomeBanking(homeBankId);
+        ErrorMessage errorMessage = performDBEngine.loadHomeBanking(homeBankId);
         if (errorMessage == null) {
-            errorMessage = performDataBase.loadHomeUrls(homeBankId);
+            errorMessage = performDBEngine.loadHomeUrls(homeBankId);
         }
         if (errorMessage == null) {
-            errorMessage = performDataBase.loadCompleteJobs(botJobId);
+            errorMessage = performDBEngine.loadCompleteJobs(botJobId);
         }
 
         if (errorMessage != null) {
@@ -355,7 +355,7 @@ public class Engine {
         }
 
         // Assuming blocksLoaded is your List<BlockLoadDTO>
-        ErrorMessage errorMessage = performDataBase.loadAllActionsPerBlock(blocksLoaded);
+        ErrorMessage errorMessage = performDBEngine.loadAllActionsPerBlock(blocksLoaded);
 
         if (errorMessage != null) {
             ARLogger.getInstance(Engine.class).severe("Error: " + errorMessage.getErrorMessage());
@@ -440,7 +440,7 @@ public class Engine {
 
         sessionRowStatus = "botJobTasks"; // + botJobId;
 
-        errorMessage = performDataBase.loadAllVariables("variable", currentBotJob.getId());
+        errorMessage = performDBEngine.loadAllVariables("variable", currentBotJob.getId());
 
         if (errorMessage != null) {
             ARLogger.getInstance(Engine.class).severe("Error: " + errorMessage.getErrorMessage());
@@ -477,7 +477,7 @@ public class Engine {
             List<InstructionLoad> excelDataGoto = new ArrayList<>();
             String tableName = "instruction";
             try {
-                excelDataGoto = performDataBase.loadExcelGotoBlock(currentBotJob.getId(), tableName);
+                excelDataGoto = performDBEngine.loadExcelGotoBlock(currentBotJob.getId(), tableName);
             } catch (Exception error) {
                 ARLogger.getInstance(Engine.class)
                         .severe("Error reading 'EXCEL GOTO' instructions: " + error.getMessage());

@@ -83,7 +83,6 @@ public class PerformActions {
 
     private static final PerformMessage performMessage;
     private static final PerformLists performLists;
-    private static final PerformDataBase performDataBase;
     private static final IframeInputLocator iframeInputLocator;
     private static final ARPropertyManager arPropertyManager;
     private BooleanProperty interceptBotJob = new SimpleBooleanProperty(false);
@@ -92,7 +91,6 @@ public class PerformActions {
         arPropertyManager = ARPropertyManager.getInstance();
         performMessage = PerformMessage.getInstance();
         performLists = PerformLists.getInstance();
-        performDataBase = PerformDataBase.getInstance();
         iframeInputLocator = IframeInputLocator.getInstance();
     }
 
@@ -3831,37 +3829,6 @@ public class PerformActions {
         } catch (NumberFormatException e) {
             System.err.println("Invalid coordinates from Javascript code: " + targetRefs.getCoordinates());
         }
-    }
-
-    public int createBlockIfNone(String blockTable, int whereId) {
-
-        // It Prevents Start without blocks
-        ErrorMessage errorMessage = performDataBase.loadBlocks(whereId, null, blockTable);
-        if (errorMessage == null && performLists.getListBlock().isEmpty()) {
-
-            errorMessage =
-                    performDataBase.initiateNewBlock(blockTable, whereId, "Default Block", "Default Block", 1, false);
-
-            if (errorMessage == null) {
-                if (!performDataBase.getIdsBlockAfter().isEmpty()
-                        && performDataBase.getIdsBlockAfter().get(0) > 0) {
-                    return performDataBase.getIdsBlockAfter().get(0);
-                } else {
-                    return -1;
-                }
-            } else {
-
-                performMessage.errorMessage(
-                        errorMessage.getErrorTitle(),
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                + errorMessage.getErrorTitle(),
-                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                        null,
-                        0);
-            }
-        }
-        return -1;
     }
 
     public WebElement findWebElement(TargetElement targetFind) {
