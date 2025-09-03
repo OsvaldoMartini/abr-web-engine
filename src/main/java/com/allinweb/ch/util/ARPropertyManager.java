@@ -131,16 +131,6 @@ public class ARPropertyManager {
 
             setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.2f Beta Test");
             setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 18/08/2025");
-
-            //        } catch (Exception e) {
-            //
-            //            createDefaultProperties(configurationFile);
-            //
-            //            //                loadProperties();
-            //            Platform.runLater(() -> {
-            //                arConfigurationScene.showModal();
-            //            });
-
         } catch (IOException error) {
             performMessage.errorMessage(
                     "File Creation Error",

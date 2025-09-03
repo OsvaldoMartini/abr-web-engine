@@ -218,6 +218,7 @@ public class Engine {
         }
 
         if (errorMessage != null) {
+            ARLogger.getInstance(Engine.class).severe("Error: " + errorMessage.getErrorMessage());
             performMessage.errorMessage(
                     errorMessage.getErrorTitle(),
                     "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
@@ -357,6 +358,7 @@ public class Engine {
         ErrorMessage errorMessage = performDataBase.loadAllActionsPerBlock(blocksLoaded);
 
         if (errorMessage != null) {
+            ARLogger.getInstance(Engine.class).severe("Error: " + errorMessage.getErrorMessage());
             performMessage.errorMessage(
                     errorMessage.getErrorTitle(),
                     "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
@@ -438,9 +440,10 @@ public class Engine {
 
         sessionRowStatus = "botJobTasks"; // + botJobId;
 
-        errorMessage = performDataBase.loadAllVariables("instruction", currentBotJob.getId());
+        errorMessage = performDataBase.loadAllVariables("variable", currentBotJob.getId());
 
         if (errorMessage != null) {
+            ARLogger.getInstance(Engine.class).severe("Error: " + errorMessage.getErrorMessage());
             performMessage.errorMessage(
                     errorMessage.getErrorTitle(),
                     "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ?",
