@@ -10,6 +10,8 @@ import com.google.common.base.Strings;
 import java.io.File;
 import java.io.FileInputStream;
 import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.*;
 import lombok.extern.slf4j.Slf4j;
 
@@ -29,7 +31,11 @@ public class Engine {
 
     // static only for entry point
     public static void main(String[] args) {
+
+        Logger.getLogger("org.openqa.selenium").setLevel(Level.SEVERE);
+
         System.setProperty("org.eclipse.jetty.LEVEL", "OFF");
+        Logger.getLogger("org.openqa.selenium").setLevel(Level.SEVERE);
         logControl.disableLogging();
 
         System.out.println("ENGINE STARTED");

@@ -18,7 +18,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
-import javafx.collections.ObservableList;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.*;
@@ -83,7 +82,7 @@ public class ARWebDriver {
         return System.lineSeparator(); // Default line separator if none found
     }
 
-    public void initialize(ObservableList<WebDriver> webDriverList) {
+    public void initialize(List<WebDriver> webDriverList) {
         this.webDriverList = webDriverList;
     }
 

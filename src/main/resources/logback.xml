@@ -1,15 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<configuration>
+<configuration debug="false">
+
+    <!-- Disable all Logback internal status messages -->
+    <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
 
     <!-- Dynamic log path: use system property LOG_PATH, default to ./logs -->
     <property name="LOG_PATH" value="${LOG_PATH:-./logs}"/>
 
     <!-- Console Appender -->
-    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
-            <pattern>%white(%d{ISO8601}) %highlight(%-5level) [%blue(%t)] %yellow(%C{1}): %msg%n%throwable</pattern>
-        </encoder>
-    </appender>
+<!--    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">-->
+<!--        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">-->
+<!--            <pattern>%white(%d{ISO8601}) %highlight(%-5level) [%blue(%t)] %yellow(%C{1}): %msg%n%throwable</pattern>-->
+<!--        </encoder>-->
+<!--    </appender>-->
 
     <!-- Rolling File Appender (main logs) -->
     <appender name="ROLLING_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
@@ -21,7 +24,6 @@
         </encoder>
 
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <!-- File name pattern directly in the LOG_PATH folder -->
             <fileNamePattern>${LOG_PATH}/ar_web_engine_base-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <maxFileSize>10MB</maxFileSize>
             <maxHistory>30</maxHistory>
@@ -51,9 +53,12 @@
     <logger name="org.eclipse.jetty.server" level="OFF" additivity="false"/>
     <logger name="org.eclipse.jetty.websocket" level="OFF" additivity="false"/>
 
+    <!-- Suppress HSQLDB internal logging -->
+    <logger name="org.hsqldb" level="OFF" additivity="false"/>
+
     <!-- Example: Trace logging for a specific package -->
     <logger name="com.allinweb.ch.runner" level="TRACE" additivity="false">
-        <appender-ref ref="CONSOLE"/>
+<!--        <appender-ref ref="CONSOLE"/>-->
         <appender-ref ref="ROLLING_FILE"/>
     </logger>
 
@@ -64,7 +69,7 @@
 
     <!-- Root Logger -->
     <root level="INFO">
-        <appender-ref ref="CONSOLE"/>
+<!--        <appender-ref ref="CONSOLE"/>-->
         <appender-ref ref="ROLLING_FILE"/>
     </root>
 

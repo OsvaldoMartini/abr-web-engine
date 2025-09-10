@@ -1,5 +1,6 @@
 package com.allinweb.ch.readersAndWriters;
 
+import com.allinweb.ch.component.model.FieldData;
 import com.allinweb.ch.util.ARConstantsEngine;
 import com.allinweb.ch.util.ARExecution;
 import com.allinweb.ch.util.ARPropertyEnum;
@@ -15,7 +16,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javafx.util.Pair;
 import javax.imageio.ImageIO;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
@@ -166,7 +166,7 @@ public class ExcelWriter {
                 ARExecution.ConditionStatus currentCondition,
                 String blockName,
                 String[] actions,
-                Pair<String, String> msgLoop,
+                FieldData msgLoop,
                 Map<String, String> data,
                 LocalTime time,
                 boolean success) {

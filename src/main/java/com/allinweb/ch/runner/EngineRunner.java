@@ -23,9 +23,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.IntStream;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.util.Pair;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
@@ -78,9 +75,9 @@ public class EngineRunner {
     private RowStatus rowStatus = new RowStatus();
 
     public final AtomicBoolean isJobRunning = new AtomicBoolean(false);
-    protected static BooleanProperty interceptBotJob = new SimpleBooleanProperty(false);
+    protected static AtomicBoolean interceptBotJob = new AtomicBoolean(false);
 
-    public BooleanProperty interceptBotJobProperty() {
+    public AtomicBoolean interceptBotJobProperty() {
         return interceptBotJob;
     }
 
@@ -115,8 +112,32 @@ public class EngineRunner {
 
         try {
             startParametersInterpreter(args);
-        } catch (Exception e) {
-            log.error("Main class Start Error: " + e.getMessage());
+        } catch (Exception error) {
+            log.error("Main class Start Error: " + error.getMessage());
+            if (error.getMessage().contains("WebDriver")) {
+                String browser = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
+                String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+                int lastSlashIndex = webDriverPath.lastIndexOf('\\');
+                String directoryPath = webDriverPath.substring(0, lastSlashIndex + 1); // includes the last backslash
+                String fileName = webDriverPath.substring(lastSlashIndex + 1);
+
+                performMessage.errorMessage(
+                        "WebDriver Version Incompatibility",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>WebDriver version might be incompatible.</span>",
+                        "<span style='font-weight: bold;'>Please verify the following:</span>",
+                        "<ul>"
+                                + "   <li>The installed browser version: <span style='color: #008b8b ; font-weight: bold;'>"
+                                + browser + "</span></li>"
+                                + "   <li>The WebDriver path:<br><span style='color: #008b8b ; font-weight: bold;'>"
+                                + directoryPath + "</span></li>"
+                                + "<li>The WebDriver file:<br><span style='color: #008b8b ; font-weight: bold;'>"
+                                + fileName + "</span></li>"
+                                + "   <li>Ensure the WebDriver version is the correct one for your browser version.</li>"
+                                + "</ul>",
+                        "<span style='font-style: italic;'>Refer to your browser's documentation or the WebDriver's release notes for compatibility information.</span>",
+                        0);
+            }
+
             System.exit(0);
         }
     }
@@ -315,6 +336,7 @@ public class EngineRunner {
                 executorServicePreLaunch.submit(() -> {
                     try {
                         executeJob();
+                        System.exit(0);
                     } finally {
                         isJobRunning.set(false);
                     }
@@ -370,10 +392,10 @@ public class EngineRunner {
         return resultActions;
     }
 
-    private Pair<String, String> updateMSGInstruction(Pair<String, String> msgInstruction, String failedMessage) {
+    private FieldData updateMSGInstruction(FieldData msgInstruction, String failedMessage) {
         String currentKey = msgInstruction.getKey();
         String updatedKey = failedMessage + " - " + currentKey;
-        return new Pair<>(updatedKey, msgInstruction.getValue());
+        return new FieldData(updatedKey, msgInstruction.getValue());
     }
 
     public HomeUrlDTO findMatchingHomeUrlDTO(BotJobLoadDTO botJobLoadDTO) {
@@ -769,7 +791,7 @@ public class EngineRunner {
                                     stopAll = true;
                                     int limit = loopBlockLimits.get(blocLoopKey);
 
-                                    Pair<String, String> msgBlock = new Pair(blocLoopKey, "0");
+                                    FieldData msgBlock = new FieldData(blocLoopKey, "0");
 
                                     // Excel Report and Log
                                     performActions.logAndReport(
@@ -786,7 +808,7 @@ public class EngineRunner {
                                             "GOTO Limit Reached",
                                             blocLoopKey + " Reached: 0");
 
-                                    msgBlock = new Pair(
+                                    msgBlock = new FieldData(
                                             String.format("Exit at Block Name: \"%s\"", blockLoad.getName()),
                                             ARConstantsEngine.EXIT);
 
@@ -816,7 +838,7 @@ public class EngineRunner {
                     if (!blockActive) {
                         currentBlockOrder++;
 
-                        Pair<String, String> msgBlock = new Pair(
+                        FieldData msgBlock = new FieldData(
                                 String.format("Ignore: \"%s\"", blockLoad.getName()), ARConstantsEngine.IGNORE);
 
                         // Excel Report and Log
@@ -839,8 +861,7 @@ public class EngineRunner {
 
                     try {
 
-                        Pair<String, String> msgBlock =
-                                new Pair(blockLoad.getName(), ARConstantsEngine.EXCEL_BLOCK_HEADER);
+                        FieldData msgBlock = new FieldData(blockLoad.getName(), ARConstantsEngine.EXCEL_BLOCK_HEADER);
 
                         // Block Header Format
                         performActions.logAndReport(
@@ -859,7 +880,7 @@ public class EngineRunner {
 
                         performActions.onHoldInSeconds(blockWait);
 
-                        msgBlock = new Pair(
+                        msgBlock = new FieldData(
                                 String.format("Default Wait: \"%s\" ->  %d Seconds", blockLoad.getName(), blockWait),
                                 ARConstantsEngine.HOLD);
 
@@ -948,7 +969,7 @@ public class EngineRunner {
 
                                 String nameInstruc =
                                         "(" + currentInstruction.getId() + ") " + currentInstruction.getName();
-                                Pair<String, String> msgBlock = new Pair(
+                                FieldData msgBlock = new FieldData(
                                         String.format("Ignore: \"%s\"", nameInstruc), ARConstantsEngine.IGNORE);
 
                                 // Excel Report and Log
@@ -1109,7 +1130,7 @@ public class EngineRunner {
                                 valueInsert = dataExcel.get(reference);
                             }
 
-                            Pair<String, String> msgInstruction = null;
+                            FieldData msgInstruction = null;
                             if (actions[0].equalsIgnoreCase(ARConstantsEngine.EXCEL_GOTO)) {
 
                                 //                                currentIndex++;
@@ -1123,13 +1144,13 @@ public class EngineRunner {
 
                                 if (xExcelCurrentRow >= xExcelDataSize - 1) {
                                     xExcelCurrentRow = xExcelDataSize - 1;
-                                    msgInstruction = new Pair<>(
+                                    msgInstruction = new FieldData(
                                             "Excel Data (limit reached) keeping last row",
                                             String.valueOf(xExcelCurrentRow + 1));
                                     bodyMsg = "Excel Data (limit reached) keeping last row: " + xExcelCurrentRow + 1;
                                 } else {
                                     msgInstruction =
-                                            new Pair<>("Excel Data next row", String.valueOf(xExcelCurrentRow + 1));
+                                            new FieldData("Excel Data next row", String.valueOf(xExcelCurrentRow + 1));
                                 }
 
                                 // Excel Report and Log
@@ -1154,7 +1175,7 @@ public class EngineRunner {
                                 // <currentId:blockId:blockOrderNumber:bockName>
                                 msgInstruction = performActions.getBlockDetailsById(blocksLoaded, currentInstruction);
                                 if (msgInstruction == null) {
-                                    msgInstruction = new Pair("GO TO Block \"Unknown\"", "Unknown");
+                                    msgInstruction = new FieldData("GO TO Block \"Unknown\"", "Unknown");
                                     success = false;
                                     jumpGotoError = true;
                                     jumpGoto = true;
@@ -1167,7 +1188,7 @@ public class EngineRunner {
                                 } else if (mapLoops.containsKey(msgInstruction.getKey())) {
                                     // Updates the msgInstruction
                                     jumpGoto = true;
-                                    msgInstruction = new Pair<>(
+                                    msgInstruction = new FieldData(
                                             msgInstruction.getKey(),
                                             String.valueOf(mapLoops.get(msgInstruction.getKey())));
                                 }
@@ -1178,7 +1199,7 @@ public class EngineRunner {
                                         blocksLoaded.get(currentBlockOrder).getInstructionLoad(), currentInstruction);
 
                                 if (msgInstruction == null) {
-                                    msgInstruction = new Pair("Jump To Parent \"Unknown\"", "Unknown");
+                                    msgInstruction = new FieldData("Jump To Parent \"Unknown\"", "Unknown");
                                     success = false;
                                 } else if (!mapLoops.containsKey(msgInstruction.getKey())) {
                                     jumpLoopError = false;
@@ -1187,7 +1208,7 @@ public class EngineRunner {
                                     mapRefresh.put(msgInstruction.getKey(), Integer.valueOf(parts[0])); // Wait Time
                                 } else if (mapLoops.containsKey(msgInstruction.getKey())) {
                                     // Updates the msgInstruction
-                                    msgInstruction = new Pair<>(
+                                    msgInstruction = new FieldData(
                                             msgInstruction.getKey(),
                                             String.valueOf(mapLoops.get(msgInstruction.getKey())));
                                 }
@@ -1195,7 +1216,7 @@ public class EngineRunner {
                                 msgInstruction = performActions.getInstructionDetailsById(
                                         blocksLoaded.get(currentBlockOrder).getInstructionLoad(), currentInstruction);
                                 if (msgInstruction == null) {
-                                    msgInstruction = new Pair("Jump To Parent \"Unknown\"", "Unknown");
+                                    msgInstruction = new FieldData("Jump To Parent \"Unknown\"", "Unknown");
                                     success = false;
                                 } else if (!mapLoops.containsKey(msgInstruction.getKey())) {
                                     jumpLoopError = false;
@@ -1207,11 +1228,11 @@ public class EngineRunner {
                                     // Refresh Loop  <5:5> <WAIT:LOOP>
                                     String updMsg = mapRefresh.get(msgInstruction.getKey()) + ":"
                                             + mapLoops.get(msgInstruction.getKey());
-                                    msgInstruction = new Pair<>(msgInstruction.getKey(), updMsg);
+                                    msgInstruction = new FieldData(msgInstruction.getKey(), updMsg);
                                 }
                             } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.SET_VALUE)
                                     || (actions[0].equalsIgnoreCase(ARConstantsEngine.GET_VALUE))) {
-                                msgInstruction = new Pair(
+                                msgInstruction = new FieldData(
                                         currentInstruction.getName(),
                                         (currentInstruction.getOperation() != null
                                                 ? "(" + parentId + ")-" + operations[0] + ":" + operations[1]
@@ -1219,7 +1240,7 @@ public class EngineRunner {
                                                         ? valueInsert
                                                         : ""));
                             } else {
-                                msgInstruction = new Pair(
+                                msgInstruction = new FieldData(
                                         "(" + currentInstruction.getId() + ")-" + currentInstruction.getName(),
                                         (currentInstruction.getOperation() != null
                                                 ? currentInstruction.getOperation()
@@ -1389,7 +1410,7 @@ public class EngineRunner {
                                                 resultActions = performActions.blockGotoFailed(resultActions);
                                             }
 
-                                            Pair<String, String> currentPair = new Pair(
+                                            FieldData currentPair = new FieldData(
                                                     msgInstruction.getKey(),
                                                     String.valueOf(mapLoops.get(msgInstruction.getKey())));
 
@@ -1506,7 +1527,7 @@ public class EngineRunner {
                                             }
 
                                             // Get Correct Updated Pair for REFRESH_LOOP ACTION
-                                            Pair<String, String> currentPair = new Pair(
+                                            FieldData currentPair = new FieldData(
                                                     msgInstruction.getKey(),
                                                     String.valueOf(mapLoops.get(msgInstruction.getKey())));
 
@@ -1583,7 +1604,7 @@ public class EngineRunner {
                                     webElementWork = true;
 
                                     // Extract dataFieldName and dataFieldValue using a separate method
-                                    Pair<String, String> fieldData = performActions.extractFieldData(
+                                    FieldData fieldData = performActions.extractFieldData(
                                             dataExcel,
                                             actions,
                                             currentInstruction.getDefaultValue(),
@@ -1641,9 +1662,9 @@ public class EngineRunner {
 
                                         if (execOutPut) {
                                             if (mapOperators.containsKey(fieldName)) {
-                                                msgInstruction = new Pair(fieldName, mapOperators.get(fieldName));
+                                                msgInstruction = new FieldData(fieldName, mapOperators.get(fieldName));
                                             } else {
-                                                msgInstruction = new Pair(fieldName, "TEXT OUTPUT NOT FOUND");
+                                                msgInstruction = new FieldData(fieldName, "TEXT OUTPUT NOT FOUND");
                                             }
                                         }
                                     }
@@ -1957,7 +1978,7 @@ public class EngineRunner {
 
                                 resultActions = String.format("STOP ALL PROCESSES: \"%s\"", nameInstruc);
 
-                                Pair<String, String> msgBlock = new Pair(resultActions, ARConstantsEngine.PAUSE);
+                                FieldData msgBlock = new FieldData(resultActions, ARConstantsEngine.PAUSE);
 
                                 // Excel Report and Log
                                 performActions.logAndReport(
@@ -1998,15 +2019,15 @@ public class EngineRunner {
 
                                     if (xExcelCurrentRow >= xExcelDataSize - 1) {
                                         xExcelCurrentRow = xExcelDataSize - 1;
-                                        msgInstruction = new Pair<>(
+                                        msgInstruction = new FieldData(
                                                 "Excel Data (limit reached) keeping last row",
                                                 String.valueOf(xExcelCurrentRow + 1));
                                         bodyMsg =
                                                 "Excel Data (limit reached) keeping last row: " + xExcelCurrentRow + 1;
                                         lastRecall = true;
                                     } else {
-                                        msgInstruction =
-                                                new Pair<>("Excel Data next row", String.valueOf(xExcelCurrentRow + 1));
+                                        msgInstruction = new FieldData(
+                                                "Excel Data next row", String.valueOf(xExcelCurrentRow + 1));
                                     }
 
                                     // Excel Report and Log

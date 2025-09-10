@@ -4,6 +4,8 @@ import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.joran.JoranConfigurator;
 import ch.qos.logback.core.joran.spi.JoranException;
 import java.io.InputStream;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.slf4j.LoggerFactory;
 
 public class LogbackInitializer {
@@ -11,6 +13,7 @@ public class LogbackInitializer {
     public static void loadLogbackFromResources() {
         LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
         try {
+
             JoranConfigurator configurator = new JoranConfigurator();
             configurator.setContext(context);
             context.reset(); // Clear previous config
@@ -22,6 +25,9 @@ public class LogbackInitializer {
             }
 
             configurator.doConfigure(configStream);
+
+            Logger.getLogger("org.openqa.selenium").setLevel(Level.SEVERE);
+            SeleniumLoggerSuppressor.suppressInMemory();
 
         } catch (JoranException e) {
             System.err.println("Logback configuration failed: " + e.getMessage());

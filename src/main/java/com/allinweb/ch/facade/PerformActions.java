@@ -15,13 +15,9 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
-import javafx.util.Pair;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -71,7 +67,7 @@ public class PerformActions {
     @Getter
     long totalExecutionTime = 0;
 
-    private BooleanProperty interceptBotJob = new SimpleBooleanProperty(false);
+    private AtomicBoolean interceptBotJob = new AtomicBoolean(false);
     private ARPriorities arPriorities;
 
     @Getter
@@ -164,9 +160,9 @@ public class PerformActions {
         return criteriaList;
     }
 
-    public static Pair<String, String> insertRandomName(String key) {
+    public static FieldData insertRandomName(String key) {
         String randomName = generateRandomName();
-        return new Pair<>(key, randomName);
+        return new FieldData(key, randomName);
     }
 
     public static String generateRandomName() {
@@ -361,7 +357,7 @@ public class PerformActions {
         return sb.toString();
     }
 
-    public BooleanProperty interceptBotJobProperty() {
+    public AtomicBoolean interceptBotJobProperty() {
         return interceptBotJob;
     }
 
@@ -404,7 +400,7 @@ public class PerformActions {
     public boolean performWebActions(
             boolean byPassNotFound,
             String savedCoordinates,
-            Pair<String, String> data,
+            FieldData data,
             InstructionLoad currentInstruction,
             Map<String, String> mapOperators,
             WebElement instructionElement,
@@ -438,7 +434,7 @@ public class PerformActions {
 
                         if (!passed) {
                             // Try by coordinates
-                            Pair<String, String> filedData = new Pair("&EMPTY", "&EMPTY");
+                            FieldData filedData = new FieldData("&EMPTY", "&EMPTY");
                             passed = executeActionsAtCoordinates(
                                     savedCoordinates, filedData, ARConstantsEngine.VISUALIZE, pressEnterAfter);
                         }
@@ -458,7 +454,7 @@ public class PerformActions {
                         passed = clickElement(byPassNotFound, instructionElement);
                         if (!passed) {
                             // Try by coordinates
-                            Pair<String, String> filedData = new Pair("&EMPTY", "&EMPTY");
+                            FieldData filedData = new FieldData("&EMPTY", "&EMPTY");
                             //                            passed = executeActionsAtCoordinates(
                             //                                    savedCoordinates, filedData, ARConstants.CLICK,
                             // pressEnterAfter);
@@ -527,19 +523,22 @@ public class PerformActions {
                 refreshPage();
                 break;
             case ARConstantsEngine.QUIT:
-                Alert alert = new Alert(
-                        Alert.AlertType.CONFIRMATION, "Do you want to continue?", ButtonType.YES, ButtonType.NO);
-                alert.setTitle("Confirmation");
-                alert.setHeaderText("This Action Closes the Browser and Scanner!");
-                //                        alert.setContentText(content);
+                // Minimal confirmation using your custom modal
+                ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+                        "Confirmation",
+                        "Do you want to continue?",
+                        "This Action Closes the Browser and Scanner!",
+                        null,
+                        null,
+                        true,
+                        "OK",
+                        "Close Browser",
+                        350);
 
-                Optional<ButtonType> quitResult = alert.showAndWait();
-                if (quitResult.isPresent() && quitResult.get().equals(ButtonType.YES)) {
-                    //                    getInstance().cacheEntitiesFromDB();
+                if (respModal.equals(ARExecution.DialogModal.STOP)) {
                     quit(1);
-                } else {
-                    //                    getInstance().cacheEntitiesFromDB();
                 }
+
                 break;
                 //                    case ARConstants.EXTRACT:
                 //                        result = "insertValueFieldNameInExcel-->"
@@ -850,7 +849,7 @@ public class PerformActions {
                         case coordinates -> {
                             /// THIS MEANT TO BE USED JUST TO LOCATE THE ELEMENT NOT APPLYING ACTIONS TO IT
 
-                            //                            Pair<String, String> filedData = new Pair("martini",
+                            //                            FieldData filedData = new FieldData("martini",
                             // "Martini");
                             //                            try {
                             //                                executeActionsAtInstructionCoordinates(currentInstruction,
@@ -1582,7 +1581,10 @@ public class PerformActions {
     /**
      * Extracts the dataFieldName and dataFieldValue based on the instruction and DTO.
      */
-    public Pair<String, String> extractFieldData(
+    /**
+     * Extracts the fieldName and fieldValue based on the instruction and DTO.
+     */
+    public FieldData extractFieldData(
             Map<String, String> data, String[] actions, String defaultValue, boolean isEncrypted) throws Exception {
 
         String dataFieldName = "";
@@ -1592,13 +1594,16 @@ public class PerformActions {
             if (actions.length >= 3
                     && actions[0].equals(ARConstantsEngine.INSERT)
                     && actions[1].equals(ARConstantsEngine.ENTER)) {
+
                 dataFieldName = actions[2].split(ARConstantsEngine.PATH_FIELD_SUBSTITUTION)[0];
                 dataFieldValue = data.get(dataFieldName);
 
                 if (isEncrypted && dataFieldValue != null) {
                     dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
                 }
+
             } else if (actions.length == 2 && actions[0].equals(ARConstantsEngine.INSERT)) {
+
                 dataFieldName = actions[1].split(ARConstantsEngine.PATH_FIELD_SUBSTITUTION)[0];
                 dataFieldValue = data.get(dataFieldName);
 
@@ -1606,22 +1611,18 @@ public class PerformActions {
                     dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
                 }
             }
-        } else if (!Strings.isNullOrEmpty(defaultValue)) {
+        } else if (defaultValue != null && !defaultValue.isEmpty()) {
             dataFieldValue = defaultValue;
             if (isEncrypted) {
                 dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
             }
         }
 
-        return new Pair<>(dataFieldName, dataFieldValue);
+        return new FieldData(dataFieldName, dataFieldValue);
     }
 
     private boolean insertDataInSelectElement(
-            boolean byPassNotFound,
-            WebElement element,
-            String coordinates,
-            Pair<String, String> data,
-            boolean pressEnterAfter)
+            boolean byPassNotFound, WebElement element, String coordinates, FieldData data, boolean pressEnterAfter)
             throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
         try {
@@ -2146,7 +2147,7 @@ public class PerformActions {
             String blockName,
             boolean success,
             String[] actions,
-            Pair<String, String> msgLoop,
+            FieldData msgLoop,
             long duration,
             Map<String, String> dataExcel,
             ExcelWriter.ExcelChain writerReport) {
@@ -2243,7 +2244,7 @@ public class PerformActions {
         alert.accept();
     }
 
-    public String actionResultMessage(String blockJobName, String actions[], Pair<String, String> msgInstruction) {
+    public String actionResultMessage(String blockJobName, String actions[], FieldData msgInstruction) {
 
         switch (actions[0]) {
             case ARConstantsEngine.VISUALIZE:
@@ -2585,7 +2586,7 @@ public class PerformActions {
     }
 
     public boolean executeActionsAtCoordinates(
-            String savedCoordinates, Pair<String, String> data, String action, boolean pressEnterAfter) {
+            String savedCoordinates, FieldData data, String action, boolean pressEnterAfter) {
 
         boolean forceCLick = false;
 
@@ -2750,7 +2751,7 @@ public class PerformActions {
         ((JavascriptExecutor) driver).executeScript(script);
     }
 
-    private void typeCharacters(String savedCoords, Pair<String, String> fieldData) {
+    private void typeCharacters(String savedCoords, FieldData fieldData) {
         clearValueAtCoordinates(savedCoords);
         boolean passed = setValueAtCoordinates(savedCoords, fieldData.getValue().trim());
         if (!passed) {
@@ -2800,7 +2801,7 @@ public class PerformActions {
             WebElement element,
             String typeCommand,
             String[] coordinates,
-            Pair<String, String> fieldData,
+            FieldData fieldData,
             WebDriver driver,
             boolean pressEnterAfter) {
 
@@ -3071,11 +3072,10 @@ public class PerformActions {
         }
     }
 
-    public Pair<String, String> getBlockDetailsById(
-            List<BlockLoadDTO> blocksLoaded, InstructionLoad currentInstruction) {
+    public FieldData getBlockDetailsById(List<BlockLoadDTO> blocksLoaded, InstructionLoad currentInstruction) {
         for (BlockLoadDTO block : blocksLoaded) {
             if (block.getId() != null && block.getId().equals(currentInstruction.getParentBlockId())) {
-                Pair<String, String> blockDetails = new Pair<>(
+                FieldData blockDetails = new FieldData(
                         currentInstruction.getId() + ":" + block.getId() + ":" + block.getBlockOrderNumber() + ":"
                                 + block.getName().trim(),
                         currentInstruction.getOperation());
@@ -3094,11 +3094,11 @@ public class PerformActions {
         return -1;
     }
 
-    public Pair<String, String> getInstructionDetailsById(
+    public FieldData getInstructionDetailsById(
             List<InstructionLoad> InstructionLoadS, InstructionLoad currentInstruction) {
         for (InstructionLoad instParent : InstructionLoadS) {
             if (instParent.getId() != null && instParent.getId().equals(currentInstruction.getParentId())) {
-                Pair<String, String> blockDetails = new Pair<>(
+                FieldData blockDetails = new FieldData(
                         currentInstruction.getId() + ":" + instParent.getId() + ":"
                                 + instParent.getName().trim(),
                         currentInstruction.getOperation());
@@ -3170,7 +3170,7 @@ public class PerformActions {
             String blockReportName,
             boolean success,
             String[] action,
-            Pair<String, String> msgBlock,
+            FieldData msgBlock,
             Map<String, String> dataExcel,
             ExcelWriter.ExcelChain writerReport,
             String mainMsg,

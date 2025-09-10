@@ -63,7 +63,7 @@ public class ARPropertyManager {
             this.properties.load(configFile);
 
             String logLevel = this.properties.getProperty(ARPropertyEnum.LOG_LEVEL.getValue());
-            log.info("LOG_LEVEL = " + logLevel + "   ConfigFile=" + configurationFileName);
+            System.out.println("LOG_LEVEL = " + logLevel + "   ConfigFile=" + configurationFileName);
 
             String logPath = getProperty(ARPropertyEnum.PATH_LOG);
             if (logPath == null || logPath.isBlank()) {

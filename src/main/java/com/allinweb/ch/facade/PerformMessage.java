@@ -15,12 +15,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
-import javafx.scene.text.Text;
 import javax.swing.*;
 import lombok.extern.slf4j.Slf4j;
 
@@ -849,47 +843,47 @@ public class PerformMessage {
         return "";
     }
 
-    public boolean showAlertCombinedVBOX(
-            Alert.AlertType alertType, String title, String header, String content, VBox combinedTextContainer) {
-        Alert alert = new Alert(alertType);
-        alert.setTitle(title);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.getDialogPane().setContent(combinedTextContainer);
+    //    public boolean showAlertCombinedVBOX(
+    //            Alert.AlertType alertType, String title, String header, String content, VBox combinedTextContainer) {
+    //        Alert alert = new Alert(alertType);
+    //        alert.setTitle(title);
+    //        alert.setHeaderText(header);
+    //        alert.setContentText(content);
+    //        alert.getDialogPane().setContent(combinedTextContainer);
+    //
+    //        if (alertType.equals(Alert.AlertType.CONFIRMATION)) {
+    //            alert.getButtonTypes().set(0, ButtonType.YES);
+    //            alert.getButtonTypes().set(1, ButtonType.NO);
+    //        }
+    //        Optional<ButtonType> result = alert.showAndWait();
+    //
+    //        if (alertType.equals(Alert.AlertType.CONFIRMATION)) {
+    //            return result.isPresent() && result.get().equals(ButtonType.YES);
+    //        } else {
+    //            return result.isPresent() && result.get().equals(ButtonType.OK);
+    //        }
+    //    }
 
-        if (alertType.equals(Alert.AlertType.CONFIRMATION)) {
-            alert.getButtonTypes().set(0, ButtonType.YES);
-            alert.getButtonTypes().set(1, ButtonType.NO);
-        }
-        Optional<ButtonType> result = alert.showAndWait();
-
-        if (alertType.equals(Alert.AlertType.CONFIRMATION)) {
-            return result.isPresent() && result.get().equals(ButtonType.YES);
-        } else {
-            return result.isPresent() && result.get().equals(ButtonType.OK);
-        }
-    }
-
-    public boolean showCombinedHBox(
-            Alert.AlertType alertType, String title, String header, String content, HBox combinedTextContainer) {
-        Alert alert = new Alert(alertType);
-        alert.setTitle(title);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.getDialogPane().setContent(combinedTextContainer);
-
-        if (alertType.equals(Alert.AlertType.CONFIRMATION)) {
-            alert.getButtonTypes().set(0, ButtonType.YES);
-            alert.getButtonTypes().set(1, ButtonType.NO);
-        }
-        Optional<ButtonType> result = alert.showAndWait();
-
-        if (alertType.equals(Alert.AlertType.CONFIRMATION)) {
-            return result.isPresent() && result.get().equals(ButtonType.YES);
-        } else {
-            return result.isPresent() && result.get().equals(ButtonType.OK);
-        }
-    }
+    //    public boolean showCombinedHBox(
+    //            Alert.AlertType alertType, String title, String header, String content, HBox combinedTextContainer) {
+    //        Alert alert = new Alert(alertType);
+    //        alert.setTitle(title);
+    //        alert.setHeaderText(header);
+    //        alert.setContentText(content);
+    //        alert.getDialogPane().setContent(combinedTextContainer);
+    //
+    //        if (alertType.equals(Alert.AlertType.CONFIRMATION)) {
+    //            alert.getButtonTypes().set(0, ButtonType.YES);
+    //            alert.getButtonTypes().set(1, ButtonType.NO);
+    //        }
+    //        Optional<ButtonType> result = alert.showAndWait();
+    //
+    //        if (alertType.equals(Alert.AlertType.CONFIRMATION)) {
+    //            return result.isPresent() && result.get().equals(ButtonType.YES);
+    //        } else {
+    //            return result.isPresent() && result.get().equals(ButtonType.OK);
+    //        }
+    //    }
 
     public void outputJson(
             List<InstructionLoad> blockLoopInstructions, String fileName, String jsonPath, boolean genTestData) {
@@ -1023,33 +1017,33 @@ public class PerformMessage {
         }
     }
 
-    public void generalErrorIFrame(String xpath) {
-        // Styled text elements
-        Text titleText = new Text("Fail Searching IFrame Elements");
-        titleText.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
-        Text errorText = new Text("Error: Attempt identify IFrame elements");
-        errorText.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-        Text xpathText = new Text(xpath);
-        xpathText.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-        // Create a container for the message
-        VBox messageContainer = new VBox(5); // Adds spacing of 5px
-
-        // Add relevant elements to the container
-        messageContainer.getChildren().addAll(titleText, errorText);
-
-        if (!Strings.isNullOrEmpty(xpath)) {
-            messageContainer.getChildren().add(xpathText);
-        }
-
-        // Display the alert message
-        showAlertCombinedVBOX(
-                Alert.AlertType.WARNING,
-                "iFrame Web Elements",
-                "Action: Search iFrame Elements!",
-                null,
-                messageContainer);
-    }
+    //    public void generalErrorIFrame(String xpath) {
+    //        // Styled text elements
+    //        Text titleText = new Text("Fail Searching IFrame Elements");
+    //        titleText.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+    //
+    //        Text errorText = new Text("Error: Attempt identify IFrame elements");
+    //        errorText.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+    //
+    //        Text xpathText = new Text(xpath);
+    //        xpathText.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+    //
+    //        // Create a container for the message
+    //        VBox messageContainer = new VBox(5); // Adds spacing of 5px
+    //
+    //        // Add relevant elements to the container
+    //        messageContainer.getChildren().addAll(titleText, errorText);
+    //
+    //        if (!Strings.isNullOrEmpty(xpath)) {
+    //            messageContainer.getChildren().add(xpathText);
+    //        }
+    //
+    //        // Display the alert message
+    //        showAlertCombinedVBOX(
+    //                Alert.AlertType.WARNING,
+    //                "iFrame Web Elements",
+    //                "Action: Search iFrame Elements!",
+    //                null,
+    //                messageContainer);
+    //    }
 }
