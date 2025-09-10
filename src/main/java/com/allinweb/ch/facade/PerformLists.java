@@ -177,7 +177,7 @@ public class PerformLists {
                 isConnectWebSocket = true;
             } catch (Exception e) {
                 isConnectWebSocket = false;
-                log.error("WebSocket connection failed sessionId: " + sessionId + " error: " + e.getMessage());
+                log.warn("WebSocket connection failed sessionId: " + sessionId + " error: " + e.getMessage());
             }
         });
     }

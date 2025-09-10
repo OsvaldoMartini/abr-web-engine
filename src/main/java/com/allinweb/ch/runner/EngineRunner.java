@@ -166,6 +166,15 @@ public class EngineRunner {
                     + botJobId);
         }
 
+        currentBotJobName = this.currentBotJob.getName();
+
+        try {
+            excelPath = idsAndPaths[3];
+        } catch (Exception ignore) {
+            excelPath = excelPath + "\\" + currentBotJobName + ".xlsx";
+            log.warn("Excel data file defined : " + excelPath);
+        }
+
         ExcelReader excelReader = new ExcelReader();
         try {
             extractedData = excelReader.extractData(excelPath, performLists.getAllActions());
@@ -224,15 +233,6 @@ public class EngineRunner {
         if (homeUrlDTO != null) {
             this.currentBotJob.setHomeUrlId(homeUrlDTO.getId());
             homeBanking.setUrl(homeUrlDTO.getUrl());
-        }
-
-        currentBotJobName = this.currentBotJob.getName();
-
-        try {
-            excelPath = idsAndPaths[3];
-        } catch (Exception ignore) {
-            excelPath = excelPath + "\\" + currentBotJobName + ".xlsx";
-            log.warn("Excel data file defined : " + excelPath);
         }
 
         if (executeJob) {
