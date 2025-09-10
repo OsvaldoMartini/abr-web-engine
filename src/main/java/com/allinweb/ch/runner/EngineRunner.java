@@ -43,6 +43,7 @@ public class EngineRunner {
     private String currentBotJobName;
     private int currentBlockOrder;
     private int executeSpecificBlock;
+    ExtractedData extractedData = null;
     private List<BlockLoadDTO> blocksLoaded;
     private List<InstructionLoad> excelDataGoto = new ArrayList<>();
 
@@ -163,6 +164,34 @@ public class EngineRunner {
         } else if (performLists.getListBotJob().isEmpty()) {
             log.warn("I cannot find a Bot Job with this Organization ID: " + homeBankId + " Environment ID: "
                     + botJobId);
+        }
+
+        ExcelReader excelReader = new ExcelReader();
+        try {
+            extractedData = excelReader.extractData(excelPath, performLists.getAllActions());
+        } catch (Exception error) {
+            performMessage.errorMessage(
+                    "Error Processing Excel File",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to Execute Excel File!</span> ⚠️",
+                    "<span style='color: #E65100; font-weight: bold;'>Please carefully review all Excel columns and their values for potential errors.</span>",
+                    "<span style='font-style: italic;'>Inconsistent or incorrect data can prevent the application from processing the file.</span>",
+                    null,
+                    0);
+        }
+
+        if (extractedData.getNumberOfDataRows() == 0) {
+            extractedData.addField("$EMPTY");
+            extractedData.addFieldValue("$EMPTY", "$EMPTY", 0);
+        }
+
+        if (extractedData != null && extractedData.getErrorMessage() != null) {
+            performMessage.errorMessage(
+                    "Excel Error", "Could Not Execute Excel File", extractedData.getErrorMessage(), null, null, 0);
+            return;
+        }
+
+        if (extractedData.getNumberOfDataRows() > 1 && excelDataGoto.isEmpty()) {
+            log.warn("Multiple Excel Rows Detected: each next row will return to first block");
         }
 
         if (errorMessage != null) {
@@ -304,6 +333,306 @@ public class EngineRunner {
         }
     }
 
+    private static void printLog(String resultActions, boolean result) {
+        String resultMsg = result ? ARConstantsEngine.SUCCESS : ARConstantsEngine.FAIL;
+        String log = String.join(ARConstantsEngine.FIELDS_SEPARATOR, resultMsg, resultActions);
+        specialLog.info(log);
+    }
+
+    private int handleGreaterThan(String value1, String value2) {
+        try {
+            double num1 = Double.parseDouble(value1);
+            double num2 = Double.parseDouble(value2);
+            return num1 > num2 ? 1 : 0;
+        } catch (NumberFormatException e) {
+            // Handle non-numeric values (e.g., log an error, return false)
+            return -1; // Or throw an exception
+        }
+    }
+
+    private int handleLessThan(String value1, String value2) {
+        try {
+            double num1 = Double.parseDouble(value1);
+            double num2 = Double.parseDouble(value2);
+            return num1 < num2 ? 1 : 0;
+        } catch (NumberFormatException e) {
+            // Handle non-numeric values
+            return -1; // Or throw an exception
+        }
+    }
+
+    private String finalLogMessage(String failedMessage, String resultActions) {
+        if (!Strings.isNullOrEmpty(failedMessage)) {
+            return failedMessage + resultActions;
+        }
+        return resultActions;
+    }
+
+    private Pair<String, String> updateMSGInstruction(Pair<String, String> msgInstruction, String failedMessage) {
+        String currentKey = msgInstruction.getKey();
+        String updatedKey = failedMessage + " - " + currentKey;
+        return new Pair<>(updatedKey, msgInstruction.getValue());
+    }
+
+    public HomeUrlDTO findMatchingHomeUrlDTO(BotJobLoadDTO botJobLoadDTO) {
+        Integer targetHomeUrlId = botJobLoadDTO.getHomeUrlId();
+        HomeBankingLoadDTO homeBanking = botJobLoadDTO.getHomeBankingLoadDTO();
+
+        if (homeBanking != null && homeBanking.getHomeUrlDTOs() != null) {
+            return homeBanking.getHomeUrlDTOs().stream()
+                    .filter(dto -> dto.getId().equals(targetHomeUrlId))
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        return null;
+    }
+
+    /**
+     * Adds a row with values matching the columns.
+     * Missing values are filled with empty strings.
+     * @param values Array of values; may be less than columns.
+     */
+    public void addRow(String... values) {
+        if (columnsCSV.isEmpty()) {
+            throw new IllegalStateException("Columns must be initialized before adding a row using values.");
+        }
+
+        List<String> row = new ArrayList<>();
+        int maxCols = columnsCSV.size();
+
+        for (int i = 0; i < maxCols; i++) {
+            if (i < values.length) {
+                row.add(values[i]);
+            } else {
+                row.add(""); // fill missing with empty string
+            }
+        }
+        rowsCSV.add(row);
+    }
+
+    /**
+     * Adds a row using a Map<String, String>. If this is the first row added,
+     * it sets the column order based on the map's keys.
+     */
+    public void addRowFromMap(Map<String, String> map) {
+        // Initialize column order on first insert
+        if (columnsCSV.isEmpty()) {
+            if (map instanceof LinkedHashMap) {
+                columnsCSV.addAll(map.keySet()); // preserve order
+            } else {
+                // Default to alphabetical if insertion order is unknown
+                List<String> sortedKeys = new ArrayList<>(map.keySet());
+                Collections.sort(sortedKeys);
+                columnsCSV.addAll(sortedKeys);
+            }
+        }
+
+        List<String> row = new ArrayList<>();
+        for (String column : columnsCSV) {
+            row.add(map.getOrDefault(column, ""));
+        }
+        rowsCSV.add(row);
+    }
+
+    public String getCsvContent() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("0: ").append(String.join(",", columnsCSV)).append("\n");
+
+        int rowNumber = 1;
+        for (List<String> row : rowsCSV) {
+            sb.append(rowNumber).append(": ").append(String.join(",", row)).append("\n");
+            rowNumber++;
+        }
+        sb.append(END_OF_FILE_MARKER);
+        return sb.toString();
+    }
+
+    public String getBancaStatoCsvContent(String delimiter) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("KEY")
+                .append(delimiter)
+                .append(String.join(delimiter, columnsCSV))
+                .append("\n");
+
+        int xRow = 1;
+        for (List<String> row : rowsCSV) {
+            sb.append("EXTERNAL_" + xRow)
+                    .append(delimiter)
+                    .append(String.join(delimiter, row))
+                    .append("\n");
+            xRow++;
+        }
+
+        //        sb.append(END_OF_FILE_MARKER);
+        return sb.toString();
+    }
+
+    public void writeToFile(String filename, String content) {
+        try (Writer writer =
+                new BufferedWriter(new OutputStreamWriter(new FileOutputStream(filename), StandardCharsets.UTF_8))) {
+            writer.write(content);
+            log.info("CSV written to file: " + filename);
+        } catch (IOException e) {
+            log.error("Error writing file: " + e.getMessage());
+        }
+    }
+
+    public void printCsv() {
+        log.info(getCsvContent());
+    }
+
+    private boolean openWebDriver(boolean firstLoad) {
+
+        String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+        if (!(new File(webDriverPath)).exists()) {
+            performMessage.errorMessage(
+                    "Action Required: Missing WebDriver",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: The WebDriver file is missing!</span>",
+                    "<span style='color: #2E7D32; font-weight: bold;'>To execute automated browser interactions, the WebDriver is absolutely essential.</span>",
+                    "<span style='font-style: italic;'>Please download the correct WebDriver for your browser and ensure it is accessible by the application.</span>",
+                    null,
+                    0);
+            return false;
+        }
+        String browserType = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
+
+        if (!firstLoad
+                && isBrowserClosed(performActions.getCurrentDriver())
+                && performActions.getCurrentDriver() != null) {
+            performActions.getCurrentDriver().quit();
+            performActions.setCurrentDriver(null);
+            currentARWebDriver.getCurrentDriver().quit();
+            currentARWebDriver.setCurrentDriver(null);
+            firstLoad = true;
+        }
+
+        if (firstLoad) {
+            HomeUrlDTO homeUrlDTO = performLists.getHomeUrlByBankId(
+                    this.currentBotJob.getHomeBankingId(), this.currentBotJob.getHomeUrlId());
+            HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(this.currentBotJob.getHomeBankingId());
+
+            WebDriver returned = currentARWebDriver.openDriver(
+                    browserType,
+                    webDriverPath,
+                    homeUrlDTO.getUrl(),
+                    homeBanking.getOptionsConfig(),
+                    defaultSearch,
+                    searchHiddenFields,
+                    portSocketInitial);
+
+            if (returned == null) {
+                return false;
+            }
+
+            performActions.initialize(arPriorities);
+            performActions.setCurrentDriver(currentARWebDriver.getCurrentDriver());
+        } else {
+            if (currentARWebDriver.getCurrentDriver() != null) {
+                HomeUrlDTO homeUrlDTO = performLists.getHomeUrlByBankId(
+                        this.currentBotJob.getHomeBankingId(), this.currentBotJob.getHomeUrlId());
+                currentARWebDriver.getCurrentDriver().get(homeUrlDTO.getUrl());
+            }
+        }
+
+        //        try {
+        //            performActions.onHoldInSeconds(3);
+        //        } catch (Exception ignore) {
+        //        }
+
+        return true;
+    }
+
+    public boolean isBrowserClosed(WebDriver webDriver) {
+        try {
+            webDriver.getTitle(); // Try accessing a property
+            return false; // If no exception, browser is open
+        } catch (Exception e) {
+            return true; // If exception occurs, browser is closed
+        }
+    }
+
+    // Method to close all WebDriver instances
+    public void closeWebDrivers() {
+        for (WebDriver driver : currentARWebDriver.getWebDriverList()) {
+            try {
+                driver.quit();
+                log.info("WebDriver closed.");
+            } catch (Exception e) {
+                log.warn("Closing WebDriver: " + e.getMessage());
+            }
+        }
+        currentARWebDriver.getWebDriverList().clear();
+        currentARWebDriver.setCurrentDriver(null); // reset current driver
+
+        currentARWebDriver.closeAllDrivers();
+    }
+
+    public boolean lastBrowserTab() {
+        // Get all window handles (all open tabs/windows)
+        try {
+            windowHandles = performActions.getCurrentDriver().getWindowHandles();
+
+            // Convert the window handles set to a list
+            List<String> windowHandlesList = new ArrayList<>(windowHandles);
+
+            // Switch to the last window (newly opened tab)
+            performActions.getCurrentDriver().switchTo().window(windowHandlesList.get(windowHandlesList.size() - 1));
+
+            return true;
+        } catch (Exception e) {
+
+            browserNotAttached();
+
+            return false;
+        }
+    }
+
+    private void browserNotAttached() {
+        String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+        performMessage.errorMessage(
+                "The Browser attached with this Web Scanner is Not Active",
+                "<span style='font-style: italic;'>Session deleted as the browser has closed the connection!</span>",
+                "<span style='color: #E65100; font-weight: bold;'>WebDriver path:</span> <span style='font-weight: bold;'>"
+                        + webDriverPath + "</span>",
+                "<span style='font-style: italic;'>Please close and Re-Open the Scanner Tool.</span>",
+                "<span style='font-style: italic;'>Details: " + "Web Browser was closed before the Scanner Tool"
+                        + "</span>",
+                0);
+    }
+
+    private String generateTimestamp() {
+        Date date = new Date();
+        dateFormatter = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+        return dateFormatter.format(date);
+    }
+
+    private void shutDownExecutorService(ExecutorService executorService) {
+        if (executorService == null || executorService.isShutdown()) {
+            return;
+        }
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+                executorService.shutdownNow();
+                if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+                    log.warn("ExecutorService did not terminate");
+                }
+            }
+        } catch (InterruptedException error) {
+            executorService.shutdownNow();
+            Thread.currentThread().interrupt();
+            log.warn("ExecutorService did not terminate: " + error.getMessage());
+        }
+    }
+
+    private void updateRowStatusAndNotify(String color) {
+        rowStatus.setColor(color);
+        jsonStatus = gson.toJson(rowStatus);
+        webSocketSessionManager.sendMessageJson(
+                this.currentBotJob.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
+    }
+
     private boolean executeJob() {
         if (PerformActions.waitForPage == null) {
             String updateTimeout = arPropertyManager.getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
@@ -316,32 +645,6 @@ public class EngineRunner {
 
         Labels.initializeLabelsInSpecLang("en");
         Properties labelsValue = Labels.labelsValue;
-
-        ExcelReader excelReader = new ExcelReader();
-        ExtractedData extractedData = null;
-        try {
-            extractedData = excelReader.extractData(excelPath, performLists.getAllActions());
-        } catch (Exception e) {
-            performMessage.errorMessage(
-                    "Error Processing Excel File",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to Execute Excel File!</span> ⚠️",
-                    "<span style='color: #E65100; font-weight: bold;'>Please carefully review all Excel columns and their values for potential errors.</span>",
-                    "<span style='font-style: italic;'>Inconsistent or incorrect data can prevent the application from processing the file.</span>",
-                    null,
-                    0);
-        }
-
-        if (extractedData.getNumberOfDataRows() == 0) {
-            extractedData.addField("$EMPTY");
-            extractedData.addFieldValue("$EMPTY", "$EMPTY", 0);
-        }
-
-        if (extractedData != null && extractedData.getErrorMessage() != null) {
-            performMessage.errorMessage(
-                    "Excel Error", "Could Not Execute Excel File", extractedData.getErrorMessage(), null, null, 0);
-            currentARWebDriver.closeAllDrivers();
-            return false;
-        }
 
         String baseLogString =
                 currentBotJobName + ARConstantsEngine.FIELDS_SEPARATOR + labelsValue.getProperty(Labels.START);
@@ -393,32 +696,6 @@ public class EngineRunner {
         boolean webElementWork = false;
 
         if (extractedData.getNumberOfDataRows() > 0) {
-
-            if (extractedData.getNumberOfDataRows() > 1 && excelDataGoto.isEmpty()) {
-
-                log.warn("Multiple Excel Rows Detected: each row wll return to first block");
-
-                respModal = performMessage.showCustomModalDialogDragWin11(
-                        "Multiple Excel Rows Detected",
-                        "<span style='font-weight: bold;'>Your Excel data file contains multiple rows.</span>",
-                        "By default, each Excel test row <span style='font-weight: bold; color: #e854c8;'>will be processed through all blocks</span>, and after  will jump back to <span style='font-weight: bold;'>first block (Use Case).</span>",
-                        "Add the <span style='font-weight: bold; color: #FF4500;'>'Excel GOTO'</span> operation to your flow to modify the <span style='font-weight: bold;'>default behaviour.</span>",
-                        "The <span style='font-weight: bold; color: #FF4500;'>Excel GOTO</span> allows you to specify which block <span style='font-weight: bold;'>the flow should continue from</span>, after the execution of the first row across all blocks.",
-                        false,
-                        "Continue",
-                        "Stop All",
-                        0);
-
-                if (respModal.equals(ARExecution.DialogModal.STOP)) {
-                    performActions.setInterceptBotJob(true);
-                    setInterceptBotJob(true);
-                    isJobRunning.set(false);
-
-                    if (!lastBrowserTab()) {
-                        return false;
-                    }
-                }
-            }
 
             // Execute All Blocks starting from executeSpecificBlock if Defined
             currentBlockOrder = (executeSpecificBlock > -1) ? executeSpecificBlock : 0;
@@ -525,7 +802,7 @@ public class EngineRunner {
                                             "Stopping App",
                                             String.format("Exit at Block Name: \"%s\"", blockName));
 
-                                    performActions.gotoLimitExecution(limit, resultActions);
+                                    // performActions.gotoLimitExecution(limit, resultActions);
 
                                     continue blockLoop;
                                 }
@@ -1881,7 +2158,6 @@ public class EngineRunner {
         }
 
         // PRINT END BASE LOG//
-
         if (success) {
             baseLogString = blocksLoaded.get(0).getName()
                     + ARConstantsEngine.FIELDS_SEPARATOR
@@ -1889,72 +2165,9 @@ public class EngineRunner {
                     + ARConstantsEngine.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.OK);
 
-            if (!isInterceptBotJob()) {
-                rowStatus.setColor("green"); // #1d9c06 deep carmine green
-                jsonStatus = gson.toJson(rowStatus);
-                webSocketSessionManager.sendMessageJson(
-                        this.currentBotJob.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
-
-                performMessage.showCustomModalDialogDragWin11(
-                        "Bot-Job Finished - successfully",
-                        currentBotJobName,
-                        "Last Execution:",
-                        resultActions,
-                        null,
-                        false,
-                        "OK",
-                        null,
-                        300);
-            } else {
-                rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
-                jsonStatus = gson.toJson(rowStatus);
-                webSocketSessionManager.sendMessageJson(
-                        this.currentBotJob.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
-
-                performMessage.showCustomModalDialogDragWin11(
-                        "Bot-Job Interrupted successfully",
-                        currentBotJobName,
-                        "Last Execution:",
-                        resultActions,
-                        null,
-                        false,
-                        "OK",
-                        null,
-                        300);
-            }
-
-            performActions.setInterceptBotJob(false);
-            setInterceptBotJob(false);
-            isJobRunning.set(false);
-
-            respModal = performMessage.showCustomModalDialogDragWin11Timer(
-                    "Bot-Job Finished - successfully",
-                    currentBotJobName,
-                    "Last Execution:",
-                    resultActions,
-                    null,
-                    false,
-                    "OK",
-                    "Close Browser",
-                    300,
-                    5);
-
-        } else {
-            baseLogString = blocksLoaded.get(0).getName()
-                    + ARConstantsEngine.FIELDS_SEPARATOR
-                    + labelsValue.getProperty(Labels.END)
-                    + ARConstantsEngine.FIELDS_SEPARATOR
-                    + labelsValue.getProperty(Labels.KO)
-                    + ARConstantsEngine.FIELDS_SEPARATOR
-                    + resultActions;
-
             if (isInterceptBotJob()) {
-                rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
-                jsonStatus = gson.toJson(rowStatus);
-                webSocketSessionManager.sendMessageJson(
-                        this.currentBotJob.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
-
-                performMessage.showCustomModalDialogDragWin11(
+                updateRowStatusAndNotify("yellow"); // #fcba03 deep carmine yellow
+                performMessage.showCustomModalDialogDragWin11Timer(
                         "Bot-Job Interrupted successfully",
                         currentBotJobName,
                         "Last Execution:",
@@ -1963,22 +2176,10 @@ public class EngineRunner {
                         false,
                         "OK",
                         null,
-                        300);
-            } else if (webElementWork) {
-
-                rowStatus.setColor("red"); // #FF3131 deep carmine red
-                jsonStatus = gson.toJson(rowStatus);
-                webSocketSessionManager.sendMessageJson(
-                        this.currentBotJob.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
-
-                //                performMessage.errorMessage(
-                //                        "Failed finding element (5 attempts).",
-                //                        "Use \"Force Coordinates\" in some cases.",
-                //                        !Strings.isNullOrEmpty(failedMessage) ? failedMessage : "Failed:",
-                //                        "Last Execution:",
-                //                        resultActions,
-                //                        350);
-
+                        300,
+                        5);
+            } else {
+                updateRowStatusAndNotify("green"); // #1d9c06 deep carmine green
                 respModal = performMessage.showCustomModalDialogDragWin11Timer(
                         "Bot-Job Finished - successfully",
                         currentBotJobName,
@@ -1990,338 +2191,76 @@ public class EngineRunner {
                         "Close Browser",
                         300,
                         5);
+            }
 
-            } else {
+            performActions.setInterceptBotJob(false);
+            setInterceptBotJob(false);
+            isJobRunning.set(false);
 
-                rowStatus.setColor("red"); // #FF3131 deep carmine red
-                jsonStatus = gson.toJson(rowStatus);
-                webSocketSessionManager.sendMessageJson(
-                        this.currentBotJob.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
+        } else {
+            baseLogString = blocksLoaded.get(0).getName()
+                    + ARConstantsEngine.FIELDS_SEPARATOR
+                    + labelsValue.getProperty(Labels.END)
+                    + ARConstantsEngine.FIELDS_SEPARATOR
+                    + labelsValue.getProperty(Labels.KO)
+                    + ARConstantsEngine.FIELDS_SEPARATOR
+                    + resultActions;
 
-                //                performMessage.errorMessage(
-                //                        "Process Execution Terminated",
-                //                        !Strings.isNullOrEmpty(failedMessage) ? failedMessage : "Failed:",
-                //                        "Last Execution:",
-                //                        resultActions,
-                //                        null,
-                //                        350);
-
-                respModal = performMessage.showCustomModalDialogDragWin11Timer(
-                        "Process Execution Terminated",
-                        !Strings.isNullOrEmpty(failedMessage) ? failedMessage : "Failed:",
+            if (isInterceptBotJob()) {
+                updateRowStatusAndNotify("yellow"); // #fcba03 deep carmine yellow
+                performMessage.showCustomModalDialogDragWin11Timer(
+                        "Bot-Job Interrupted successfully",
+                        currentBotJobName,
                         "Last Execution:",
                         resultActions,
                         null,
-                        true,
+                        false,
                         "OK",
-                        "Close Browser",
-                        350,
+                        null,
+                        300,
                         5);
+
+            } else {
+                updateRowStatusAndNotify("red"); // #FF3131 deep carmine red
+                if (webElementWork) {
+                    respModal = performMessage.showCustomModalDialogDragWin11Timer(
+                            "Bot-Job Finished - successfully",
+                            currentBotJobName,
+                            "Last Execution:",
+                            resultActions,
+                            null,
+                            false,
+                            "OK",
+                            "Close Browser",
+                            300,
+                            5);
+                } else {
+                    respModal = performMessage.showCustomModalDialogDragWin11Timer(
+                            "Process Execution Terminated",
+                            !Strings.isNullOrEmpty(failedMessage) ? failedMessage : "Failed:",
+                            "Last Execution:",
+                            resultActions,
+                            null,
+                            true,
+                            "OK",
+                            "Close Browser",
+                            350,
+                            5);
+                }
             }
         }
+
         log.info(baseLogString);
 
         if (resultActions.equalsIgnoreCase("Close Browser") || respModal.equals(ARExecution.DialogModal.STOP)) {
             currentARWebDriver.getCurrentDriver().quit();
         }
+        log.info(baseLogString);
 
         shutDownExecutorService(executorServicePreLaunch);
         performActions.setInterceptBotJob(true);
         setInterceptBotJob(false);
         isJobRunning.set(false);
         return true;
-    }
-
-    private static void printLog(String resultActions, boolean result) {
-        String resultMsg = result ? ARConstantsEngine.SUCCESS : ARConstantsEngine.FAIL;
-        String log = String.join(ARConstantsEngine.FIELDS_SEPARATOR, resultMsg, resultActions);
-        specialLog.info(log);
-    }
-
-    private int handleGreaterThan(String value1, String value2) {
-        try {
-            double num1 = Double.parseDouble(value1);
-            double num2 = Double.parseDouble(value2);
-            return num1 > num2 ? 1 : 0;
-        } catch (NumberFormatException e) {
-            // Handle non-numeric values (e.g., log an error, return false)
-            return -1; // Or throw an exception
-        }
-    }
-
-    private int handleLessThan(String value1, String value2) {
-        try {
-            double num1 = Double.parseDouble(value1);
-            double num2 = Double.parseDouble(value2);
-            return num1 < num2 ? 1 : 0;
-        } catch (NumberFormatException e) {
-            // Handle non-numeric values
-            return -1; // Or throw an exception
-        }
-    }
-
-    private String finalLogMessage(String failedMessage, String resultActions) {
-        if (!Strings.isNullOrEmpty(failedMessage)) {
-            return failedMessage + resultActions;
-        }
-        return resultActions;
-    }
-
-    private Pair<String, String> updateMSGInstruction(Pair<String, String> msgInstruction, String failedMessage) {
-        String currentKey = msgInstruction.getKey();
-        String updatedKey = failedMessage + " - " + currentKey;
-        return new Pair<>(updatedKey, msgInstruction.getValue());
-    }
-
-    public HomeUrlDTO findMatchingHomeUrlDTO(BotJobLoadDTO botJobLoadDTO) {
-        Integer targetHomeUrlId = botJobLoadDTO.getHomeUrlId();
-        HomeBankingLoadDTO homeBanking = botJobLoadDTO.getHomeBankingLoadDTO();
-
-        if (homeBanking != null && homeBanking.getHomeUrlDTOs() != null) {
-            return homeBanking.getHomeUrlDTOs().stream()
-                    .filter(dto -> dto.getId().equals(targetHomeUrlId))
-                    .findFirst()
-                    .orElse(null);
-        }
-
-        return null;
-    }
-
-    /**
-     * Adds a row with values matching the columns.
-     * Missing values are filled with empty strings.
-     * @param values Array of values; may be less than columns.
-     */
-    public void addRow(String... values) {
-        if (columnsCSV.isEmpty()) {
-            throw new IllegalStateException("Columns must be initialized before adding a row using values.");
-        }
-
-        List<String> row = new ArrayList<>();
-        int maxCols = columnsCSV.size();
-
-        for (int i = 0; i < maxCols; i++) {
-            if (i < values.length) {
-                row.add(values[i]);
-            } else {
-                row.add(""); // fill missing with empty string
-            }
-        }
-        rowsCSV.add(row);
-    }
-
-    /**
-     * Adds a row using a Map<String, String>. If this is the first row added,
-     * it sets the column order based on the map's keys.
-     */
-    public void addRowFromMap(Map<String, String> map) {
-        // Initialize column order on first insert
-        if (columnsCSV.isEmpty()) {
-            if (map instanceof LinkedHashMap) {
-                columnsCSV.addAll(map.keySet()); // preserve order
-            } else {
-                // Default to alphabetical if insertion order is unknown
-                List<String> sortedKeys = new ArrayList<>(map.keySet());
-                Collections.sort(sortedKeys);
-                columnsCSV.addAll(sortedKeys);
-            }
-        }
-
-        List<String> row = new ArrayList<>();
-        for (String column : columnsCSV) {
-            row.add(map.getOrDefault(column, ""));
-        }
-        rowsCSV.add(row);
-    }
-
-    public String getCsvContent() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("0: ").append(String.join(",", columnsCSV)).append("\n");
-
-        int rowNumber = 1;
-        for (List<String> row : rowsCSV) {
-            sb.append(rowNumber).append(": ").append(String.join(",", row)).append("\n");
-            rowNumber++;
-        }
-        sb.append(END_OF_FILE_MARKER);
-        return sb.toString();
-    }
-
-    public String getBancaStatoCsvContent(String delimiter) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("KEY")
-                .append(delimiter)
-                .append(String.join(delimiter, columnsCSV))
-                .append("\n");
-
-        int xRow = 1;
-        for (List<String> row : rowsCSV) {
-            sb.append("EXTERNAL_" + xRow)
-                    .append(delimiter)
-                    .append(String.join(delimiter, row))
-                    .append("\n");
-            xRow++;
-        }
-
-        //        sb.append(END_OF_FILE_MARKER);
-        return sb.toString();
-    }
-
-    public void writeToFile(String filename, String content) {
-        try (Writer writer =
-                new BufferedWriter(new OutputStreamWriter(new FileOutputStream(filename), StandardCharsets.UTF_8))) {
-            writer.write(content);
-            log.info("CSV written to file: " + filename);
-        } catch (IOException e) {
-            log.error("Error writing file: " + e.getMessage());
-        }
-    }
-
-    public void printCsv() {
-        log.info(getCsvContent());
-    }
-
-    private boolean openWebDriver(boolean firstLoad) {
-
-        String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
-        if (!(new File(webDriverPath)).exists()) {
-            performMessage.errorMessage(
-                    "Action Required: Missing WebDriver",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: The WebDriver file is missing!</span>",
-                    "<span style='color: #2E7D32; font-weight: bold;'>To execute automated browser interactions, the WebDriver is absolutely essential.</span>",
-                    "<span style='font-style: italic;'>Please download the correct WebDriver for your browser and ensure it is accessible by the application.</span>",
-                    null,
-                    0);
-            return false;
-        }
-        String browserType = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
-
-        if (!firstLoad
-                && isBrowserClosed(performActions.getCurrentDriver())
-                && performActions.getCurrentDriver() != null) {
-            performActions.getCurrentDriver().quit();
-            performActions.setCurrentDriver(null);
-            currentARWebDriver.getCurrentDriver().quit();
-            currentARWebDriver.setCurrentDriver(null);
-            firstLoad = true;
-        }
-
-        if (firstLoad) {
-            HomeUrlDTO homeUrlDTO = performLists.getHomeUrlByBankId(
-                    this.currentBotJob.getHomeBankingId(), this.currentBotJob.getHomeUrlId());
-            HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(this.currentBotJob.getHomeBankingId());
-
-            WebDriver returned = currentARWebDriver.openDriver(
-                    browserType,
-                    webDriverPath,
-                    homeUrlDTO.getUrl(),
-                    homeBanking.getOptionsConfig(),
-                    defaultSearch,
-                    searchHiddenFields,
-                    portSocketInitial);
-
-            if (returned == null) {
-                return false;
-            }
-
-            performActions.initialize(arPriorities);
-            performActions.setCurrentDriver(currentARWebDriver.getCurrentDriver());
-        } else {
-            if (currentARWebDriver.getCurrentDriver() != null) {
-                HomeUrlDTO homeUrlDTO = performLists.getHomeUrlByBankId(
-                        this.currentBotJob.getHomeBankingId(), this.currentBotJob.getHomeUrlId());
-                currentARWebDriver.getCurrentDriver().get(homeUrlDTO.getUrl());
-            }
-        }
-
-        //        try {
-        //            performActions.onHoldInSeconds(3);
-        //        } catch (Exception ignore) {
-        //        }
-
-        return true;
-    }
-
-    public boolean isBrowserClosed(WebDriver webDriver) {
-        try {
-            webDriver.getTitle(); // Try accessing a property
-            return false; // If no exception, browser is open
-        } catch (Exception e) {
-            return true; // If exception occurs, browser is closed
-        }
-    }
-
-    // Method to close all WebDriver instances
-    public void closeWebDrivers() {
-        for (WebDriver driver : currentARWebDriver.getWebDriverList()) {
-            try {
-                driver.quit();
-                log.info("WebDriver closed.");
-            } catch (Exception e) {
-                log.warn("Closing WebDriver: " + e.getMessage());
-            }
-        }
-        currentARWebDriver.getWebDriverList().clear();
-        currentARWebDriver.setCurrentDriver(null); // reset current driver
-
-        currentARWebDriver.closeAllDrivers();
-    }
-
-    public boolean lastBrowserTab() {
-        // Get all window handles (all open tabs/windows)
-        try {
-            windowHandles = performActions.getCurrentDriver().getWindowHandles();
-
-            // Convert the window handles set to a list
-            List<String> windowHandlesList = new ArrayList<>(windowHandles);
-
-            // Switch to the last window (newly opened tab)
-            performActions.getCurrentDriver().switchTo().window(windowHandlesList.get(windowHandlesList.size() - 1));
-
-            return true;
-        } catch (Exception e) {
-
-            browserNotAttached();
-
-            return false;
-        }
-    }
-
-    private void browserNotAttached() {
-        String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
-        performMessage.errorMessage(
-                "The Browser attached with this Web Scanner is Not Active",
-                "<span style='font-style: italic;'>Session deleted as the browser has closed the connection!</span>",
-                "<span style='color: #E65100; font-weight: bold;'>WebDriver path:</span> <span style='font-weight: bold;'>"
-                        + webDriverPath + "</span>",
-                "<span style='font-style: italic;'>Please close and Re-Open the Scanner Tool.</span>",
-                "<span style='font-style: italic;'>Details: " + "Web Browser was closed before the Scanner Tool"
-                        + "</span>",
-                0);
-    }
-
-    private String generateTimestamp() {
-        Date date = new Date();
-        dateFormatter = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
-        return dateFormatter.format(date);
-    }
-
-    private void shutDownExecutorService(ExecutorService executorService) {
-        if (executorService == null || executorService.isShutdown()) {
-            return;
-        }
-        executorService.shutdown();
-        try {
-            if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
-                executorService.shutdownNow();
-                if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
-                    log.warn("ExecutorService did not terminate");
-                }
-            }
-        } catch (InterruptedException error) {
-            executorService.shutdownNow();
-            Thread.currentThread().interrupt();
-            log.warn("ExecutorService did not terminate: " + error.getMessage());
-        }
     }
 }
