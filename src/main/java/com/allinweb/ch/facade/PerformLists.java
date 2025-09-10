@@ -125,6 +125,20 @@ public class PerformLists {
         log.info("Connected to WebSocket server at: " + session.getRequestURI());
         // Sending an initial message
         sendMessage("Hello from JavaFX WebSocket client!");
+
+        String sessionId = null;
+        try {
+            sessionId = session.getRequestParameterMap().get("sessionId").get(0);
+
+            // Add the Session to be Possiboe to send messages from Clients via PerformLists
+            if (!Strings.isNullOrEmpty(sessionId) && sessionId.equals("engine-perform-bot-job")) {
+                webSocketSessionManager.addSession(sessionId, session);
+            } else {
+                //                addSession(generateCustomSessionId(session), session);
+            }
+        } catch (Exception noSessionId) {
+            //            addSession(generateCustomSessionId(session), session);
+        }
     }
 
     @OnClose
