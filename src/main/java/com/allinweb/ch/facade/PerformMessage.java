@@ -843,48 +843,6 @@ public class PerformMessage {
         return "";
     }
 
-    //    public boolean showAlertCombinedVBOX(
-    //            Alert.AlertType alertType, String title, String header, String content, VBox combinedTextContainer) {
-    //        Alert alert = new Alert(alertType);
-    //        alert.setTitle(title);
-    //        alert.setHeaderText(header);
-    //        alert.setContentText(content);
-    //        alert.getDialogPane().setContent(combinedTextContainer);
-    //
-    //        if (alertType.equals(Alert.AlertType.CONFIRMATION)) {
-    //            alert.getButtonTypes().set(0, ButtonType.YES);
-    //            alert.getButtonTypes().set(1, ButtonType.NO);
-    //        }
-    //        Optional<ButtonType> result = alert.showAndWait();
-    //
-    //        if (alertType.equals(Alert.AlertType.CONFIRMATION)) {
-    //            return result.isPresent() && result.get().equals(ButtonType.YES);
-    //        } else {
-    //            return result.isPresent() && result.get().equals(ButtonType.OK);
-    //        }
-    //    }
-
-    //    public boolean showCombinedHBox(
-    //            Alert.AlertType alertType, String title, String header, String content, HBox combinedTextContainer) {
-    //        Alert alert = new Alert(alertType);
-    //        alert.setTitle(title);
-    //        alert.setHeaderText(header);
-    //        alert.setContentText(content);
-    //        alert.getDialogPane().setContent(combinedTextContainer);
-    //
-    //        if (alertType.equals(Alert.AlertType.CONFIRMATION)) {
-    //            alert.getButtonTypes().set(0, ButtonType.YES);
-    //            alert.getButtonTypes().set(1, ButtonType.NO);
-    //        }
-    //        Optional<ButtonType> result = alert.showAndWait();
-    //
-    //        if (alertType.equals(Alert.AlertType.CONFIRMATION)) {
-    //            return result.isPresent() && result.get().equals(ButtonType.YES);
-    //        } else {
-    //            return result.isPresent() && result.get().equals(ButtonType.OK);
-    //        }
-    //    }
-
     public void outputJson(
             List<InstructionLoad> blockLoopInstructions, String fileName, String jsonPath, boolean genTestData) {
         List<InstructionLoad> updatedList = new ArrayList<>(); // Create a new list for updated instructions
