@@ -46,17 +46,19 @@ public class LicenseManager {
             writer.write(encryptedRequest);
             log.info("File saved to: " + newFile.getAbsolutePath());
         } catch (IOException error) {
-            log.error("Error writing to file: " + error.getMessage());
-
-            performMessage.errorMessage(
-                    "Error reading/writing to the file!",
-                    "<span style='font-style: italic;'>Please ensure the application has the necessary write permissions for the specified directory</span>",
-                    "<span style='color: #E65100; font-weight: bold;'>Attempted to read/write:</span> <span style='font-weight: bold;'>"
-                            + fileFolder + "</span>",
-                    "<span style='color: #E65100; font-weight: bold;'>File name:</span> <span style='color: #6A1B9A; font-weight: bold;'>"
-                            + fileName + "</span>",
-                    "<span style='font-style: italic;'>Details: " + "error.getMessage()" + "</span>",
-                    0);
+            log.warn("Error reading/writing to the file: " + error.getMessage());
+            //            performMessage.errorMessage(
+            //                    "Error reading/writing to the file!",
+            //                    "<span style='font-style: italic;'>Please ensure the application has the necessary
+            // write permissions for the specified directory</span>",
+            //                    "<span style='color: #E65100; font-weight: bold;'>Attempted to read/write:</span>
+            // <span style='font-weight: bold;'>"
+            //                            + fileFolder + "</span>",
+            //                    "<span style='color: #E65100; font-weight: bold;'>File name:</span> <span
+            // style='color: #6A1B9A; font-weight: bold;'>"
+            //                            + fileName + "</span>",
+            //                    "<span style='font-style: italic;'>Details: " + "error.getMessage()" + "</span>",
+            //                    0);
         }
     }
 

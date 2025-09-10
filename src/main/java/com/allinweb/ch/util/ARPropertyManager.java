@@ -175,13 +175,16 @@ public class ARPropertyManager {
                             + e.getMessage() + "</span>",
                     0);
         } catch (IOException error) {
-            performMessage.errorMessage(
-                    "Error Reading File",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to read file:</span>",
-                    "<span style='font-weight: bold;'>" + configurationFileName + "</span>.",
-                    "<span style='color: #E65100; font-weight: bold;'>Please ensure the application has the necessary read permissions for the file and that the file exists.</span>",
-                    "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
-                    0);
+            log.warn("Error reading/writing to the file: " + configurationFileName);
+            //            performMessage.errorMessage(
+            //                    "Error Reading File",
+            //                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to read
+            // file:</span>",
+            //                    "<span style='font-weight: bold;'>" + configurationFileName + "</span>.",
+            //                    "<span style='color: #E65100; font-weight: bold;'>Please ensure the application has
+            // the necessary read permissions for the file and that the file exists.</span>",
+            //                    "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
+            //                    0);
         }
     }
 

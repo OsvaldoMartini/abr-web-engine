@@ -166,6 +166,40 @@ public class EngineRunner {
                     + botJobId);
         }
 
+        if (errorMessage != null) {
+            log.error("Error: " + errorMessage.getErrorMessage());
+            performMessage.errorMessage(
+                    errorMessage.getErrorTitle(),
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                            + errorMessage.getErrorHeader(),
+                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                    null,
+                    0);
+            System.exit(0);
+        }
+
+        if (performLists.getListBotJob().isEmpty()) {
+            log.error("Cannot find Bot Jobs with this Id:" + botJobId);
+            System.exit(0);
+        }
+
+        HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(homeBankId);
+        if (homeBanking == null || StringUtils.isNullOrEmpty(homeBanking.getUrl())) {
+            log.error("Cannot find Home Banking Environment Id:" + homeBankId);
+            System.exit(0);
+        }
+
+        currentBotJob = performLists.getListBotJob().get(0);
+        this.currentBotJob.setHomeBankingLoadDTO(homeBanking);
+        HomeUrlDTO homeUrlDTO = performLists.getHomeUrlByBankId(
+                this.currentBotJob.getHomeBankingId(), this.currentBotJob.getHomeUrlId());
+
+        if (homeUrlDTO != null) {
+            this.currentBotJob.setHomeUrlId(homeUrlDTO.getId());
+            homeBanking.setUrl(homeUrlDTO.getUrl());
+        }
+
         currentBotJobName = this.currentBotJob.getName();
 
         try {
@@ -201,38 +235,6 @@ public class EngineRunner {
 
         if (extractedData.getNumberOfDataRows() > 1 && excelDataGoto.isEmpty()) {
             log.warn("Multiple Excel Rows Detected: each next row will return to first block");
-        }
-
-        if (errorMessage != null) {
-            log.error("Error: " + errorMessage.getErrorMessage());
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                            + errorMessage.getErrorHeader(),
-                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                    null,
-                    0);
-            System.exit(0);
-        }
-
-        if (performLists.getListBotJob().isEmpty()) {
-            log.error("Cannot find Bot Jobs with this Id:" + botJobId);
-        }
-
-        HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(homeBankId);
-        if (homeBanking == null || StringUtils.isNullOrEmpty(homeBanking.getUrl())) {
-            log.error("Cannot find Home Banking Environment Id:" + homeBankId);
-        }
-
-        currentBotJob = performLists.getListBotJob().get(0);
-        this.currentBotJob.setHomeBankingLoadDTO(homeBanking);
-        HomeUrlDTO homeUrlDTO = performLists.getHomeUrlByBankId(
-                this.currentBotJob.getHomeBankingId(), this.currentBotJob.getHomeUrlId());
-
-        if (homeUrlDTO != null) {
-            this.currentBotJob.setHomeUrlId(homeUrlDTO.getId());
-            homeBanking.setUrl(homeUrlDTO.getUrl());
         }
 
         if (executeJob) {

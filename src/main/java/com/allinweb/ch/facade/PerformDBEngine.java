@@ -30,6 +30,7 @@ public class PerformDBEngine {
     public boolean POSTGRES_DB = false;
     public boolean SQLITE_DB = false;
     public boolean connDBWorks = false;
+    public boolean dbFailed = false;
     // Private constructor to prevent instantiation
     private PerformDBEngine() {}
 
@@ -59,7 +60,7 @@ public class PerformDBEngine {
         if (dataBaseType != null) {
             if (dataBaseType.equalsIgnoreCase("POSTGRES")) {
                 POSTGRES_DB = true;
-            } else if (dataBaseType.equalsIgnoreCase("SQLITE")) {
+            } else if (dataBaseType.equalsIgnoreCase("TEXT")) {
                 SQLITE_DB = true;
             } else
                 // else default to Access
@@ -137,16 +138,9 @@ public class PerformDBEngine {
         } catch (SQLException error) {
             log.error("getConnection Error: " + error.getMessage());
 
-            String database = POSTGRES_DB ? "Postgres" : (SQLITE_DB ? "SQLite" : "Access");
+            String database = POSTGRES_DB ? "Postgres" : (SQLITE_DB ? "TEXT" : "Access");
             connDBWorks = false;
-            performMessage.errorMessage(
-                    "Database connection Failed",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>An error occurred during the Database connection.</span>",
-                    "<span style='font-weight: bold;'>" + database + "</span>.",
-                    "<span style='color: #E65100; font-weight: bold;'>Please ensure the Database connections are correct.</span>",
-                    "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
-                    0);
-
+            dbFailed = true;
             throw error;
         } catch (ClassNotFoundException error) {
 
@@ -154,6 +148,7 @@ public class PerformDBEngine {
         }
 
         connDBWorks = false;
+        dbFailed = false;
         return null;
     }
 
@@ -172,7 +167,7 @@ public class PerformDBEngine {
             if ("Postgres".equalsIgnoreCase(dataBaseType)) {
                 // Postgres-specific logic
                 POSTGRES_DB = true;
-            } else if ("SQLite".equalsIgnoreCase(dataBaseType)) {
+            } else if ("TEXT".equalsIgnoreCase(dataBaseType)) {
                 // SQLite-specific logic
                 SQLITE_DB = true;
             } else if ("Access".equalsIgnoreCase(dataBaseType)) {
