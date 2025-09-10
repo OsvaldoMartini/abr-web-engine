@@ -3,8 +3,10 @@ package com.allinweb.ch.builder;
 import com.allinweb.ch.util.ARWebUtil;
 import java.util.HashMap;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebElement;
 
+@Slf4j
 public class WebElementScriptBuilder {
 
     private static final String DOUBLE_APEX = "\"";

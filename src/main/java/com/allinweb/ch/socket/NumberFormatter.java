@@ -1,5 +1,8 @@
 package com.allinweb.ch.socket;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 public class NumberFormatter {
 
     public static String formatNumber(String numberString, String localFormat) {
@@ -39,7 +42,7 @@ public class NumberFormatter {
             return decimalPart.isEmpty() ? groupedInteger : groupedInteger + decimalSeparator + decimalPart;
 
         } catch (Exception e) {
-            System.err.println("Error formatting number: " + numberString + " - " + e.getMessage());
+            log.error("Error formatting number: " + numberString + " - " + e.getMessage());
             return numberString;
         }
     }
@@ -76,7 +79,7 @@ public class NumberFormatter {
         for (String number : numbers) {
             for (String format : formats) {
                 String formattedNumber = formatNumber(number, format);
-                System.out.println("Number: " + number + ", Format: " + format + " -> Formatted: " + formattedNumber);
+                log.info("Number: " + number + ", Format: " + format + " -> Formatted: " + formattedNumber);
             }
         }
     }

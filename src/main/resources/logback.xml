@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- Dynamic log path: use system property LOG_PATH, default to ./logs -->
+    <property name="LOG_PATH" value="${LOG_PATH:-./logs}"/>
+
+    <!-- Console Appender -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%white(%d{ISO8601}) %highlight(%-5level) [%blue(%t)] %yellow(%C{1}): %msg%n%throwable</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Rolling File Appender (main logs) -->
+    <appender name="ROLLING_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/ar_web_engine_base.log</file>
+        <prudent>true</prudent>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+<!--            <pattern>%d{ISO8601} %-5p %C{1} [%t] %m%n%throwable</pattern>-->
+            <pattern>%d{ISO8601} %m%n%throwable</pattern>
+        </encoder>
+
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!-- File name pattern directly in the LOG_PATH folder -->
+            <fileNamePattern>${LOG_PATH}/ar_web_engine_base-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>500MB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- Special Rolling File Appender -->
+    <appender name="SPECIAL_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/ar_web_engine_execution.log</file>
+        <prudent>true</prudent>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%d{ISO8601} %m%n%throwable</pattern>
+        </encoder>
+
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/ar_web_engine_execution-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>200MB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- Suppress Jetty logs completely -->
+    <logger name="org.eclipse.jetty" level="OFF" additivity="false"/>
+    <logger name="org.eclipse.jetty.util.log" level="OFF" additivity="false"/>
+    <logger name="org.eclipse.jetty.server" level="OFF" additivity="false"/>
+    <logger name="org.eclipse.jetty.websocket" level="OFF" additivity="false"/>
+
+    <!-- Example: Trace logging for a specific package -->
+    <logger name="com.allinweb.ch.runner" level="TRACE" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="ROLLING_FILE"/>
+    </logger>
+
+    <!-- Logger for special usage -->
+    <logger name="com.allinweb.special" level="DEBUG" additivity="false">
+        <appender-ref ref="SPECIAL_FILE"/>
+    </logger>
+
+    <!-- Root Logger -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="ROLLING_FILE"/>
+    </root>
+
+</configuration>

@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
@@ -11,10 +12,19 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
+@Slf4j
 public class IframeInputLocator {
 
     // Public method to access the singleton instance
     private static volatile IframeInputLocator instance;
+    private WebDriver driver;
+    private Map<WebElement, List<WebElement>> iframeElementsMap;
+
+    private IframeInputLocator() {}
+
+    public IframeInputLocator(WebDriver driver) {
+        this.driver = driver;
+    }
 
     // Public method to access the singleton instance
     public static IframeInputLocator getInstance() {
@@ -28,18 +38,9 @@ public class IframeInputLocator {
         return instance;
     }
 
-    private IframeInputLocator() {}
-
-    private WebDriver driver;
-    private Map<WebElement, List<WebElement>> iframeElementsMap;
-
     public void initializeIframeInputLocator(Map<WebElement, List<WebElement>> iframeElementsMap, WebDriver drive) {
         this.driver = drive;
         this.iframeElementsMap = iframeElementsMap;
-    }
-
-    public IframeInputLocator(WebDriver driver) {
-        this.driver = driver;
     }
 
     // Method to find an input element inside a specific iframe using the iframeElementsMap
@@ -57,7 +58,7 @@ public class IframeInputLocator {
                 try {
                     // Print the XPath of each element
                     //                    String elementXPath = getElementXPath(element, driver);
-                    //                    System.out.println("Element XPath: " + elementXPath);
+                    //                    log.info("Element XPath: " + elementXPath);
 
                     // Ensure the element is an input field
                     if (element.getTagName().equalsIgnoreCase("input")
@@ -73,10 +74,10 @@ public class IframeInputLocator {
 
                         // Validate if the input was correctly received
                         if (inputText.equals(retrievedValue)) {
-                            System.out.println("SUCCESS: Sent '" + inputText + "' and received '" + retrievedValue
+                            log.info("SUCCESS: Sent '" + inputText + "' and received '" + retrievedValue
                                     + "' in IFrame.");
                         } else {
-                            System.out.println(
+                            log.info(
                                     "ERROR: Sent '" + inputText + "' but received '" + retrievedValue + "' in IFrame.");
                         }
 
@@ -85,7 +86,7 @@ public class IframeInputLocator {
 
                     }
                 } catch (Exception e) {
-                    System.out.println("Element interaction failed in IFrame. Error: " + e.getMessage());
+                    log.info("Element interaction failed in IFrame. Error: " + e.getMessage());
                 }
             }
 
@@ -262,7 +263,7 @@ public class IframeInputLocator {
         // Iterate through all elements and print their XPath
         for (WebElement element : allElements) {
             String elementXPath = getElementXPathAll(element, driver);
-            System.out.println("Element XPath: " + elementXPath);
+            log.info("Element XPath: " + elementXPath);
             allXPaths.add(elementXPath);
         }
 

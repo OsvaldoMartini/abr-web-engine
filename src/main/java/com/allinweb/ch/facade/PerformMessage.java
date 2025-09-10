@@ -2,21 +2,14 @@ package com.allinweb.ch.facade;
 
 import com.allinweb.ch.component.model.ElementDTO;
 import com.allinweb.ch.component.model.InstructionLoad;
-import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARPropertyEnum;
-import com.allinweb.ch.util.ARPropertyManager;
+import com.allinweb.ch.util.ARExecution;
 import com.google.common.base.Strings;
 import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.HierarchyEvent;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseMotionAdapter;
+import java.awt.event.*;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -29,6 +22,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javax.swing.*;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * PerformMessage.
@@ -36,6 +30,7 @@ import javax.swing.*;
  * @author Osvaldo Martini
  * @version 1.0
  */
+@Slf4j
 public class PerformMessage {
 
     // Static final variable to hold the singleton instance
@@ -56,10 +51,89 @@ public class PerformMessage {
         return instance;
     }
 
-    private static final ARPropertyManager arPropertyManager;
+    // Helper method to create styled buttons
+    private static JButton createStyledButton(String text) {
+        return new JButton(text) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                if (isOpaque()) {
+                    Graphics2D g2 = (Graphics2D) g;
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    GradientPaint gradient =
+                            new GradientPaint(0, 0, Color.LIGHT_GRAY, getWidth(), getHeight(), Color.WHITE);
+                    g2.setPaint(gradient);
+                    g2.fillRect(0, 0, getWidth(), getHeight());
+                }
+                super.paintComponent(g);
+            }
+        };
+    }
 
-    static {
-        arPropertyManager = ARPropertyManager.getInstance();
+    /**
+     * Creates a styled button with Windows 11 theme
+     */
+    private static JButton createStyledButtonWin11(String text) {
+        JButton button = new JButton(text);
+
+        // Windows 11 Theme Styling
+        button.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        button.setForeground(Color.WHITE);
+        button.setBackground(new Color(0, 120, 212)); // Windows 11 blue
+        button.setFocusPainted(false);
+        button.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12)); // Adjust padding
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        // Ensure UI updates properly
+        button.setOpaque(true);
+        button.setContentAreaFilled(true);
+        button.setBorderPainted(false);
+        button.putClientProperty("JComponent.outline", null); // Prevents UI interference
+
+        // Hover Effect
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                button.setBackground(new Color(0, 102, 180)); // Darker blue on hover
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                button.setBackground(new Color(0, 120, 212)); // Reset color
+            }
+        });
+
+        // Ensure color is reset each time it's used
+        button.addHierarchyListener(e -> {
+            if ((e.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0 && button.isShowing()) {
+                button.setBackground(new Color(0, 120, 212)); // Restore original color
+            }
+        });
+
+        // Force UI update
+        button.revalidate();
+        button.repaint();
+
+        return button;
+    }
+
+    // Method to add drag-and-drop support
+    private static void addDragSupport(JDialog dialog, JPanel panel) {
+        final Point mouseDownCompCoords = new Point();
+
+        panel.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                mouseDownCompCoords.setLocation(e.getPoint());
+            }
+        });
+
+        panel.addMouseMotionListener(new MouseMotionAdapter() {
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                Point currCoords = e.getLocationOnScreen();
+                dialog.setLocation(currCoords.x - mouseDownCompCoords.x, currCoords.y - mouseDownCompCoords.y);
+            }
+        });
     }
 
     public void initializePerformMessages() {}
@@ -207,7 +281,7 @@ public class PerformMessage {
         dialog.setVisible(true); // This will block other input until the dialog is closed
     }
 
-    public ARConstants.DialogModal showCustomModalDialog(
+    public ARExecution.DialogModal showCustomModalDialog(
             String title,
             String message,
             String message2,
@@ -275,7 +349,7 @@ public class PerformMessage {
         messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
         panel.add(messageLabel, BorderLayout.CENTER);
 
-        final ARConstants.DialogModal[] status = {ARConstants.DialogModal.NONE};
+        final ARExecution.DialogModal[] status = {ARExecution.DialogModal.NONE};
 
         if (!Strings.isNullOrEmpty(secondButton)) {
 
@@ -331,7 +405,7 @@ public class PerformMessage {
                 @Override
                 public void actionPerformed(ActionEvent e) {
                     dialog.dispose();
-                    status[0] = ARConstants.DialogModal.OK;
+                    status[0] = ARExecution.DialogModal.OK;
                 }
             });
 
@@ -339,9 +413,9 @@ public class PerformMessage {
             stopButton.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent e) {
-                    System.out.println("Stop button clicked!");
+                    log.info("Stop button clicked!");
                     dialog.dispose();
-                    status[0] = ARConstants.DialogModal.STOP;
+                    status[0] = ARExecution.DialogModal.STOP;
                 }
             });
 
@@ -373,7 +447,7 @@ public class PerformMessage {
                 @Override
                 public void actionPerformed(ActionEvent e) {
                     dialog.dispose();
-                    status[0] = ARConstants.DialogModal.OK;
+                    status[0] = ARExecution.DialogModal.OK;
                 }
             });
 
@@ -388,7 +462,7 @@ public class PerformMessage {
         return status[0];
     }
 
-    public ARConstants.DialogModal showCustomModalDialogDrag(
+    public ARExecution.DialogModal showCustomModalDialogDrag(
             String title,
             String message,
             String message2,
@@ -459,7 +533,7 @@ public class PerformMessage {
         messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
         panel.add(messageLabel, BorderLayout.CENTER);
 
-        final ARConstants.DialogModal[] status = {ARConstants.DialogModal.NONE};
+        final ARExecution.DialogModal[] status = {ARExecution.DialogModal.NONE};
 
         // Create button panel if second button exists
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 0));
@@ -473,7 +547,7 @@ public class PerformMessage {
         okButton.setPreferredSize(buttonSize);
         okButton.addActionListener(e -> {
             dialog.dispose();
-            status[0] = ARConstants.DialogModal.OK;
+            status[0] = ARExecution.DialogModal.OK;
         });
         buttonPanel.add(okButton);
 
@@ -482,9 +556,9 @@ public class PerformMessage {
             JButton stopButton = createStyledButton(secondButton);
             stopButton.setPreferredSize(buttonSize);
             stopButton.addActionListener(e -> {
-                System.out.println("Stop button clicked!");
+                log.info("Stop button clicked!");
                 dialog.dispose();
-                status[0] = ARConstants.DialogModal.STOP;
+                status[0] = ARExecution.DialogModal.STOP;
             });
             buttonPanel.add(stopButton);
         }
@@ -569,7 +643,7 @@ public class PerformMessage {
     /**
      * Creates a styled button with Windows 11 theme
      */
-    public ARConstants.DialogModal showCustomModalDialogDragWin11(
+    public ARExecution.DialogModal showCustomModalDialogDragWin11(
             String title,
             String message1,
             String message2,
@@ -587,7 +661,7 @@ public class PerformMessage {
     /**
      * Creates a styled button with Windows 11 theme
      */
-    public ARConstants.DialogModal showCustomModalDialogDragWin11Timer(
+    public ARExecution.DialogModal showCustomModalDialogDragWin11Timer(
             String title,
             String message1,
             String message2,
@@ -627,17 +701,17 @@ public class PerformMessage {
         panel.setLayout(new BorderLayout());
 
         //                    Type	Emoji/Icon	Example Code
-        //                    Success	✅	System.out.println("✅ Java version is valid.");
-        //                    Info	ℹ️	System.out.println("ℹ️ Running version check...");
-        //                    Warning	⚠️	System.out.println("⚠️ Java version might be outdated.");
-        //                    Error	❌	System.out.println("❌ Java version is too old.");
-        //                    Stop	🛑	System.out.println("🛑 Application cannot continue.");
-        //                    Bug/Debug	🐛	System.out.println("🐛 Debug mode enabled.");
-        //                    Time	⏱️	System.out.println("⏱️ Checking environment...");
-        //                    Rocket/Start	🚀	System.out.println("🚀 Starting process...");
-        //                    Lock	🔒	System.out.println("🔒 Secure mode enabled.");
-        //                    Folder	📂	System.out.println("📂 Loading files...");
-        //                    Checkmark	✔️	System.out.println("✔️ All checks passed.");
+        //                    Success	✅	log.info("✅ Java version is valid.");
+        //                    Info	ℹ️	log.info("ℹ️ Running version check...");
+        //                    Warning	⚠️	log.info("⚠️ Java version might be outdated.");
+        //                    Error	❌	log.info("❌ Java version is too old.");
+        //                    Stop	🛑	log.info("🛑 Application cannot continue.");
+        //                    Bug/Debug	🐛	log.info("🐛 Debug mode enabled.");
+        //                    Time	⏱️	log.info("⏱️ Checking environment...");
+        //                    Rocket/Start	🚀	log.info("🚀 Starting process...");
+        //                    Lock	🔒	log.info("🔒 Secure mode enabled.");
+        //                    Folder	📂	log.info("📂 Loading files...");
+        //                    Checkmark	✔️	log.info("✔️ All checks passed.");
 
         // Build the message
         String titleMessage = "<html><br><span style='color: blue;'>"
@@ -683,7 +757,7 @@ public class PerformMessage {
         messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
         panel.add(messageLabel, BorderLayout.CENTER);
 
-        final ARConstants.DialogModal[] status = {ARConstants.DialogModal.NONE};
+        final ARExecution.DialogModal[] status = {ARExecution.DialogModal.NONE};
 
         // Create button panel if second button exists
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 0));
@@ -697,7 +771,7 @@ public class PerformMessage {
         okButton.setPreferredSize(buttonSize);
         okButton.addActionListener(e -> {
             dialog.dispose();
-            status[0] = ARConstants.DialogModal.OK;
+            status[0] = ARExecution.DialogModal.OK;
         });
         buttonPanel.add(okButton);
 
@@ -706,9 +780,9 @@ public class PerformMessage {
             JButton stopButton = createStyledButtonWin11(secondButton);
             stopButton.setPreferredSize(buttonSize);
             stopButton.addActionListener(e -> {
-                System.out.println("Stop button clicked!");
+                log.info("Stop button clicked!");
                 dialog.dispose();
-                status[0] = ARConstants.DialogModal.STOP;
+                status[0] = ARExecution.DialogModal.STOP;
             });
             buttonPanel.add(stopButton);
 
@@ -735,91 +809,6 @@ public class PerformMessage {
         dialog.setVisible(true); // This blocks other input until the dialog is closed
 
         return status[0];
-    }
-
-    // Helper method to create styled buttons
-    private static JButton createStyledButton(String text) {
-        return new JButton(text) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                if (isOpaque()) {
-                    Graphics2D g2 = (Graphics2D) g;
-                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                    GradientPaint gradient =
-                            new GradientPaint(0, 0, Color.LIGHT_GRAY, getWidth(), getHeight(), Color.WHITE);
-                    g2.setPaint(gradient);
-                    g2.fillRect(0, 0, getWidth(), getHeight());
-                }
-                super.paintComponent(g);
-            }
-        };
-    }
-
-    /**
-     * Creates a styled button with Windows 11 theme
-     */
-    private static JButton createStyledButtonWin11(String text) {
-        JButton button = new JButton(text);
-
-        // Windows 11 Theme Styling
-        button.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        button.setForeground(Color.WHITE);
-        button.setBackground(new Color(0, 120, 212)); // Windows 11 blue
-        button.setFocusPainted(false);
-        button.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12)); // Adjust padding
-        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        // Ensure UI updates properly
-        button.setOpaque(true);
-        button.setContentAreaFilled(true);
-        button.setBorderPainted(false);
-        button.putClientProperty("JComponent.outline", null); // Prevents UI interference
-
-        // Hover Effect
-        button.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                button.setBackground(new Color(0, 102, 180)); // Darker blue on hover
-            }
-
-            @Override
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                button.setBackground(new Color(0, 120, 212)); // Reset color
-            }
-        });
-
-        // Ensure color is reset each time it's used
-        button.addHierarchyListener(e -> {
-            if ((e.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0 && button.isShowing()) {
-                button.setBackground(new Color(0, 120, 212)); // Restore original color
-            }
-        });
-
-        // Force UI update
-        button.revalidate();
-        button.repaint();
-
-        return button;
-    }
-
-    // Method to add drag-and-drop support
-    private static void addDragSupport(JDialog dialog, JPanel panel) {
-        final Point mouseDownCompCoords = new Point();
-
-        panel.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent e) {
-                mouseDownCompCoords.setLocation(e.getPoint());
-            }
-        });
-
-        panel.addMouseMotionListener(new MouseMotionAdapter() {
-            @Override
-            public void mouseDragged(MouseEvent e) {
-                Point currCoords = e.getLocationOnScreen();
-                dialog.setLocation(currCoords.x - mouseDownCompCoords.x, currCoords.y - mouseDownCompCoords.y);
-            }
-        });
     }
 
     public String renderInstructionActions(InstructionLoad instruction) {
@@ -902,10 +891,8 @@ public class PerformMessage {
         }
     }
 
-    public void outputJson(List<InstructionLoad> blockLoopInstructions, String fileName, boolean genTestData) {
-        // Get the directory path from ARPropertyManager
-        String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-
+    public void outputJson(
+            List<InstructionLoad> blockLoopInstructions, String fileName, String jsonPath, boolean genTestData) {
         List<InstructionLoad> updatedList = new ArrayList<>(); // Create a new list for updated instructions
 
         for (InstructionLoad instruction : blockLoopInstructions) {
@@ -993,16 +980,14 @@ public class PerformMessage {
         // Write the JSON data to the file
         try (FileWriter writer = new FileWriter(outputFilePath)) {
             writer.write(jsonData);
-            System.out.println("JSON file saved to: " + outputFilePath);
+            log.info("JSON file saved to: " + outputFilePath);
         } catch (IOException e) {
-            System.err.println("Error writing JSON to file: " + e.getMessage());
+            log.error("Error writing JSON to file: " + e.getMessage());
         }
     }
 
-    public void outputJsonElementDTO(ElementDTO[] elementDTO, List<String> fieldsToExclude, String fileName) {
-        // Get the directory path from ARPropertyManager
-        String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
-
+    public void outputJsonElementDTO(
+            ElementDTO[] elementDTO, List<String> fieldsToExclude, String fileName, String jsonPath) {
         // Define Gson ExclusionStrategy to ignore specific fields
         ExclusionStrategy strategy = new ExclusionStrategy() {
             @Override
@@ -1032,9 +1017,9 @@ public class PerformMessage {
         // Write the JSON data to the file
         try (FileWriter writer = new FileWriter(outputFilePath)) {
             writer.write(jsonData);
-            System.out.println("JSON file saved to: " + outputFilePath);
+            log.info("JSON file saved to: " + outputFilePath);
         } catch (IOException e) {
-            System.err.println("Error writing JSON to file: " + e.getMessage());
+            log.error("Error writing JSON to file: " + e.getMessage());
         }
     }
 

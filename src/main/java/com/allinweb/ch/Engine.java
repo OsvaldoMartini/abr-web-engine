@@ -1,36 +1,46 @@
 package com.allinweb.ch;
 
+import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
+import com.allinweb.ch.runner.EngineRunner;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import java.io.File;
 import java.io.FileInputStream;
 import java.util.*;
 import javax.swing.*;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class Engine {
 
+    private static final LogControl logControl = LogControl.getInstance();
     private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
+    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
 
-    private static String defaultConfigurationFileName = ARConstants.USER_PATH + ARConstants.FILE_NAME_CONFIGURATION;
+    private static String defaultConfigurationFileName =
+            ARConstantsEngine.USER_PATH + ARConstantsEngine.FILE_NAME_CONFIGURATION;
     private static final String language = "en";
 
     private static boolean isEnabledLicence = true;
 
     // static only for entry point
     public static void main(String[] args) {
-        System.out.println("ENGINE STARTED");
+        System.setProperty("org.eclipse.jetty.LEVEL", "OFF");
+        logControl.disableLogging();
+
+        log.info("ENGINE STARTED");
 
         if (args.length == 0) {
-            System.out.println("No parameters, please read documentation.");
+            log.error("No parameters, please read documentation.");
             System.exit(0);
         }
 
         for (int i = 0; i < args.length; i++) {
-            System.out.println("PARAM " + i + ">> " + args[i]);
+            log.info("PARAM " + i + ">> " + args[i]);
         }
 
         // --- configuration file setup
@@ -47,7 +57,7 @@ public class Engine {
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
         } catch (Exception e) {
-            System.err.println("LookAndFeel setting failed.");
+            log.error("LookAndFeel setting failed.");
         }
         EngineRunner runner = new EngineRunner();
         runner.run(args);
@@ -89,13 +99,19 @@ public class Engine {
 
         try (FileInputStream conf = new FileInputStream(configurationFile)) {
             arPropertyManager.loadProperties(conf);
+            setLogPath();
+            logControl.enableLogging();
             licenseControl();
+            initializeServers();
         } catch (Exception error) {
             arPropertyManager.createDefaultProperties(configurationFile);
+            setLogPath();
+            logControl.enableLogging();
             licenseControl();
+            initializeServers();
         }
 
-        ARLogger.getInstance(EngineRunner.class).fine("Configuration file path: " + configurationValue);
+        log.info("Configuration file path: " + configurationValue);
     }
 
     private static void licenseControl() {
@@ -139,8 +155,7 @@ public class Engine {
             }
             return true;
         } catch (Exception error) {
-            ARLogger.getInstance(Engine.class)
-                    .severe("Cannot read/validate the License path/file. Error: " + error.getMessage());
+            log.error("Cannot read/validate the License path/file. Error: " + error.getMessage());
             return false;
         }
     }
@@ -171,5 +186,28 @@ public class Engine {
         }
 
         return missingPropertiesList;
+    }
+
+    private static void setLogPath() {
+        // Set log path system property BEFORE logback init
+        String logPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
+        File logDir = new File(logPath);
+        if (!logDir.exists() && !logDir.mkdirs()) {
+            log.error("❌ Failed to create log directory: " + logDir.getAbsolutePath());
+            System.exit(1);
+        }
+        System.setProperty("LOG_PATH", logDir.getAbsolutePath());
+
+        // After main logic, initialize logging
+        LogbackInitializer.loadLogbackFromResources();
+        System.setProperty("org.eclipse.jetty.LEVEL", "ON");
+        // Now logback initializes with correct LOG_PATH
+        log.info("Using log path: {}", logDir.getAbsolutePath());
+    }
+
+    private static void initializeServers() {
+        System.setProperty(
+                "ARWebChosenPort", String.valueOf(arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET)));
+        performDBEngine.callSocketLists();
     }
 }

@@ -17,6 +17,7 @@ public class BlockLoadDTO {
     private String exportFile;
     private Boolean active;
     private Integer wait;
+    private boolean hasAnyInput;
 
     private List<InstructionLoad> instructionLoad;
 }

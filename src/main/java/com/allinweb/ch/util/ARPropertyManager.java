@@ -11,9 +11,26 @@ import java.util.Properties;
 import java.util.logging.Level;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ARPropertyManager {
+    private static final PerformMessage performMessage;
+    private static final String lock = "locked";
     protected static volatile ARPropertyManager instance;
+
+    // Static block to initialize
+    static {
+        performMessage = PerformMessage.getInstance();
+    }
+
+    @Getter
+    @Setter
+    private Properties properties = new Properties();
+
+    @Getter
+    @Setter
+    private String configurationFileName;
 
     // Private constructor to prevent instantiation
     private ARPropertyManager() {}
@@ -29,22 +46,12 @@ public class ARPropertyManager {
         return instance;
     }
 
-    private static final PerformMessage performMessage;
-
-    // Static block to initialize
-    static {
-        performMessage = PerformMessage.getInstance();
+    public static String getTodaysDate(int day) {
+        LocalDate today = LocalDate.now();
+        LocalDate yesterday = today.minusDays(day);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+        return yesterday.format(formatter);
     }
-
-    private static final String lock = "locked";
-
-    @Getter
-    @Setter
-    private Properties properties = new Properties();
-
-    @Getter
-    @Setter
-    private String configurationFileName;
 
     public void loadProperties(FileInputStream configFile) {
         configurationFileName = System.getProperty("ARWebConfig");
@@ -56,7 +63,7 @@ public class ARPropertyManager {
             this.properties.load(configFile);
 
             String logLevel = this.properties.getProperty(ARPropertyEnum.LOG_LEVEL.getValue());
-            System.out.println("LOG_LEVEL = " + logLevel + "   ConfigFile=" + configurationFileName);
+            log.info("LOG_LEVEL = " + logLevel + "   ConfigFile=" + configurationFileName);
 
             String logPath = getProperty(ARPropertyEnum.PATH_LOG);
             if (logPath == null || logPath.isBlank()) {
@@ -192,7 +199,7 @@ public class ARPropertyManager {
         configurationFile.delete();
         try {
             configurationFile.createNewFile();
-            setProperty(ARPropertyEnum.PATH_LICENSE.getValue(), ARConstants.USER_PATH);
+            setProperty(ARPropertyEnum.PATH_LICENSE.getValue(), ARConstantsEngine.USER_PATH);
 
             setProperty(ARPropertyEnum.PATH_EXCEL.getValue(), "C:\\ARWeb\\ARWeb\\Excel");
             setProperty(ARPropertyEnum.PATH_LOG.getValue(), "C:\\ARWeb\\ARWeb\\Logs");
@@ -208,10 +215,10 @@ public class ARPropertyManager {
             setProperty(ARPropertyEnum.DATABASE_TYPE.getValue(), "Access");
 
             setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), "54525");
-            setProperty(ARPropertyEnum.PATH_ENGINE.getValue(), ARConstants.USER_PATH);
-            setProperty(ARPropertyEnum.PATH_WEBDRIVER.getValue(), ARConstants.USER_PATH + "\\driver");
+            setProperty(ARPropertyEnum.PATH_ENGINE.getValue(), ARConstantsEngine.USER_PATH);
+            setProperty(ARPropertyEnum.PATH_WEBDRIVER.getValue(), ARConstantsEngine.USER_PATH + "\\driver");
             setProperty(ARPropertyEnum.LOG_LEVEL.getValue(), Level.INFO.getName());
-            setProperty(ARPropertyEnum.BROWSER.getValue(), ARConstants.EDGE);
+            setProperty(ARPropertyEnum.BROWSER.getValue(), ARConstantsEngine.EDGE);
             setProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC.getValue(), "60");
             setProperty(ARPropertyEnum.WEBDRIVER_INTERACTION_TIMEOUT_SEC.getValue(), "60");
             setProperty(ARPropertyEnum.INSTRUCTION_STOP_SECONDS.getValue(), "15");
@@ -291,12 +298,5 @@ public class ARPropertyManager {
             return true;
         }
         return false;
-    }
-
-    public static String getTodaysDate(int day) {
-        LocalDate today = LocalDate.now();
-        LocalDate yesterday = today.minusDays(day);
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
-        return yesterday.format(formatter);
     }
 }

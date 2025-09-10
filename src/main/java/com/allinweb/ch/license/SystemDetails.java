@@ -8,7 +8,9 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class SystemDetails {
 
     public static String getSystemDetails() {
@@ -115,6 +117,6 @@ public class SystemDetails {
 
     public static void main(String[] args) {
         String details = getSystemDetails();
-        System.out.println("System Details: " + details);
+        log.info("System Details: " + details);
     }
 }

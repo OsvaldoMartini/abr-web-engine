@@ -5,18 +5,20 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class Labels {
-    public static Properties labelsValue;
-
     public static final String START = "START";
     public static final String END = "END";
     public static final String OK = "OK";
     public static final String KO = "KO";
+    public static Properties labelsValue;
 
     public static void initializeLabelsInSpecLang(String language) {
         labelsValue = new Properties();
-        String labelsFileName = ARConstants.LABELS_FILE_NAME_COMMON + language + ARConstants.PROPERTIES_FILE_EXTENSION;
+        String labelsFileName =
+                ARConstantsEngine.LABELS_FILE_NAME_COMMON + language + ARConstantsEngine.PROPERTIES_FILE_EXTENSION;
 
         // Read in the LCO Probe properties file
         try (InputStream inputStream =
@@ -25,7 +27,7 @@ public class Labels {
             // load a properties file
             labelsValue.load(inputStream);
         } catch (IOException ex) {
-            ARLogger.getInstance(Labels.class).severe("Cannot Read Lang Labels: " + ex.getMessage());
+            log.error("Cannot Read Lang Labels: " + ex.getMessage());
         }
     }
 }

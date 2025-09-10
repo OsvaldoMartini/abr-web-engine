@@ -10,12 +10,4 @@ public class BlockOrderDTO {
     private String sessionId;
     private Integer homeBankingId;
     private List<BlockOrderDetailDTO> updatedBlocks;
-
-    // Constructors
-    public BlockOrderDTO() {}
-
-    public BlockOrderDTO(String type, List<BlockOrderDetailDTO> updatedBlocks) {
-        this.type = type;
-        this.updatedBlocks = updatedBlocks;
-    }
 }

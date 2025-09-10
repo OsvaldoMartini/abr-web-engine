@@ -3,9 +3,11 @@ package com.allinweb.ch.util;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
 @Data
 @AllArgsConstructor
+@Slf4j
 public class Priority {
     private List<String> name;
     private String priorityType;

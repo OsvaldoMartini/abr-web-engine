@@ -1,4 +1,4 @@
-package com.allinweb.ch.persistence;
+package com.allinweb.ch.component.model;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
@@ -63,12 +63,12 @@ public class DatabaseUserDTO {
         return jobs != null ? jobs.get() : "0";
     }
 
-    public StringProperty jobsProperty() {
-        return jobs;
-    }
-
     public void setJobs(String jobs) {
         this.jobs.set(jobs);
+    }
+
+    public StringProperty jobsProperty() {
+        return jobs;
     }
 
     public String getName() {
@@ -87,71 +87,71 @@ public class DatabaseUserDTO {
         return url.get();
     }
 
-    public StringProperty urlProperty() {
-        return url;
-    }
-
     public void setUrl(String url) {
         this.url.set(url);
+    }
+
+    public StringProperty urlProperty() {
+        return url;
     }
 
     public String getPriority() {
         return priority != null ? priority.get() : "";
     }
 
-    public StringProperty priorityProperty() {
-        return priority;
-    }
-
     public void setPriority(String priority) {
         this.priority.set(priority);
+    }
+
+    public StringProperty priorityProperty() {
+        return priority;
     }
 
     public String getSearchConfig() {
         return searchConfig.get();
     }
 
-    public StringProperty searchConfigProperty() {
-        return searchConfig;
-    }
-
     public void setSearchConfig(String searchConfig) {
         this.searchConfig.set(searchConfig);
+    }
+
+    public StringProperty searchConfigProperty() {
+        return searchConfig;
     }
 
     public String getOptionsConfig() {
         return optionsConfig.get();
     }
 
-    public StringProperty optionsConfigProperty() {
-        return optionsConfig;
-    }
-
     public void setOptionsConfig(String optionsConfig) {
         this.optionsConfig.set(optionsConfig);
+    }
+
+    public StringProperty optionsConfigProperty() {
+        return optionsConfig;
     }
 
     public String getUsername() {
         return username != null ? username.get() : "";
     }
 
-    public StringProperty usernameProperty() {
-        return username;
-    }
-
     public void setUsername(String username) {
         this.username.set(username);
+    }
+
+    public StringProperty usernameProperty() {
+        return username;
     }
 
     public String getPassword() {
         return password != null ? password.get() : "";
     }
 
-    public StringProperty passwordProperty() {
-        return password;
-    }
-
     public void setPassword(String password) {
         this.password.set(password);
+    }
+
+    public StringProperty passwordProperty() {
+        return password;
     }
 }

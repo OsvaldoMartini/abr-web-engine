@@ -1,8 +1,7 @@
-package com.allinweb.ch.persistence;
+package com.allinweb.ch.component.model;
 
 import com.allinweb.ch.builder.WebElementIcon;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
-import com.allinweb.ch.component.model.AttributeData;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

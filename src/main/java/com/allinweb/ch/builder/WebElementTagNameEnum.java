@@ -33,19 +33,19 @@ public enum WebElementTagNameEnum {
         this.value = value;
     }
 
-    public String getValue() {
-        return value;
-    }
-
-    public void setValue(String value) {
-        this.value = value;
-    }
-
     public static List<WebElementTagNameEnum> insertableTags() {
         return List.of(INPUT, TEXT_AREA);
     }
 
     public static List<WebElementTagNameEnum> clickableTags() {
         return List.of(INPUT, BUTTON, MAT_SELECT, MAT_OPTION, MAT_EXPANSION_PANEL, ANCHOR, SELECT, OPTION);
+    }
+
+    public String getValue() {
+        return value;
+    }
+
+    public void setValue(String value) {
+        this.value = value;
     }
 }

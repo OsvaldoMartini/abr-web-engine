@@ -1,8 +1,10 @@
 package com.allinweb.ch.util;
 
 import java.util.Random;
+import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebElement;
 
+@Slf4j
 public class UtilsMethods {
 
     public static String generateRandomID(int length) {
@@ -22,7 +24,7 @@ public class UtilsMethods {
     }
 
     public static boolean testFixedCheck(String valueToCheck) {
-        String[] splittedValue = valueToCheck.split(ARConstants.RND_ID_SEPARATOR);
+        String[] splittedValue = valueToCheck.split(ARConstantsEngine.RND_ID_SEPARATOR);
         if (splittedValue.length != 2) {
             return false;
         }

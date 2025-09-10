@@ -1,4 +1,4 @@
-package com.allinweb.ch;
+package com.allinweb.ch.runner;
 
 import com.allinweb.ch.component.model.*;
 import com.allinweb.ch.driver.ARWebDriver;
@@ -20,22 +20,28 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.IntStream;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.util.Pair;
+import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+@Slf4j
 public class EngineRunner {
 
+    private static final Logger specialLog = LoggerFactory.getLogger("com.allinweb.special");
+
     private String excelPath;
-    private File baseLogFile;
     private BotJobLoadDTO currentBotJob;
     private String currentBotJobName;
-    private int currentBlockId;
+    private int currentBlockOrder;
     private int executeSpecificBlock;
     private List<BlockLoadDTO> blocksLoaded;
     private List<InstructionLoad> excelDataGoto = new ArrayList<>();
@@ -102,14 +108,15 @@ public class EngineRunner {
         try {
             performDBEngine.changeDbConnection();
         } catch (Exception error) {
-            ARLogger.getInstance(EngineRunner.class).severe("Error Database Connections: " + error.getMessage());
+            log.error("Error Database Connections: " + error.getMessage());
             System.exit(0);
         }
 
         try {
             startParametersInterpreter(args);
         } catch (Exception e) {
-            ARLogger.getInstance(EngineRunner.class).severe("Main class Start Error: " + e.getMessage());
+            log.error("Main class Start Error: " + e.getMessage());
+            System.exit(0);
         }
     }
 
@@ -134,14 +141,15 @@ public class EngineRunner {
 
         executeSpecificBlock = -1;
         try {
-            executeSpecificBlock = Integer.parseInt(idsAndPaths[3]);
-            System.out.println("Running Block Id: " + executeSpecificBlock);
-        } catch (Exception e) {
-            System.out.println("Running All Blocks");
-        }
+            executeSpecificBlock = Integer.parseInt(idsAndPaths[2]) - 1;
+            log.info("Running Block Id: " + idsAndPaths[2]);
 
-        baseLogFile = new File(
-                arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG) + ARConstants.FILE_NAME_ENGINE_BASE_LOG);
+            if (executeSpecificBlock < 0) {
+                log.info("Running All Blocks");
+            }
+        } catch (Exception e) {
+            log.error("Running All Blocks: " + e.getMessage());
+        }
 
         ErrorMessage errorMessage = performDBEngine.loadHomeBanking(homeBankId);
         if (errorMessage == null) errorMessage = performDBEngine.loadHomeUrls(homeBankId);
@@ -149,13 +157,16 @@ public class EngineRunner {
         if (errorMessage == null) errorMessage = performDBEngine.loadAllVariables("variable", botJobId);
         if (errorMessage == null) excelDataGoto = performDBEngine.loadExcelGotoBlock(botJobId, "instruction");
 
-        if (errorMessage == null) {
+        if (errorMessage == null && !performLists.getListBotJob().isEmpty()) {
             blocksLoaded = performLists.getListBotJob().get(0).getBlockLoadDTOList();
             errorMessage = performDBEngine.loadAllActionsPerBlock(blocksLoaded);
+        } else if (performLists.getListBotJob().isEmpty()) {
+            log.warn("I cannot find a Bot Job with this Organization ID: " + homeBankId + " Environment ID: "
+                    + botJobId);
         }
 
         if (errorMessage != null) {
-            ARLogger.getInstance(EngineRunner.class).severe("Error: " + errorMessage.getErrorMessage());
+            log.error("Error: " + errorMessage.getErrorMessage());
             performMessage.errorMessage(
                     errorMessage.getErrorTitle(),
                     "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
@@ -164,15 +175,16 @@ public class EngineRunner {
                     "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
                     null,
                     0);
+            System.exit(0);
         }
 
         if (performLists.getListBotJob().isEmpty()) {
-            ARLogger.getInstance(EngineRunner.class).severe("Cannot find Bot Jobs with this Id:" + botJobId);
+            log.error("Cannot find Bot Jobs with this Id:" + botJobId);
         }
 
         HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(homeBankId);
         if (homeBanking == null || StringUtils.isNullOrEmpty(homeBanking.getUrl())) {
-            ARLogger.getInstance(EngineRunner.class).severe("Cannot find Home Banking Environment Id:" + homeBankId);
+            log.error("Cannot find Home Banking Environment Id:" + homeBankId);
         }
 
         currentBotJob = performLists.getListBotJob().get(0);
@@ -188,10 +200,10 @@ public class EngineRunner {
         currentBotJobName = this.currentBotJob.getName();
 
         try {
-            excelPath = idsAndPaths[2];
+            excelPath = idsAndPaths[3];
         } catch (Exception ignore) {
             excelPath = excelPath + "\\" + currentBotJobName + ".xlsx";
-            ARLogger.getInstance(EngineRunner.class).warning("Excel data file defined : " + excelPath);
+            log.warn("Excel data file defined : " + excelPath);
         }
 
         if (executeJob) {
@@ -205,7 +217,7 @@ public class EngineRunner {
 
         defaultSearch = new String[] {"input", "textarea", "button", "a", "select", "label"};
 
-        ARLogger.getInstance(Engine.class).fine("Calling Engine");
+        log.info("Calling Engine");
 
         // Ensure botJob and arPriorities are not null before accessing their methods
         if (currentBotJob != null && arPriorities != null) {
@@ -278,14 +290,13 @@ public class EngineRunner {
                 });
             } catch (Exception ignore) {
                 // Log the error properly instead of ignoring
-                ARLogger.getInstance(Engine.class)
-                        .severe("Error submitting to executorServicePreLaunch: " + ignore.getMessage());
+
+                log.error("Error submitting to executorServicePreLaunch: " + ignore.getMessage());
                 isJobRunning.set(false); // Ensure flag is reset on submission failure
             }
         } else {
             // Optionally log that a new execution was requested but is already running
-            System.out.println("recallJob() requested, but executeJob() is already running.");
-            ARLogger.getInstance(Engine.class).info("recallJob() requested while executeJob() was running.");
+            log.info("recallJob() requested while executeJob() was running.");
         }
 
         if (performActions.getCurrentDriver().getWindowHandles().size() != performActions.windowHandlesList.size()) {
@@ -332,12 +343,13 @@ public class EngineRunner {
             return false;
         }
 
-        String baseLogString = currentBotJobName + ARConstants.FIELDS_SEPARATOR + labelsValue.getProperty(Labels.START);
+        String baseLogString =
+                currentBotJobName + ARConstantsEngine.FIELDS_SEPARATOR + labelsValue.getProperty(Labels.START);
 
-        printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
+        log.info(baseLogString);
 
         ExcelWriter.ExcelChain writerReport =
-                new ExcelWriter(currentBotJobName, currentARWebDriver.getCurrentDriver(), false).withPurpose("report");
+                new ExcelWriter(currentBotJobName, performActions.getCurrentDriver(), false).withPurpose("report");
         writerReport.insertReportHead();
 
         ExcelWriter.ExcelChain writerExport = null;
@@ -353,13 +365,12 @@ public class EngineRunner {
         boolean byPassFlagLoop = false;
         boolean success = true;
         boolean stopAll = false;
+        boolean lastRecall = false;
         long botJobStartTime = System.nanoTime();
         long totalExecutionTime = 0;
         String resultActions = "No instruction executed yet";
         String failedMessage = "";
         Map<String, String> dataExcel = null;
-
-        // clearFields();
 
         sessionRowStatus = "engine-perform-bot-job"; // + botJobId;
 
@@ -373,10 +384,10 @@ public class EngineRunner {
         Set<String> loopBlockActive = new HashSet<>();
         Map<String, Integer> loopBlockLimits = new HashMap<>();
 
-        ARConstants.ConditionStatus currentCondition = ARConstants.ConditionStatus.NONE;
-        ARConstants.ConditionStatus previousCondition;
-        ARConstants.ConditionStatus progressCondition;
-        ARConstants.DialogModal respModal = ARConstants.DialogModal.NONE;
+        ARExecution.ConditionStatus currentCondition = ARExecution.ConditionStatus.NONE;
+        ARExecution.ConditionStatus previousCondition;
+        ARExecution.ConditionStatus progressCondition;
+        ARExecution.DialogModal respModal = null;
 
         int exportIndex = 1;
         boolean webElementWork = false;
@@ -385,8 +396,7 @@ public class EngineRunner {
 
             if (extractedData.getNumberOfDataRows() > 1 && excelDataGoto.isEmpty()) {
 
-                ARLogger.getInstance(Engine.class)
-                        .warning("Multiple Excel Rows Detected: each row wll return to first block");
+                log.warn("Multiple Excel Rows Detected: each row wll return to first block");
 
                 respModal = performMessage.showCustomModalDialogDragWin11(
                         "Multiple Excel Rows Detected",
@@ -399,7 +409,7 @@ public class EngineRunner {
                         "Stop All",
                         0);
 
-                if (respModal.equals(ARConstants.DialogModal.STOP)) {
+                if (respModal.equals(ARExecution.DialogModal.STOP)) {
                     performActions.setInterceptBotJob(true);
                     setInterceptBotJob(true);
                     isJobRunning.set(false);
@@ -411,9 +421,10 @@ public class EngineRunner {
             }
 
             // Execute All Blocks starting from executeSpecificBlock if Defined
-            currentBlockId = (executeSpecificBlock > -1) ? executeSpecificBlock - 1 : 0;
-            int blockInitial = currentBlockId;
+            currentBlockOrder = (executeSpecificBlock > -1) ? executeSpecificBlock : 0;
+            int blockInitial = currentBlockOrder;
 
+            // BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
             if (!excelDataGoto.isEmpty() && !blocksLoaded.isEmpty()) {
                 Integer parentBlockId =
                         excelDataGoto.get(excelDataGoto.size() - 1).getParentBlockId();
@@ -433,29 +444,29 @@ public class EngineRunner {
                 mapRefresh.clear();
 
                 blockLoop:
-                while (currentBlockId <= blocksLoaded.size() - 1 && !blocksLoaded.isEmpty() && !stopAll) {
+                while (currentBlockOrder <= blocksLoaded.size() - 1 && !blocksLoaded.isEmpty() && !stopAll) {
                     long blockStartTime = System.nanoTime();
                     failedMessage = "";
 
-                    currentCondition = ARConstants.ConditionStatus.NONE;
-                    previousCondition = ARConstants.ConditionStatus.NONE;
-                    progressCondition = ARConstants.ConditionStatus.NONE;
+                    currentCondition = ARExecution.ConditionStatus.NONE;
+                    previousCondition = ARExecution.ConditionStatus.NONE;
+                    progressCondition = ARExecution.ConditionStatus.NONE;
 
-                    respModal = ARConstants.DialogModal.NONE;
+                    respModal = ARExecution.DialogModal.NONE;
 
                     int parentBlockCondition = -1;
 
-                    BlockLoadDTO blockLoad = blocksLoaded.get(currentBlockId);
+                    BlockLoadDTO blockLoad = blocksLoaded.get(currentBlockOrder);
 
-                    String blockName = blocksLoaded.get(currentBlockId).getName();
-                    int blockOrder = blocksLoaded.get(currentBlockId).getBlockOrderNumber();
+                    String blockName = blocksLoaded.get(currentBlockOrder).getName();
+                    int blockOrder = blocksLoaded.get(currentBlockOrder).getBlockOrderNumber();
                     String blockReportName = "#" + blockOrder + " " + blockName;
 
-                    int blockWait = blocksLoaded.get(currentBlockId).getWait() > 0
-                            ? blocksLoaded.get(currentBlockId).getWait()
+                    int blockWait = blocksLoaded.get(currentBlockOrder).getWait() > 0
+                            ? blocksLoaded.get(currentBlockOrder).getWait()
                             : 2;
 
-                    boolean blockActive = blocksLoaded.get(currentBlockId).getActive();
+                    boolean blockActive = blocksLoaded.get(currentBlockOrder).getActive();
 
                     if (blockActive) {
                         excelFieldName = blockLoad.getExportFile();
@@ -488,7 +499,7 @@ public class EngineRunner {
                                             blockStartTime,
                                             blockReportName,
                                             success,
-                                            new String[] {ARConstants.GOTO},
+                                            new String[] {ARConstantsEngine.GOTO},
                                             msgBlock,
                                             dataExcel,
                                             writerReport,
@@ -497,7 +508,7 @@ public class EngineRunner {
 
                                     msgBlock = new Pair(
                                             String.format("Exit at Block Name: \"%s\"", blockLoad.getName()),
-                                            ARConstants.EXIT);
+                                            ARConstantsEngine.EXIT);
 
                                     // Excel Report and Log
                                     performActions.logAndReport(
@@ -507,7 +518,7 @@ public class EngineRunner {
                                             blockStartTime,
                                             blockReportName,
                                             success,
-                                            new String[] {ARConstants.EXIT},
+                                            new String[] {ARConstantsEngine.EXIT},
                                             msgBlock,
                                             dataExcel,
                                             writerReport,
@@ -523,10 +534,10 @@ public class EngineRunner {
                     }
 
                     if (!blockActive) {
-                        currentBlockId++;
+                        currentBlockOrder++;
 
-                        Pair<String, String> msgBlock =
-                                new Pair(String.format("Ignore: \"%s\"", blockLoad.getName()), ARConstants.IGNORE);
+                        Pair<String, String> msgBlock = new Pair(
+                                String.format("Ignore: \"%s\"", blockLoad.getName()), ARConstantsEngine.IGNORE);
 
                         // Excel Report and Log
                         performActions.logAndReport(
@@ -536,7 +547,7 @@ public class EngineRunner {
                                 blockStartTime,
                                 blockReportName,
                                 success,
-                                new String[] {ARConstants.IGNORE},
+                                new String[] {ARConstantsEngine.IGNORE},
                                 msgBlock,
                                 dataExcel,
                                 writerReport,
@@ -548,7 +559,8 @@ public class EngineRunner {
 
                     try {
 
-                        Pair<String, String> msgBlock = new Pair(blockLoad.getName(), ARConstants.EXCEL_BLOCK_HEADER);
+                        Pair<String, String> msgBlock =
+                                new Pair(blockLoad.getName(), ARConstantsEngine.EXCEL_BLOCK_HEADER);
 
                         // Block Header Format
                         performActions.logAndReport(
@@ -558,7 +570,7 @@ public class EngineRunner {
                                 blockStartTime,
                                 blockReportName,
                                 success,
-                                new String[] {ARConstants.EXCEL_BLOCK_HEADER},
+                                new String[] {ARConstantsEngine.EXCEL_BLOCK_HEADER},
                                 msgBlock,
                                 null,
                                 writerReport,
@@ -569,7 +581,7 @@ public class EngineRunner {
 
                         msgBlock = new Pair(
                                 String.format("Default Wait: \"%s\" ->  %d Seconds", blockLoad.getName(), blockWait),
-                                ARConstants.HOLD);
+                                ARConstantsEngine.HOLD);
 
                         // Excel Report and Log
                         performActions.logAndReport(
@@ -579,7 +591,7 @@ public class EngineRunner {
                                 blockStartTime,
                                 blockReportName,
                                 success,
-                                new String[] {ARConstants.HOLD},
+                                new String[] {ARConstantsEngine.HOLD},
                                 msgBlock,
                                 dataExcel,
                                 writerReport,
@@ -587,15 +599,15 @@ public class EngineRunner {
                                 String.format("Block: \"%s\" Wait %s Seconds: ", blockName, blockWait));
 
                     } catch (Exception ex) {
-                        ARLogger.getInstance(Engine.class)
-                                .severe(String.format("Error Wait Block for :\"%s\"", blockLoad.getName()));
+
+                        log.error(String.format("Error Wait Block for :\"%s\"", blockLoad.getName()));
                     }
 
                     // Step 1: Get all ParentIds For LOOPs Filter rows where actions = "REFRESH_LOOP" or "LOOP" on
                     // current
                     // Block
                     parentIdsForLoop = performActions.getParentIdsForLoop(
-                            blocksLoaded.get(currentBlockId).getInstructionLoad());
+                            blocksLoaded.get(currentBlockOrder).getInstructionLoad());
 
                     // Step 2: Get all Conditional By parentId for Index Locator on current Block Relocate "IF",
                     // "ELSEIF",
@@ -610,7 +622,7 @@ public class EngineRunner {
                     // Step 2: Filter rows where actions = "REFRESH_LOOP" or "LOOP" and collect into the map
 
                     //                mapLoops = performActions.getLoopAndRefreshLoops(
-                    //                        blocksLoaded.get(currentBlockId).getBlockLoopInstructionLoadS());
+                    //                        blocksLoaded.get(currentBlockOrder).getBlockLoopInstructionLoadS());
 
                     //                executionTimes++;
                     boolean jumpGoto = false;
@@ -634,7 +646,7 @@ public class EngineRunner {
                         while (currentIndex < instructionIds.length && !stopAll) {
                             // Resets the success
 
-                            //                            stopAll = isInterceptBotJob();
+                            stopAll = isInterceptBotJob();
                             if (stopAll) {
                                 break;
                             }
@@ -656,8 +668,8 @@ public class EngineRunner {
 
                                 String nameInstruc =
                                         "(" + currentInstruction.getId() + ") " + currentInstruction.getName();
-                                Pair<String, String> msgBlock =
-                                        new Pair(String.format("Ignore: \"%s\"", nameInstruc), ARConstants.IGNORE);
+                                Pair<String, String> msgBlock = new Pair(
+                                        String.format("Ignore: \"%s\"", nameInstruc), ARConstantsEngine.IGNORE);
 
                                 // Excel Report and Log
                                 performActions.logAndReport(
@@ -667,7 +679,7 @@ public class EngineRunner {
                                         blockStartTime,
                                         blockReportName,
                                         success,
-                                        new String[] {ARConstants.IGNORE},
+                                        new String[] {ARConstantsEngine.IGNORE},
                                         msgBlock,
                                         dataExcel,
                                         writerReport,
@@ -706,7 +718,7 @@ public class EngineRunner {
                             String parentFieldLoop = null;
                             String variableField = null;
                             String localFormat = null;
-                            //                                delimiterCSV = null;
+                            //                            delimiterCSV = null;
                             String fieldName = null;
                             int parentId = currentInstruction.getParentId();
 
@@ -752,20 +764,21 @@ public class EngineRunner {
                             //                        String[] operation =
                             // UtilsMethods.splitIfContains(instruction.getOperation(),
                             // ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
-                            String[] actions =
-                                    currentInstruction.getActions().split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
+                            String[] actions = currentInstruction
+                                    .getActions()
+                                    .split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER);
                             String[] operations = currentInstruction.getOperation() != null
                                     ? currentInstruction
                                             .getOperation()
-                                            .split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)
+                                            .split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER)
                                     : null;
 
-                            if (actions[0].equalsIgnoreCase(ARConstants.IF)
-                                    || actions[0].equalsIgnoreCase(ARConstants.ELSEIF)
-                                    || actions[0].equalsIgnoreCase(ARConstants.ELSE)
-                                    || actions[0].equalsIgnoreCase(ARConstants.ENDIF)) {
-                                currentCondition = ARConstants.ConditionStatus.valueOf(actions[0]);
-                                if (previousCondition.equals(ARConstants.ConditionStatus.NONE)) {
+                            if (actions[0].equalsIgnoreCase(ARConstantsEngine.IF)
+                                    || actions[0].equalsIgnoreCase(ARConstantsEngine.ELSEIF)
+                                    || actions[0].equalsIgnoreCase(ARConstantsEngine.ELSE)
+                                    || actions[0].equalsIgnoreCase(ARConstantsEngine.ENDIF)) {
+                                currentCondition = ARExecution.ConditionStatus.valueOf(actions[0]);
+                                if (previousCondition.equals(ARExecution.ConditionStatus.NONE)) {
                                     previousCondition = currentCondition;
                                     parentBlockCondition = parentId;
                                 } else if (!previousCondition.equals(
@@ -774,8 +787,8 @@ public class EngineRunner {
                                 }
 
                                 // Conditions When Pass to any of then
-                                if (progressCondition.equals(ARConstants.ConditionStatus.IF_PASSED)
-                                        || progressCondition.equals(ARConstants.ConditionStatus.ELSEIF_PASSED)) {
+                                if (progressCondition.equals(ARExecution.ConditionStatus.IF_PASSED)
+                                        || progressCondition.equals(ARExecution.ConditionStatus.ELSEIF_PASSED)) {
                                     int jumpPassed = performActions.checkActionToJump(
                                             actions[0],
                                             progressCondition,
@@ -792,14 +805,14 @@ public class EngineRunner {
                                     if (jumpPassed > 0) {
                                         currentIndex = jumpPassed;
                                         // reset all Conditional
-                                        currentCondition = ARConstants.ConditionStatus.NONE;
-                                        progressCondition = ARConstants.ConditionStatus.NONE;
+                                        currentCondition = ARExecution.ConditionStatus.NONE;
+                                        progressCondition = ARExecution.ConditionStatus.NONE;
                                         continue instructionLoop;
                                     }
-                                } else if (currentCondition.equals(ARConstants.ConditionStatus.ENDIF)) {
-                                    currentCondition = ARConstants.ConditionStatus.NONE;
-                                    previousCondition = ARConstants.ConditionStatus.NONE;
-                                    progressCondition = ARConstants.ConditionStatus.NONE;
+                                } else if (currentCondition.equals(ARExecution.ConditionStatus.ENDIF)) {
+                                    currentCondition = ARExecution.ConditionStatus.NONE;
+                                    previousCondition = ARExecution.ConditionStatus.NONE;
+                                    progressCondition = ARExecution.ConditionStatus.NONE;
                                     parentBlockCondition = -1;
                                 }
                                 continue;
@@ -807,21 +820,22 @@ public class EngineRunner {
 
                             // Case for Inputs
                             String valueInsert = "CHANGE ME";
-                            if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
+                            if (actions[0].equals(ARConstantsEngine.INSERT)
+                                    && actions[1].equals(ARConstantsEngine.ENTER)) {
                                 String reference = actions[2];
                                 valueInsert = dataExcel.get(reference);
-                            } else if (actions[0].equals(ARConstants.INSERT)) {
+                            } else if (actions[0].equals(ARConstantsEngine.INSERT)) {
                                 String reference = actions[1];
                                 valueInsert = dataExcel.get(reference);
                             }
 
                             Pair<String, String> msgInstruction = null;
-                            if (actions[0].equalsIgnoreCase(ARConstants.EXCEL_GOTO)) {
+                            if (actions[0].equalsIgnoreCase(ARConstantsEngine.EXCEL_GOTO)) {
 
                                 //                                currentIndex++;
                                 continue instructionLoop;
 
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.NEXT_ROW)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.NEXT_ROW)) {
                                 // <currentId:blockId:blockOrderNumber:bockName>
                                 xExcelCurrentRow++;
 
@@ -830,8 +844,9 @@ public class EngineRunner {
                                 if (xExcelCurrentRow >= xExcelDataSize - 1) {
                                     xExcelCurrentRow = xExcelDataSize - 1;
                                     msgInstruction = new Pair<>(
-                                            "Excel Data limit reached keeping", String.valueOf(xExcelCurrentRow + 1));
-                                    bodyMsg = "Excel Data limit reached keeping: " + xExcelCurrentRow + 1;
+                                            "Excel Data (limit reached) keeping last row",
+                                            String.valueOf(xExcelCurrentRow + 1));
+                                    bodyMsg = "Excel Data (limit reached) keeping last row: " + xExcelCurrentRow + 1;
                                 } else {
                                     msgInstruction =
                                             new Pair<>("Excel Data next row", String.valueOf(xExcelCurrentRow + 1));
@@ -845,7 +860,7 @@ public class EngineRunner {
                                         blockStartTime,
                                         blockReportName,
                                         success,
-                                        new String[] {ARConstants.NEXT_ROW},
+                                        new String[] {ARConstantsEngine.NEXT_ROW},
                                         msgInstruction,
                                         dataExcel,
                                         writerReport,
@@ -855,7 +870,7 @@ public class EngineRunner {
                                 //                                currentIndex++;
                                 continue instructionLoop;
 
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.GOTO)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.GOTO)) {
                                 // <currentId:blockId:blockOrderNumber:bockName>
                                 msgInstruction = performActions.getBlockDetailsById(blocksLoaded, currentInstruction);
                                 if (msgInstruction == null) {
@@ -877,10 +892,10 @@ public class EngineRunner {
                                             String.valueOf(mapLoops.get(msgInstruction.getKey())));
                                 }
 
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.LOOP)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.LOOP)) {
                                 // <currentId:parentId:parentName>
                                 msgInstruction = performActions.getInstructionDetailsById(
-                                        blocksLoaded.get(currentBlockId).getInstructionLoad(), currentInstruction);
+                                        blocksLoaded.get(currentBlockOrder).getInstructionLoad(), currentInstruction);
 
                                 if (msgInstruction == null) {
                                     msgInstruction = new Pair("Jump To Parent \"Unknown\"", "Unknown");
@@ -896,9 +911,9 @@ public class EngineRunner {
                                             msgInstruction.getKey(),
                                             String.valueOf(mapLoops.get(msgInstruction.getKey())));
                                 }
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.REFRESH_LOOP)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.REFRESH_LOOP)) {
                                 msgInstruction = performActions.getInstructionDetailsById(
-                                        blocksLoaded.get(currentBlockId).getInstructionLoad(), currentInstruction);
+                                        blocksLoaded.get(currentBlockOrder).getInstructionLoad(), currentInstruction);
                                 if (msgInstruction == null) {
                                     msgInstruction = new Pair("Jump To Parent \"Unknown\"", "Unknown");
                                     success = false;
@@ -914,13 +929,13 @@ public class EngineRunner {
                                             + mapLoops.get(msgInstruction.getKey());
                                     msgInstruction = new Pair<>(msgInstruction.getKey(), updMsg);
                                 }
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.SET_VALUE)
-                                    || (actions[0].equalsIgnoreCase(ARConstants.GET_VALUE))) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.SET_VALUE)
+                                    || (actions[0].equalsIgnoreCase(ARConstantsEngine.GET_VALUE))) {
                                 msgInstruction = new Pair(
                                         currentInstruction.getName(),
                                         (currentInstruction.getOperation() != null
                                                 ? "(" + parentId + ")-" + operations[0] + ":" + operations[1]
-                                                : (actions[0].equalsIgnoreCase(ARConstants.INSERT))
+                                                : (actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT))
                                                         ? valueInsert
                                                         : ""));
                             } else {
@@ -928,14 +943,14 @@ public class EngineRunner {
                                         "(" + currentInstruction.getId() + ")-" + currentInstruction.getName(),
                                         (currentInstruction.getOperation() != null
                                                 ? currentInstruction.getOperation()
-                                                : (actions[0].equalsIgnoreCase(ARConstants.INSERT))
+                                                : (actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT))
                                                         ? valueInsert
                                                         : ""));
                             }
 
                             resultActions = performActions.actionResultMessage(blockName, actions, msgInstruction);
 
-                            if (actions[0].equalsIgnoreCase(ARConstants.PAUSE)) {
+                            if (actions[0].equalsIgnoreCase(ARConstantsEngine.PAUSE)) {
                                 pauseOperation = true;
 
                                 respModal = performMessage.showCustomModalDialogDragWin11(
@@ -950,7 +965,7 @@ public class EngineRunner {
                                         0);
                             }
 
-                            if (actions[0].equalsIgnoreCase(ARConstants.LOOP)) {
+                            if (actions[0].equalsIgnoreCase(ARConstantsEngine.LOOP)) {
                                 parentFieldLoop =
                                         performActions.getInstructionParentField(currentInstruction, blockLoad);
                                 if (parentField == null && parentFieldLoop == null) {
@@ -979,9 +994,9 @@ public class EngineRunner {
                                     jumpLoopError = true;
                                 }
 
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.REFRESH_ONLY)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.REFRESH_ONLY)) {
                                 refreshOnly = true;
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.REFRESH_LOOP)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.REFRESH_LOOP)) {
                                 parentFieldLoop =
                                         performActions.getInstructionParentField(currentInstruction, blockLoad);
                                 if (parentField == null && parentFieldLoop == null) {
@@ -1009,8 +1024,8 @@ public class EngineRunner {
                                 } else {
                                     jumpLoopError = true;
                                 }
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.GET_VALUE)
-                                    || actions[0].equalsIgnoreCase(ARConstants.SET_VALUE)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.GET_VALUE)
+                                    || actions[0].equalsIgnoreCase(ARConstantsEngine.SET_VALUE)) {
 
                                 execGetOrSet = true;
 
@@ -1018,7 +1033,7 @@ public class EngineRunner {
                                 String actionsParent =
                                         performActions.getInstructionParentActions(currentInstruction, blockLoad);
                                 parentActions = actionsParent != null
-                                        ? actionsParent.split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)
+                                        ? actionsParent.split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER)
                                         : null;
 
                                 parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
@@ -1030,10 +1045,10 @@ public class EngineRunner {
                                     variableField = "Not Variable defined";
                                 }
 
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.OUTPUT)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.OUTPUT)) {
                                 execOutPut = true;
                                 fieldName = currentInstruction.getId() + "-" + currentInstruction.getName();
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.CHECK_VALUE)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.CHECK_VALUE)) {
                                 execCheckValue = true;
                                 parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
                                 variableField =
@@ -1041,7 +1056,7 @@ public class EngineRunner {
                                 if (variableField == null) {
                                     variableField = "Not Variable defined";
                                 }
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.EXTRACT_FIELD)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.EXTRACT_FIELD)) {
                                 excelWriteOperation = true;
                                 parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
                                 variableField =
@@ -1055,8 +1070,6 @@ public class EngineRunner {
                                     variableField = "Not Variable defined";
                                 }
                             }
-
-                            File logFileForSingleExcel = excelReader.createLogFile(excelPath);
 
                             try {
                                 if (jumpGoto) {
@@ -1081,7 +1094,7 @@ public class EngineRunner {
                                                         msgInstruction.getKey().split(":");
                                                 int blockOrderNumber = Integer.parseInt(parts[2]);
 
-                                                currentBlockId = blockOrderNumber - 1;
+                                                currentBlockOrder = blockOrderNumber - 1;
                                                 currentInstruction.setExecuted(true);
 
                                                 failedMessage = "";
@@ -1144,23 +1157,22 @@ public class EngineRunner {
                                         if (repeat > 0) {
                                             mapLoops.put(parentFieldLoop, repeat);
 
-                                            ARLogger.getInstance(Engine.class)
-                                                    .info(String.format(
-                                                            "Loop to Parent :\"%s\" - %d Times",
-                                                            parts[0] + "-(" + parts[1] + ") " + parts[2],
-                                                            mapLoops.get(parentFieldLoop)));
+                                            log.info(String.format(
+                                                    "Loop to Parent :\"%s\" - %d Times",
+                                                    parts[0] + "-(" + parts[1] + ") " + parts[2],
+                                                    mapLoops.get(parentFieldLoop)));
 
                                             if (refreshLoop) {
 
                                                 String extraLog = performActions.actionResultMessage(
                                                         blockName,
-                                                        new String[] {ARConstants.REFRESH_HOLD},
+                                                        new String[] {ARConstantsEngine.REFRESH_HOLD},
                                                         msgInstruction);
 
                                                 performActions.performOtherActions(
                                                         byPassNotFound,
                                                         currentInstruction,
-                                                        new String[] {ARConstants.REFRESH_HOLD});
+                                                        new String[] {ARConstantsEngine.REFRESH_HOLD});
 
                                                 // Excel Report and Log
                                                 performActions.logAndReport(
@@ -1170,7 +1182,7 @@ public class EngineRunner {
                                                         currentInstructionStartTime,
                                                         blockReportName,
                                                         success,
-                                                        new String[] {ARConstants.REFRESH_HOLD},
+                                                        new String[] {ARConstantsEngine.REFRESH_HOLD},
                                                         msgInstruction,
                                                         dataExcel,
                                                         writerReport,
@@ -1180,13 +1192,13 @@ public class EngineRunner {
                                                 // Refresh For REFRESH_LOOP
                                                 extraLog = performActions.actionResultMessage(
                                                         blockName,
-                                                        new String[] {ARConstants.REFRESH_ONLY},
+                                                        new String[] {ARConstantsEngine.REFRESH_ONLY},
                                                         msgInstruction);
 
                                                 performActions.performOtherActions(
                                                         byPassNotFound,
                                                         currentInstruction,
-                                                        new String[] {ARConstants.REFRESH_ONLY});
+                                                        new String[] {ARConstantsEngine.REFRESH_ONLY});
 
                                                 // Excel Report and Log
                                                 performActions.logAndReport(
@@ -1196,7 +1208,7 @@ public class EngineRunner {
                                                         currentInstructionStartTime,
                                                         blockReportName,
                                                         success,
-                                                        new String[] {ARConstants.REFRESH_ONLY},
+                                                        new String[] {ARConstantsEngine.REFRESH_ONLY},
                                                         msgInstruction,
                                                         dataExcel,
                                                         writerReport,
@@ -1243,11 +1255,11 @@ public class EngineRunner {
                                         if (repeat > 0) {
                                             continue instructionLoop;
                                         } else {
-                                            ARLogger.getInstance(Engine.class)
-                                                    .info(String.format(
-                                                            "IGNORING Loop to Parent :\"%s\" - %d Times",
-                                                            parts[0] + "-(" + parts[1] + ") " + parts[2],
-                                                            mapLoops.get(parentFieldLoop)));
+
+                                            log.info(String.format(
+                                                    "IGNORING Loop to Parent :\"%s\" - %d Times",
+                                                    parts[0] + "-(" + parts[1] + ") " + parts[2],
+                                                    mapLoops.get(parentFieldLoop)));
                                             continue;
                                         }
 
@@ -1269,14 +1281,14 @@ public class EngineRunner {
 
                                     refreshOnly = false;
 
-                                } else if (actions[0].equals(ARConstants.HOLD)
-                                        || actions[0].equals(ARConstants.QUIT)
-                                        || actions[0].equals(ARConstants.SCREEN)
-                                        || actions[0].equals(ARConstants.REFRESH_ONLY)) {
+                                } else if (actions[0].equals(ARConstantsEngine.HOLD)
+                                        || actions[0].equals(ARConstantsEngine.QUIT)
+                                        || actions[0].equals(ARConstantsEngine.SCREEN)
+                                        || actions[0].equals(ARConstantsEngine.REFRESH_ONLY)) {
 
                                     performActions.performOtherActions(byPassNotFound, currentInstruction, actions);
 
-                                    if (actions[0].equals(ARConstants.QUIT)) {
+                                    if (actions[0].equals(ARConstantsEngine.QUIT)) {
                                         stopAll = true;
                                         success = true;
                                     }
@@ -1313,23 +1325,28 @@ public class EngineRunner {
                                     if (webElementFound == null && forceCoordinates) {
 
                                         Boolean pressEnterAfter = false;
-                                        if (actions[0].equals(ARConstants.INSERT)
-                                                && actions[1].equals(ARConstants.ENTER)) {
+                                        if (actions[0].equals(ARConstantsEngine.INSERT)
+                                                && actions[1].equals(ARConstantsEngine.ENTER)) {
                                             pressEnterAfter = true;
                                         }
-                                        if (actions[0].equalsIgnoreCase(ARConstants.VISUALIZE)
-                                                || actions[0].equalsIgnoreCase(ARConstants.CLICK)
-                                                || actions[0].equalsIgnoreCase(ARConstants.INSERT)) {
-                                            success = performActions.executeActionsAtCoordinates(
-                                                    mapSavedLocators.get("coordinates"),
-                                                    fieldData,
-                                                    actions[0],
-                                                    pressEnterAfter);
+                                        if (actions[0].equalsIgnoreCase(ARConstantsEngine.VISUALIZE)
+                                                || actions[0].equalsIgnoreCase(ARConstantsEngine.CLICK)
+                                                || actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT)) {
+
+                                            List<WebElement> smartSearch = performActions.findBySmartLocator(
+                                                    currentInstruction.getCssSelector());
+                                            if (!smartSearch.isEmpty()) {
+                                                success = performActions.executeActionsAtCoordinates(
+                                                        mapSavedLocators.get("coordinates"),
+                                                        fieldData,
+                                                        actions[0],
+                                                        pressEnterAfter);
+                                            }
                                         }
                                     }
 
                                     byPassNotFound = byPassFlagLoop
-                                            || !currentCondition.equals(ARConstants.ConditionStatus.NONE);
+                                            || !currentCondition.equals(ARExecution.ConditionStatus.NONE);
 
                                     if (webElementFound != null && success) {
 
@@ -1369,7 +1386,8 @@ public class EngineRunner {
                                         parentField = parentId + "-" + parentField;
                                     }
                                     // Mandatory for GET_VALUE
-                                    if (xPathOperation == null && actions[0].equalsIgnoreCase(ARConstants.GET_VALUE)) {
+                                    if (xPathOperation == null
+                                            && actions[0].equalsIgnoreCase(ARConstantsEngine.GET_VALUE)) {
                                         failedMessage = "Parent Id in Wrong Block ";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         resultActions = performActions.parentIdWrongBlock(
@@ -1420,7 +1438,7 @@ public class EngineRunner {
                                                 actions[0],
                                                 currentInstruction,
                                                 resultActions,
-                                                ARConstants.ConditionStatus
+                                                ARExecution.ConditionStatus
                                                         .NONE, // NOT  currentCondition to Force Message,
                                                 parentField,
                                                 variableField);
@@ -1512,7 +1530,7 @@ public class EngineRunner {
                                                 actions[0],
                                                 currentInstruction,
                                                 resultActions,
-                                                ARConstants.ConditionStatus
+                                                ARExecution.ConditionStatus
                                                         .NONE, // NOT  currentCondition to Force Message,
                                                 parentField,
                                                 variableField);
@@ -1622,26 +1640,22 @@ public class EngineRunner {
                                 //                            throw new RuntimeException(t);
                             }
 
-                            printLog(
-                                    generateTimestamp(),
-                                    logFileForSingleExcel,
-                                    finalLogMessage(failedMessage, resultActions),
-                                    success);
+                            printLog(finalLogMessage(failedMessage, resultActions), success);
 
                             // Here mark the Status of a progress Condition Fail or Success at the end of each Kind
                             // of Execution
                             if (!jumpGotoError
                                     && !jumpLoopError
-                                    && !currentCondition.equals(ARConstants.ConditionStatus.NONE)) {
+                                    && !currentCondition.equals(ARExecution.ConditionStatus.NONE)) {
                                 progressCondition = performActions.updateProgressSuccess(success, currentCondition);
                                 //                                continue instructionLoop;
                             } else {
-                                progressCondition = ARConstants.ConditionStatus.NONE;
+                                progressCondition = ARExecution.ConditionStatus.NONE;
                             }
 
                             // Excel Report and Log
                             performActions.logAndReport(
-                                    !byPassFlagLoop ? progressCondition : ARConstants.ConditionStatus.BY_PASS,
+                                    !byPassFlagLoop ? progressCondition : ARExecution.ConditionStatus.BY_PASS,
                                     true,
                                     true,
                                     currentInstructionStartTime,
@@ -1656,14 +1670,14 @@ public class EngineRunner {
 
                             failedMessage = "";
 
-                            if (pauseOperation && respModal.equals(ARConstants.DialogModal.STOP)) {
+                            if (pauseOperation && respModal.equals(ARExecution.DialogModal.STOP)) {
 
                                 String nameInstruc =
                                         "(" + currentInstruction.getId() + ") " + currentInstruction.getName();
 
                                 resultActions = String.format("STOP ALL PROCESSES: \"%s\"", nameInstruc);
 
-                                Pair<String, String> msgBlock = new Pair(resultActions, ARConstants.PAUSE);
+                                Pair<String, String> msgBlock = new Pair(resultActions, ARConstantsEngine.PAUSE);
 
                                 // Excel Report and Log
                                 performActions.logAndReport(
@@ -1673,24 +1687,69 @@ public class EngineRunner {
                                         blockStartTime,
                                         blockReportName,
                                         success,
-                                        new String[] {ARConstants.PAUSE},
+                                        new String[] {ARConstantsEngine.PAUSE},
                                         msgBlock,
                                         dataExcel,
                                         writerReport,
                                         "PAUSE -> STOP",
                                         String.format("STOP ALL CALLED AT: \"%s\" : ", nameInstruc));
 
-                                respModal = ARConstants.DialogModal.NONE;
+                                respModal = ARExecution.DialogModal.NONE;
                                 stopAll = true;
                                 break;
                             }
 
                             // It decides Here if ByPass as per Loop or Per IF-ELSEIF-ELSE-ENDIF blocks
+                            // Does not block other executions if it fails for any reason and jumps to the beginning or
+                            // Excel GOTO position block
                             if (!success
                                     && !byPassFlagLoop
-                                    && currentCondition.equals(ARConstants.ConditionStatus.NONE)) {
-                                stopAll = true;
-                                break;
+                                    && currentCondition.equals(ARExecution.ConditionStatus.NONE)) {
+                                if (lastRecall) {
+                                    stopAll = true;
+                                } else {
+
+                                    if (blocksLoaded.get(currentBlockOrder).isHasAnyInput()) {
+
+                                        xExcelCurrentRow++;
+
+                                        String bodyMsg = "Excel Data Calling Next Row: " + xExcelCurrentRow + 1;
+
+                                        if (xExcelCurrentRow >= xExcelDataSize - 1) {
+                                            xExcelCurrentRow = xExcelDataSize - 1;
+                                            msgInstruction = new Pair<>(
+                                                    "Excel Data (limit reached) keeping last row",
+                                                    String.valueOf(xExcelCurrentRow + 1));
+                                            bodyMsg = "Excel Data (limit reached) keeping last row: " + xExcelCurrentRow
+                                                    + 1;
+                                            lastRecall = true;
+                                        } else {
+                                            msgInstruction = new Pair<>(
+                                                    "Excel Data next row", String.valueOf(xExcelCurrentRow + 1));
+                                        }
+
+                                        // Excel Report and Log
+                                        performActions.logAndReport(
+                                                currentCondition,
+                                                true,
+                                                true,
+                                                blockStartTime,
+                                                blockReportName,
+                                                success,
+                                                new String[] {ARConstantsEngine.NEXT_ROW},
+                                                msgInstruction,
+                                                dataExcel,
+                                                writerReport,
+                                                "Excel Data Calling Next Row",
+                                                bodyMsg);
+                                    }
+
+                                    //                                currentIndex++;
+                                    currentBlockOrder = blockInitial; // BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
+                                    currentIndex = 0; // INITIAL INDEX FOR ANY BLOCK LOADED
+                                    success = true; // TO ALLOW OTHER FUNCTIONS TO BE EXECUTED
+                                    continue blockLoop;
+                                }
                             }
 
                             // It decides Here if ByPass as per Loop or Per IF-ELSEIF-ELSE-ENDIF blocks
@@ -1707,8 +1766,8 @@ public class EngineRunner {
 
                             // Here it Call the next block of IF, ELSIF, ELSE OR ENDIF as Per the Machine State
                             // Conditions When Pass to any of then
-                            if (progressCondition.equals(ARConstants.ConditionStatus.IF_PASSED)
-                                    || progressCondition.equals(ARConstants.ConditionStatus.ELSEIF_PASSED)) {
+                            if (progressCondition.equals(ARExecution.ConditionStatus.IF_PASSED)
+                                    || progressCondition.equals(ARExecution.ConditionStatus.ELSEIF_PASSED)) {
                                 int jumpPassed = performActions.checkActionToJump(
                                         actions[0],
                                         progressCondition,
@@ -1725,21 +1784,21 @@ public class EngineRunner {
                                 if (jumpPassed > 0) {
                                     currentIndex = jumpPassed;
                                     // reset all Conditional
-                                    currentCondition = ARConstants.ConditionStatus.NONE;
-                                    progressCondition = ARConstants.ConditionStatus.NONE;
+                                    currentCondition = ARExecution.ConditionStatus.NONE;
+                                    progressCondition = ARExecution.ConditionStatus.NONE;
                                     continue instructionLoop;
                                 }
                             }
 
                             // Conditions When Fails to any of then and Look for the next Correct Block
-                            if (progressCondition.equals(ARConstants.ConditionStatus.IF_FAILED)
-                                    || progressCondition.equals(ARConstants.ConditionStatus.ELSEIF_FAILED)) {
+                            if (progressCondition.equals(ARExecution.ConditionStatus.IF_FAILED)
+                                    || progressCondition.equals(ARExecution.ConditionStatus.ELSEIF_FAILED)) {
 
                                 // Goes to the next ELSEIF IF EXIST (ELSEIF index + 1);
                                 int index = performActions.searchMapConditional(
                                         mapConditional,
                                         parentBlockCondition,
-                                        ARConstants.ConditionStatus.ELSEIF,
+                                        ARExecution.ConditionStatus.ELSEIF,
                                         currentIndex,
                                         false);
 
@@ -1748,7 +1807,7 @@ public class EngineRunner {
                                     index = performActions.searchMapConditional(
                                             mapConditional,
                                             parentBlockCondition,
-                                            ARConstants.ConditionStatus.ELSE,
+                                            ARExecution.ConditionStatus.ELSE,
                                             currentIndex,
                                             true);
                                 }
@@ -1757,16 +1816,16 @@ public class EngineRunner {
                                     continue blockLoop;
                                 }
                                 currentIndex = index;
-                                currentCondition = ARConstants.ConditionStatus.NONE;
-                                progressCondition = ARConstants.ConditionStatus.NONE;
+                                currentCondition = ARExecution.ConditionStatus.NONE;
+                                progressCondition = ARExecution.ConditionStatus.NONE;
                                 continue instructionLoop;
 
-                            } else if (progressCondition.equals(ARConstants.ConditionStatus.ELSE_FAILED)) {
+                            } else if (progressCondition.equals(ARExecution.ConditionStatus.ELSE_FAILED)) {
                                 // Goes to the ENDIF (ENDIF index + 1);
                                 int index = performActions.searchMapConditional(
                                         mapConditional,
                                         parentBlockCondition,
-                                        ARConstants.ConditionStatus.ENDIF,
+                                        ARExecution.ConditionStatus.ENDIF,
                                         currentIndex,
                                         true);
 
@@ -1775,8 +1834,8 @@ public class EngineRunner {
                                     continue blockLoop;
                                 }
                                 currentIndex = index;
-                                currentCondition = ARConstants.ConditionStatus.NONE;
-                                progressCondition = ARConstants.ConditionStatus.NONE;
+                                currentCondition = ARExecution.ConditionStatus.NONE;
+                                progressCondition = ARExecution.ConditionStatus.NONE;
                                 continue instructionLoop;
                             }
                         }
@@ -1785,10 +1844,10 @@ public class EngineRunner {
                         // Way Out from the Current Excel Data Row to another Block keeping the Same Excel Data Row
                         break;
                     }
-                    currentBlockId++;
+                    currentBlockOrder++;
                 }
 
-                currentBlockId = blockInitial;
+                currentBlockOrder = blockInitial; // BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
                 xExcelCurrentRow++;
                 addRowFromMap(mapExportRows);
                 if (excelFieldName != null && excelFieldName.toLowerCase().endsWith(".csv")) {
@@ -1823,13 +1882,49 @@ public class EngineRunner {
         // PRINT END BASE LOG//
 
         if (success) {
-            baseLogString = currentBotJobName
-                    + ARConstants.FIELDS_SEPARATOR
+            baseLogString = blocksLoaded.get(0).getName()
+                    + ARConstantsEngine.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.END)
-                    + ARConstants.FIELDS_SEPARATOR
+                    + ARConstantsEngine.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.OK);
 
-            System.out.println(String.format("Success: %s Last Execution: %s", currentBotJobName, resultActions));
+            if (!isInterceptBotJob()) {
+                rowStatus.setColor("green"); // #1d9c06 deep carmine green
+                jsonStatus = gson.toJson(rowStatus);
+                webSocketSessionManager.sendMessageJson(
+                        this.currentBotJob.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
+
+                performMessage.showCustomModalDialogDragWin11(
+                        "Bot-Job Finished - successfully",
+                        currentBotJobName,
+                        "Last Execution:",
+                        resultActions,
+                        null,
+                        false,
+                        "OK",
+                        null,
+                        300);
+            } else {
+                rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
+                jsonStatus = gson.toJson(rowStatus);
+                webSocketSessionManager.sendMessageJson(
+                        this.currentBotJob.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
+
+                performMessage.showCustomModalDialogDragWin11(
+                        "Bot-Job Interrupted successfully",
+                        currentBotJobName,
+                        "Last Execution:",
+                        resultActions,
+                        null,
+                        false,
+                        "OK",
+                        null,
+                        300);
+            }
+
+            performActions.setInterceptBotJob(false);
+            setInterceptBotJob(false);
+            isJobRunning.set(false);
 
             respModal = performMessage.showCustomModalDialogDragWin11Timer(
                     "Bot-Job Finished - successfully",
@@ -1844,27 +1939,71 @@ public class EngineRunner {
                     5);
 
         } else {
-            baseLogString = this.currentBotJob.getName()
-                    + ARConstants.FIELDS_SEPARATOR
+            baseLogString = blocksLoaded.get(0).getName()
+                    + ARConstantsEngine.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.END)
-                    + ARConstants.FIELDS_SEPARATOR
+                    + ARConstantsEngine.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.KO)
-                    + ARConstants.FIELDS_SEPARATOR
+                    + ARConstantsEngine.FIELDS_SEPARATOR
                     + resultActions;
 
-            if (webElementWork) {
-                respModal = performMessage.showCustomModalDialogDragWin11Timer(
-                        "Failed finding element (5 attempts).",
-                        "Use \"Force Coordinates\" in some cases.",
-                        !Strings.isNullOrEmpty(failedMessage) ? failedMessage : "Failed:",
+            if (isInterceptBotJob()) {
+                rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
+                jsonStatus = gson.toJson(rowStatus);
+                webSocketSessionManager.sendMessageJson(
+                        this.currentBotJob.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
+
+                performMessage.showCustomModalDialogDragWin11(
+                        "Bot-Job Interrupted successfully",
+                        currentBotJobName,
                         "Last Execution:",
                         resultActions,
-                        true,
+                        null,
+                        false,
+                        "OK",
+                        null,
+                        300);
+            } else if (webElementWork) {
+
+                rowStatus.setColor("red"); // #FF3131 deep carmine red
+                jsonStatus = gson.toJson(rowStatus);
+                webSocketSessionManager.sendMessageJson(
+                        this.currentBotJob.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
+
+                //                performMessage.errorMessage(
+                //                        "Failed finding element (5 attempts).",
+                //                        "Use \"Force Coordinates\" in some cases.",
+                //                        !Strings.isNullOrEmpty(failedMessage) ? failedMessage : "Failed:",
+                //                        "Last Execution:",
+                //                        resultActions,
+                //                        350);
+
+                respModal = performMessage.showCustomModalDialogDragWin11Timer(
+                        "Bot-Job Finished - successfully",
+                        currentBotJobName,
+                        "Last Execution:",
+                        resultActions,
+                        null,
+                        false,
                         "OK",
                         "Close Browser",
-                        350,
+                        300,
                         5);
+
             } else {
+
+                rowStatus.setColor("red"); // #FF3131 deep carmine red
+                jsonStatus = gson.toJson(rowStatus);
+                webSocketSessionManager.sendMessageJson(
+                        this.currentBotJob.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
+
+                //                performMessage.errorMessage(
+                //                        "Process Execution Terminated",
+                //                        !Strings.isNullOrEmpty(failedMessage) ? failedMessage : "Failed:",
+                //                        "Last Execution:",
+                //                        resultActions,
+                //                        null,
+                //                        350);
 
                 respModal = performMessage.showCustomModalDialogDragWin11Timer(
                         "Process Execution Terminated",
@@ -1878,50 +2017,24 @@ public class EngineRunner {
                         350,
                         5);
             }
-
-            System.out.println(String.format("Failed: %s Last Execution: %s", currentBotJobName, resultActions));
-            System.out.println("Failed to locate the element after 10 attempts");
-
-            //                performMessage.errorMessage(
-            //                        "Failed to locate the element after 10 attempts.",
-            //                        "Try rescanning the element,",
-            //                        "or change the action to \"Force Coordinates\".",
-            //                        "Last Execution:",
-            //                        resultActions,
-            //                        260);
-
         }
-        printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
+        log.info(baseLogString);
 
-        if (resultActions.equalsIgnoreCase("Close Browser") || respModal.equals(ARConstants.DialogModal.STOP)) {
+        if (resultActions.equalsIgnoreCase("Close Browser") || respModal.equals(ARExecution.DialogModal.STOP)) {
             currentARWebDriver.getCurrentDriver().quit();
         }
+
+        shutDownExecutorService(executorServicePreLaunch);
+        performActions.setInterceptBotJob(true);
+        setInterceptBotJob(false);
+        isJobRunning.set(false);
         return true;
     }
 
-    private void printLog(String timeStamp, File logFile, String resultActions, boolean result) {
-        String resultMsg = result ? ARConstants.SUCCESS : ARConstants.FAIL;
-        String log = String.join(ARConstants.FIELDS_SEPARATOR, timeStamp, resultMsg, resultActions);
-
-        try {
-            FileWriter fileWriter = new FileWriter(logFile, true);
-            fileWriter.write(log + System.lineSeparator());
-            fileWriter.close();
-        } catch (Exception e) {
-            ARLogger.getInstance(Engine.class).severe("printLog Error: " + e.getMessage());
-        }
-    }
-
-    private void printBaseLog(File logFile, String timeStamp, String msg) {
-        String log = String.join(ARConstants.FIELDS_SEPARATOR, timeStamp, msg);
-
-        try {
-            FileWriter fileWriter = new FileWriter(logFile, true);
-            fileWriter.write(log + System.lineSeparator());
-            fileWriter.close();
-        } catch (Exception e) {
-            ARLogger.getInstance(Engine.class).severe("printBaseLog Error: " + e.getMessage());
-        }
+    private static void printLog(String resultActions, boolean result) {
+        String resultMsg = result ? ARConstantsEngine.SUCCESS : ARConstantsEngine.FAIL;
+        String log = String.join(ARConstantsEngine.FIELDS_SEPARATOR, resultMsg, resultActions);
+        specialLog.info(log);
     }
 
     private int handleGreaterThan(String value1, String value2) {
@@ -2057,14 +2170,14 @@ public class EngineRunner {
         try (Writer writer =
                 new BufferedWriter(new OutputStreamWriter(new FileOutputStream(filename), StandardCharsets.UTF_8))) {
             writer.write(content);
-            System.out.println("CSV written to file: " + filename);
+            log.info("CSV written to file: " + filename);
         } catch (IOException e) {
-            System.err.println("Error writing file: " + e.getMessage());
+            log.error("Error writing file: " + e.getMessage());
         }
     }
 
     public void printCsv() {
-        System.out.println(getCsvContent());
+        log.info(getCsvContent());
     }
 
     private boolean openWebDriver(boolean firstLoad) {
@@ -2142,9 +2255,9 @@ public class EngineRunner {
         for (WebDriver driver : currentARWebDriver.getWebDriverList()) {
             try {
                 driver.quit();
-                ARLogger.getInstance(Engine.class).info("WebDriver closed.");
+                log.info("WebDriver closed.");
             } catch (Exception e) {
-                ARLogger.getInstance(Engine.class).warning("Closing WebDriver: " + e.getMessage());
+                log.warn("Closing WebDriver: " + e.getMessage());
             }
         }
         currentARWebDriver.getWebDriverList().clear();
@@ -2190,5 +2303,24 @@ public class EngineRunner {
         Date date = new Date();
         dateFormatter = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
         return dateFormatter.format(date);
+    }
+
+    private void shutDownExecutorService(ExecutorService executorService) {
+        if (executorService == null || executorService.isShutdown()) {
+            return;
+        }
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+                executorService.shutdownNow();
+                if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+                    log.warn("ExecutorService did not terminate");
+                }
+            }
+        } catch (InterruptedException error) {
+            executorService.shutdownNow();
+            Thread.currentThread().interrupt();
+            log.warn("ExecutorService did not terminate: " + error.getMessage());
+        }
     }
 }

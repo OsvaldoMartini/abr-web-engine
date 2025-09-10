@@ -50,7 +50,6 @@ public class InstructionLoad {
     private Boolean loopOnly;
     private Integer variableId;
     private String type;
-    private String instructionName;
     private String sessionId;
     private Integer parentBlockId;
 

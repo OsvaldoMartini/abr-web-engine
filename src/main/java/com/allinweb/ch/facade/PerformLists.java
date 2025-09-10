@@ -1,11 +1,7 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.component.model.*;
-import com.allinweb.ch.persistence.DatabaseUserDTO;
-import com.allinweb.ch.persistence.ReferenceDTO;
 import com.allinweb.ch.socket.WebSocketSessionManager;
-import com.allinweb.ch.util.ARLogger;
-import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ComboBoxVars;
 import com.google.common.base.Strings;
@@ -20,32 +16,50 @@ import java.util.stream.Collectors;
 import javax.websocket.*;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 @Getter
 @Setter
 @ClientEndpoint
+@Slf4j
 public class PerformLists {
-
-    // Static final variable to hold the singleton instance
-    protected static volatile PerformLists instance;
-
-    // Private constructor to prevent instantiation
-    private PerformLists() {
-
-        initialize();
-    }
 
     // WebSocket needs
     private static final CountDownLatch latch = new CountDownLatch(1);
+    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    // Lists for tables
+    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
+    private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
+    // Static final variable to hold the singleton instance
+    protected static volatile PerformLists instance;
+    private final Gson gson = new Gson();
     private Session session;
     private ExecutorService executorWebSocket;
     private int portSocketInitial = 54525;
     private boolean isConnectWebSocket = false;
-    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-    private final Gson gson = new Gson();
-    // Lists for tables
-    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
-    private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
+    private List<HomeBankingLoadDTO> listHomeBanking = new ArrayList<>();
+    private List<HomeUrlDTO> listHomeUrl = new ArrayList<>();
+    private List<BotJobLoadDTO> quickBotJobs = new ArrayList<>();
+    private List<BotJobLoadDTO> listBotJob = new ArrayList<>();
+    private List<BotJobLoadDTO> listBotJobComp = new ArrayList<>();
+    private List<BlockLoadDTO> listBlock = new ArrayList<>();
+    private List<BlockLoadDTO> listBlockComp = new ArrayList<>();
+    private List<InstructionLoad> listInstruction = new ArrayList<>();
+    private List<InstructionLoad> listInstructionComp = new ArrayList<>();
+    private List<VariableLoadDTO> listVariable = new ArrayList<>();
+    private List<VariableLoadDTO> listVariableComp = new ArrayList<>();
+    private List<ReferenceLoadDTO> listReference = new ArrayList<>();
+    private List<ReferenceLoadDTO> listReferenceComp = new ArrayList<>();
+    private List<String> allActions = new ArrayList<>();
+    // Quick Lists
+    private List<InstructionOperationDTO> instrucOperList = new ArrayList<>();
+    private List<DatabaseUserDTO> listDatabaseUsers = new ArrayList<>();
+    private List<VariableUserDTO> listVariablesUser = new ArrayList<>();
+    private List<ComboBoxVars> listWebPageItems = new ArrayList<>();
+    private List<ParentOperations> listParentOperations = new ArrayList<>();
+
+    // Private constructor to prevent instantiation
+    private PerformLists() {}
 
     // Public method to access the singleton instance
     public static PerformLists getInstance() {
@@ -59,28 +73,6 @@ public class PerformLists {
         return instance;
     }
 
-    private List<HomeBankingLoadDTO> listHomeBanking = new ArrayList<>();
-    private List<HomeUrlDTO> listHomeUrl = new ArrayList<>();
-    private List<BotJobLoadDTO> quickBotJobs = new ArrayList<>();
-    private List<BotJobLoadDTO> listBotJob = new ArrayList<>();
-    private List<BotJobLoadDTO> listBotJobComp = new ArrayList<>();
-    private List<BlockLoadDTO> listBlock = new ArrayList<>();
-    private List<BlockLoadDTO> listBlockComp = new ArrayList<>();
-    private List<InstructionLoad> listInstruction = new ArrayList<>();
-    private List<InstructionLoad> listInstructionComp = new ArrayList<>();
-    private List<VariableLoadDTO> listVariable = new ArrayList<>();
-    private List<VariableLoadDTO> listVariableComp = new ArrayList<>();
-    private List<ReferenceDTO> listReference = new ArrayList<>();
-    private List<ReferenceDTO> listReferenceComp = new ArrayList<>();
-    private List<String> allActions = new ArrayList<>();
-    // Quick Lists
-    private List<InstructionOperationDTO> instrucOperList = new ArrayList<>();
-
-    private List<DatabaseUserDTO> listDatabaseUsers = new ArrayList<>();
-    private List<VariableUserDTO> listVariablesUser = new ArrayList<>();
-    private List<ComboBoxVars> listWebPageItems = new ArrayList<>();
-    private List<ParentOperations> listParentOperations = new ArrayList<>();
-
     //    private List<BlockOptions> listComboOptions = new ArrayList<>();
 
     public void initialize() {
@@ -88,16 +80,16 @@ public class PerformLists {
 
         String port =
                 System.getProperty("ARWebChosenPort"); // arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
-        if (Strings.isNullOrEmpty(port)) {
-            port = arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
-        }
-
         if (!Strings.isNullOrEmpty(port)) {
-            portSocketInitial = Integer.parseInt(port);
+            try {
+                portSocketInitial = Integer.parseInt(port);
+            } catch (Exception error) {
+                log.error("Pot Socket wrong Format: {}", port);
+            }
         }
 
         if (!isConnectWebSocket) {
-            connectWebSocketClient(portSocketInitial, "engine-perform-bot-job");
+            connectWebSocketClient(portSocketInitial, "perform-list-data");
         }
     }
 
@@ -114,10 +106,10 @@ public class PerformLists {
                     try {
                         if (session != null && session.isOpen()) {
                             session.getBasicRemote()
-                                    .sendText("ping-engine-perform-bot-job"); // Or a specific keep-alive message
+                                    .sendText("ping-perform-list-data"); // Or a specific keep-alive message
                         }
                     } catch (IOException e) {
-                        System.err.println("Error sending ping: " + e.getMessage());
+                        log.error("Error sending ping: " + e.getMessage());
                         // Handle potential disconnection
                     }
                 },
@@ -130,33 +122,20 @@ public class PerformLists {
     public void onOpen(Session session) {
         this.session = session;
         latch.countDown(); // Release the latch after connection is established
-        System.out.println("Connected to WebSocket server at: " + session.getRequestURI());
+        log.info("Connected to WebSocket server at: " + session.getRequestURI());
         // Sending an initial message
         sendMessage("Hello from JavaFX WebSocket client!");
-
-        String sessionId = null;
-        try {
-            sessionId = session.getRequestParameterMap().get("sessionId").get(0);
-
-            if (!Strings.isNullOrEmpty(sessionId)) {
-                webSocketSessionManager.addSession(sessionId, session);
-            } else {
-                //                addSession(generateCustomSessionId(session), session);
-            }
-        } catch (Exception noSessionId) {
-            //            addSession(generateCustomSessionId(session), session);
-        }
     }
 
     @OnClose
     public void onClose(Session session) {
-        System.out.println("Connection closed.");
+        log.info("Connection closed.");
         stopKeepAlivePings();
     }
 
     @OnError
     public void onError(Session session, Throwable throwable) {
-        System.out.println("Error: " + throwable.getMessage());
+        log.info("Error: " + throwable.getMessage());
         stopKeepAlivePings();
     }
 
@@ -184,19 +163,18 @@ public class PerformLists {
                 isConnectWebSocket = true;
             } catch (Exception e) {
                 isConnectWebSocket = false;
-                ARLogger.getInstance(PerformLists.class)
-                        .warning("WebSocket connection failed sessionId: " + sessionId + " error: " + e.getMessage());
+                log.error("WebSocket connection failed sessionId: " + sessionId + " error: " + e.getMessage());
             }
         });
     }
 
     @OnMessage
     public void onMessage(String message) {
-        System.out.println("Received: " + message);
+        log.info("Received: " + message);
         if (message == null || message.contains("CONNECT") || message.contains("ping")) {
             // Ignore null, CONNECT, or ping messages
             message = message.replaceAll("ping-", "");
-            // System.out.println("Active : " + message);
+            // log.info("Active : " + message);
             return;
         }
 
@@ -242,20 +220,19 @@ public class PerformLists {
                     jsonObjMSG.has("sessionId") ? jsonObjMSG.get("sessionId").getAsString() : null;
 
             // Debug print (optional)
-            System.out.printf(
-                    "homeBankingId=%d, sessionId=%s, type=%s, body=%s%n", homeBankingId, sessionId, type, body);
+            log.info("homeBankingId=%d, sessionId=%s, type=%s, body=%s%n", homeBankingId, sessionId, type, body);
             // After Decoding
             if (type == null || type.trim().isEmpty() || type.contains("CONNECT") || type.contains("ping")) {
                 // Ignore null or empty messages
                 type = type.replaceAll("ping-", "");
-                // System.out.println("Active : " + type);
+                // log.info("Active : " + type);
                 return;
             }
             // After Decoding
             if (type == null || type.trim().isEmpty() || type.contains("CONNECT") || type.contains("ping")) {
                 // Ignore null or empty messages
                 type = type.replaceAll("ping-", "");
-                // System.out.println("Active : " + type);
+                // log.info("Active : " + type);
                 return;
             }
 
@@ -305,7 +282,7 @@ public class PerformLists {
                 //                        0);
             }
 
-            System.err.println("Closed processing message: " + error.getMessage());
+            log.error("Closed processing message: " + error.getMessage());
         }
     }
 
@@ -363,31 +340,31 @@ public class PerformLists {
                 .orElse(null); // returns null if not found
     }
 
-    public String getParentName(InstructionLoad instructionLoad) {
-        if (instructionLoad == null
-                || instructionLoad.getActions() == null
-                || instructionLoad.getActions().isEmpty()) {
-            return "Parent Name";
-        }
+    //    public String getParentName(InstructionLoad instructionLoad) {
+    //        if (instructionLoad == null
+    //                || instructionLoad.getActions() == null
+    //                || instructionLoad.getActions().isEmpty()) {
+    //            return "Parent Name";
+    //        }
+    //
+    //        String[] parts = instructionLoad.getActions().split(":");
+    //        return parts.length > 0 ? parts[parts.length - 1].trim() : "Parent Name";
+    //    }
 
-        String[] parts = instructionLoad.getActions().split(":");
-        return parts.length > 0 ? parts[parts.length - 1].trim() : "Parent Name";
-    }
-
+    // Get BlockLoadDTO by homeBankingId and id
     // Get BlockLoadDTO by homeBankingId and id
     public BlockLoadDTO getBlockLoadByBankId(String blockTable, Integer whereId, Integer blockId) {
         if ("block".equalsIgnoreCase(blockTable)) {
-            // Search in block list by bot_job_id + blockId
             return getListBlock().stream()
-                    .filter(block ->
-                            Objects.equals(block.getBotJobId(), whereId) && Objects.equals(block.getId(), blockId))
+                    .filter(block -> Objects.equals(block.getBotJobId(), whereId))
+                    .filter(block -> blockId == null || Objects.equals(block.getId(), blockId))
                     .findFirst()
                     .orElse(null);
+
         } else if ("component_block".equalsIgnoreCase(blockTable)) {
-            // Search in component block list by home_banking_id + blockId
             return getListBlockComp().stream()
-                    .filter(block ->
-                            Objects.equals(block.getHomeBankingId(), whereId) && Objects.equals(block.getId(), blockId))
+                    .filter(block -> Objects.equals(block.getHomeBankingId(), whereId))
+                    .filter(block -> blockId == null || Objects.equals(block.getId(), blockId))
                     .findFirst()
                     .orElse(null);
         }
@@ -412,7 +389,7 @@ public class PerformLists {
                 if (newList.size() > 1) {
                     newList.add(0, new BlockOptions("Execute All Blocks", "", -1, -1, -1));
                 } else if (newList.isEmpty()) {
-                    newList.add(new BlockOptions("#1 Default Block", "Default Block", 1, 1, 1));
+                    newList.add(new BlockOptions("#1 Default Block", "Default Block", -1, -1, -1));
                 }
 
             } else if ("NewCommandPane".equalsIgnoreCase(paneName)) {
@@ -442,7 +419,7 @@ public class PerformLists {
             return newList;
 
         } catch (Exception error) {
-            ARLogger.getInstance(PerformLists.class).severe("Error loading combo options: " + error.getMessage());
+            log.error("Error loading combo options: " + error.getMessage());
         }
 
         return new ArrayList<>();
@@ -501,8 +478,8 @@ public class PerformLists {
                 throw new IllegalArgumentException("Invalid tableName: " + tableName);
             }
         } catch (Exception error) {
-            ARLogger.getInstance(PerformLists.class)
-                    .severe("Error: Memory Update failed for 'updateMemoryBlockName': " + error.getMessage());
+
+            log.error("Error: Memory Update failed for 'updateMemoryBlockName': " + error.getMessage());
         }
     }
 
@@ -518,7 +495,7 @@ public class PerformLists {
                 for (InstructionLoad updateInstr : listToUpdate) {
                     for (InstructionLoad instr : getListInstruction()) {
                         if (instr.getId().equals(updateInstr.getId())) {
-                            instr.setName(updateInstr.getInstructionName());
+                            instr.setName(updateInstr.getName());
                             break;
                         }
                     }
@@ -533,7 +510,7 @@ public class PerformLists {
                                     for (InstructionLoad updateInstr : listToUpdate) {
                                         for (InstructionLoad instr : block.getInstructionLoad()) {
                                             if (instr.getId().equals(updateInstr.getId())) {
-                                                instr.setName(updateInstr.getInstructionName());
+                                                instr.setName(updateInstr.getName());
                                                 break;
                                             }
                                         }
@@ -549,7 +526,7 @@ public class PerformLists {
                 for (InstructionLoad updateInstr : listToUpdate) {
                     for (InstructionLoad instr : getListInstructionComp()) {
                         if (instr.getId().equals(updateInstr.getId())) {
-                            instr.setName(updateInstr.getInstructionName());
+                            instr.setName(updateInstr.getName());
                             break;
                         }
                     }
@@ -564,7 +541,7 @@ public class PerformLists {
                                     for (InstructionLoad updateInstr : listToUpdate) {
                                         for (InstructionLoad instr : block.getInstructionLoad()) {
                                             if (instr.getId().equals(updateInstr.getId())) {
-                                                instr.setName(updateInstr.getInstructionName());
+                                                instr.setName(updateInstr.getName());
                                                 break;
                                             }
                                         }
@@ -580,8 +557,219 @@ public class PerformLists {
             }
 
         } catch (Exception error) {
-            ARLogger.getInstance(PerformLists.class)
-                    .severe("Error: Memory Update failed for 'updateMemoryInstructionName': " + error.getMessage());
+
+            log.error("Error: Memory Update failed for 'updateMemoryInstructionName': " + error.getMessage());
+        }
+    }
+
+    public void updateMemoryBlockStatusUpdate(String blockTable, Integer whereId, Integer blockId, boolean status) {
+        try {
+            if ("block".equalsIgnoreCase(blockTable)) {
+
+                // 1. Update global instruction list
+                for (InstructionLoad instr : getListInstruction()) {
+                    if (Objects.equals(instr.getBlockId(), blockId) && Objects.equals(instr.getBotJobId(), whereId)) {
+                        instr.setInstructionActive(status);
+                    }
+                }
+
+                // 2. Update global block list
+                for (BlockLoadDTO block : getListBlock()) {
+                    if (Objects.equals(block.getId(), blockId) && Objects.equals(block.getBotJobId(), whereId)) {
+                        block.setActive(status);
+                    }
+                }
+
+                // 3. Update inside BotJob -> Block -> Instruction
+                for (BotJobLoadDTO botJob : getListBotJob()) {
+                    if (Objects.equals(botJob.getId(), whereId)) {
+                        if (botJob.getBlockLoadDTOList() != null) {
+                            for (BlockLoadDTO block : botJob.getBlockLoadDTOList()) {
+                                if (Objects.equals(block.getId(), blockId)) {
+                                    block.setActive(status);
+                                    if (block.getInstructionLoad() != null) {
+                                        for (InstructionLoad instr : block.getInstructionLoad()) {
+                                            instr.setInstructionActive(status);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+            } else if ("component_block".equalsIgnoreCase(blockTable)) {
+
+                // 1. Update global instruction list
+                for (InstructionLoad instr : getListInstructionComp()) {
+                    if (Objects.equals(instr.getBlockId(), blockId)
+                            && Objects.equals(instr.getHomeBankingId(), whereId)) {
+                        instr.setInstructionActive(status);
+                    }
+                }
+
+                // 2. Update global block list
+                for (BlockLoadDTO block : getListBlockComp()) {
+                    if (Objects.equals(block.getId(), blockId) && Objects.equals(block.getHomeBankingId(), whereId)) {
+                        block.setActive(status);
+                    }
+                }
+
+                // 3. Update inside BotJob -> Block -> Instruction
+                for (BotJobLoadDTO botJob : getListBotJobComp()) {
+                    if (Objects.equals(botJob.getHomeBankingId(), whereId)) {
+                        if (botJob.getBlockLoadDTOList() != null) {
+                            for (BlockLoadDTO block : botJob.getBlockLoadDTOList()) {
+                                if (Objects.equals(block.getId(), blockId)) {
+                                    block.setActive(status);
+                                    if (block.getInstructionLoad() != null) {
+                                        for (InstructionLoad instr : block.getInstructionLoad()) {
+                                            instr.setInstructionActive(status);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+            } else {
+                throw new IllegalArgumentException("Invalid tableName: " + blockTable);
+            }
+
+        } catch (Exception error) {
+
+            log.error("Error: Memory Update failed for 'updateMemoryStatusUpdate': " + error.getMessage());
+        }
+    }
+
+    public void updateMemoryInstructionStatusUpdate(
+            String tableName, Integer whereId, Integer instructionId, boolean status) {
+        try {
+            if ("instruction".equalsIgnoreCase(tableName)) {
+
+                // Update global instruction list
+                for (InstructionLoad instr : getListInstruction()) {
+                    if (Objects.equals(instr.getId(), instructionId) && Objects.equals(instr.getBotJobId(), whereId)) {
+                        instr.setInstructionActive(status);
+                        break; // only one instruction matches
+                    }
+                }
+
+                // Update inside BotJob -> Block -> Instruction
+                for (BotJobLoadDTO botJob : getListBotJob()) {
+                    if (Objects.equals(botJob.getId(), whereId)) {
+                        if (botJob.getBlockLoadDTOList() != null) {
+                            for (BlockLoadDTO block : botJob.getBlockLoadDTOList()) {
+                                if (block.getInstructionLoad() != null) {
+                                    for (InstructionLoad instr : block.getInstructionLoad()) {
+                                        if (Objects.equals(instr.getId(), instructionId)) {
+                                            instr.setInstructionActive(status);
+                                            break; // only one instruction matches
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+            } else if ("component_instruction".equalsIgnoreCase(tableName)) {
+
+                // Update global component instruction list
+                for (InstructionLoad instr : getListInstructionComp()) {
+                    if (Objects.equals(instr.getId(), instructionId)
+                            && Objects.equals(instr.getHomeBankingId(), whereId)) {
+                        instr.setInstructionActive(status);
+                        break; // only one instruction matches
+                    }
+                }
+
+                // Update inside BotJobComp -> Block -> Instruction
+                for (BotJobLoadDTO botJob : getListBotJobComp()) {
+                    if (Objects.equals(botJob.getHomeBankingId(), whereId)) {
+                        if (botJob.getBlockLoadDTOList() != null) {
+                            for (BlockLoadDTO block : botJob.getBlockLoadDTOList()) {
+                                if (block.getInstructionLoad() != null) {
+                                    for (InstructionLoad instr : block.getInstructionLoad()) {
+                                        if (Objects.equals(instr.getId(), instructionId)) {
+                                            instr.setInstructionActive(status);
+                                            break; // only one instruction matches
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+            } else {
+                throw new IllegalArgumentException("Invalid tableName: " + tableName);
+            }
+
+        } catch (Exception error) {
+
+            log.error("Error: Memory Update failed for 'updateMemoryInstructionStatusUpdate': " + error.getMessage());
+        }
+    }
+
+    public void updateMemoryBlockExcelExport(String tableName, Integer whereId, Integer blockId, String exportFile) {
+        try {
+            if ("block".equalsIgnoreCase(tableName)) {
+
+                // 1. Update global block list
+                for (BlockLoadDTO block : getListBlock()) {
+                    if (Objects.equals(block.getId(), blockId) && Objects.equals(block.getBotJobId(), whereId)) {
+                        block.setExportFile(exportFile);
+                        break;
+                    }
+                }
+
+                // 2. Update inside BotJob -> Block -> Instruction
+                for (BotJobLoadDTO botJob : getListBotJob()) {
+                    if (Objects.equals(botJob.getId(), whereId)) {
+                        if (botJob.getBlockLoadDTOList() != null) {
+                            for (BlockLoadDTO block : botJob.getBlockLoadDTOList()) {
+                                if (Objects.equals(block.getId(), blockId)) {
+                                    block.setExportFile(exportFile);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+            } else if ("component_block".equalsIgnoreCase(tableName)) {
+
+                // 1. Update global block list
+                for (BlockLoadDTO block : getListBlockComp()) {
+                    if (Objects.equals(block.getId(), blockId) && Objects.equals(block.getHomeBankingId(), whereId)) {
+                        block.setExportFile(exportFile);
+                        break;
+                    }
+                }
+
+                // 2. Update inside BotJob -> Block -> Instruction
+                for (BotJobLoadDTO botJob : getListBotJobComp()) {
+                    if (Objects.equals(botJob.getHomeBankingId(), whereId)) {
+                        if (botJob.getBlockLoadDTOList() != null) {
+                            for (BlockLoadDTO block : botJob.getBlockLoadDTOList()) {
+                                if (Objects.equals(block.getId(), blockId)) {
+                                    block.setExportFile(exportFile);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+            } else {
+                throw new IllegalArgumentException("Invalid tableName: " + tableName);
+            }
+
+        } catch (Exception error) {
+
+            log.error("Error: Memory Update failed for 'updateMemoryStatusUpdate': " + error.getMessage());
         }
     }
 
@@ -667,8 +855,8 @@ public class PerformLists {
             }
 
         } catch (Exception error) {
-            ARLogger.getInstance(PerformLists.class)
-                    .severe("Error: Memory Update failed for 'updateMemoryParentOpenName': " + error.getMessage());
+
+            log.error("Error: Memory Update failed for 'updateMemoryParentOpenName': " + error.getMessage());
         }
     }
 
@@ -734,8 +922,8 @@ public class PerformLists {
                 throw new IllegalArgumentException("Invalid tableName: " + tableName);
             }
         } catch (Exception error) {
-            ARLogger.getInstance(PerformLists.class)
-                    .severe("Error: Memory Update failed for 'updateMemoryBlockOrder': " + error.getMessage());
+
+            log.error("Error: Memory Update failed for 'updateMemoryBlockOrder': " + error.getMessage());
         }
     }
 
@@ -779,8 +967,8 @@ public class PerformLists {
                 }
             }
         } catch (Exception error) {
-            ARLogger.getInstance(PerformLists.class)
-                    .severe("Error: Memory Update failed for 'updateMemoryRemoveInstructionId': " + error.getMessage());
+
+            log.error("Error: Memory Update failed for 'updateMemoryRemoveInstructionId': " + error.getMessage());
         }
     }
 
@@ -835,8 +1023,8 @@ public class PerformLists {
                 throw new IllegalArgumentException("Invalid tableName: " + tableName);
             }
         } catch (Exception error) {
-            ARLogger.getInstance(PerformLists.class)
-                    .severe("Error: Memory Update failed for 'updateMemoryRemoveInstructionId': " + error.getMessage());
+
+            log.error("Error: Memory Update failed for 'updateMemoryRemoveInstructionId': " + error.getMessage());
         }
     }
 
@@ -877,8 +1065,8 @@ public class PerformLists {
                 throw new IllegalArgumentException("Invalid tableName: " + tableName);
             }
         } catch (Exception error) {
-            ARLogger.getInstance(PerformLists.class)
-                    .severe("Error: Memory Update failed for 'updateMemoryRemoveBlockIds': " + error.getMessage());
+
+            log.error("Error: Memory Update failed for 'updateMemoryRemoveBlockIds': " + error.getMessage());
         }
     }
 
@@ -982,12 +1170,12 @@ public class PerformLists {
                 throw new IllegalArgumentException("Invalid tableName: " + tableName);
             }
         } catch (Exception error) {
-            ARLogger.getInstance(PerformLists.class)
-                    .severe("Error: Memory Update failed for 'updateMemoryRemoveBlockIds': " + error.getMessage());
+
+            log.error("Error: Memory Update failed for 'updateMemoryRemoveBlockIds': " + error.getMessage());
         }
     }
 
-    public void updateMemoryRowMove(String tableName, Integer whereId, List<InstructionLoad> updatedRows) {
+    public void updateMemoryRowMove(String tableName, Integer whereId, List<UpdatedRow> updatedRows) {
         try {
             if ("block".equalsIgnoreCase(tableName)) {
                 for (BotJobLoadDTO botJob : getListBotJob()) {
@@ -1011,21 +1199,21 @@ public class PerformLists {
                 throw new IllegalArgumentException("Invalid tableName: " + tableName);
             }
         } catch (Exception error) {
-            ARLogger.getInstance(PerformLists.class)
-                    .severe("Error: Memory Update failed for 'updateMemoryRowMove': " + error.getMessage());
+
+            log.error("Error: Memory Update failed for 'updateMemoryRowMove': " + error.getMessage());
         }
     }
 
-    private void applyUpdates(List<BlockLoadDTO> blockList, List<InstructionLoad> updatedRows) {
+    private void applyUpdates(List<BlockLoadDTO> blockList, List<UpdatedRow> updatedRows) {
         Map<Integer, BlockLoadDTO> blockMap = blockList.stream().collect(Collectors.toMap(BlockLoadDTO::getId, b -> b));
 
-        for (InstructionLoad mapped : updatedRows) {
+        for (UpdatedRow mapped : updatedRows) {
             for (BlockLoadDTO block : blockList) {
                 if (block.getInstructionLoad() != null) {
                     Iterator<InstructionLoad> it = block.getInstructionLoad().iterator();
                     while (it.hasNext()) {
                         InstructionLoad instr = it.next();
-                        if (instr.getId().equals(mapped.getId())) {
+                        if (instr.getId().equals(mapped.getInstructionId())) {
 
                             // If blockId changed, move instruction to new block
                             if (!Objects.equals(instr.getBlockId(), mapped.getBlockId())) {
@@ -1098,5 +1286,81 @@ public class PerformLists {
         for (InstructionLoad instr : block.getInstructionLoad()) {
             instr.setInstructionOrderNumber(order++);
         }
+    }
+
+    public List<InstructionLoad> buildJsonViewData(List<BotJobLoadDTO> listInstruction) {
+        if (!listInstruction.isEmpty()
+                && !listInstruction.get(0).getBlockLoadDTOList().isEmpty()) {
+
+            List<InstructionLoad> rowList = null;
+            try {
+
+                //                for (BlockLoadDTO block : listInstruction.get(0).getBlockLoadDTOList()) {
+                //                    loadInstructions(whereId, block.getId(), -1, tableName);
+                //                    rowList = tableName.equals("instruction")
+                //                            ? performLists.getListInstruction()
+                //                            : performLists.getListInstructionComp();
+                //                    reorderInstructions(rowList, tableName, false);
+                //                }
+
+                List<InstructionLoad> blockLoopInstructions = listInstruction.get(0).getBlockLoadDTOList().stream()
+                        .flatMap(itemBlock -> itemBlock.getInstructionLoad().stream()
+                                .map(loopInstLoad -> new InstructionLoad(
+                                        listInstruction.get(0).getHomeBankingId(), // homBankingId
+                                        itemBlock.getBotJobId(), // botJobId
+                                        itemBlock.getBotJobName(), // botJob Name
+                                        loopInstLoad.getId(), // Instruction Id
+                                        loopInstLoad.getInstructionOrderNumber(), // Instruction Order
+                                        loopInstLoad.getName(), // Instruction Name
+                                        loopInstLoad.getDescription(), // Instruction Description
+                                        itemBlock.getId(), // block ID
+                                        itemBlock.getBlockOrderNumber(), // block Order
+                                        itemBlock.getName(), // block Name
+                                        itemBlock.getActive(),
+                                        loopInstLoad.getInstructionActive(),
+                                        itemBlock.getWait(),
+                                        loopInstLoad.getActions(),
+                                        loopInstLoad.getParentBlockId(), // Parent Block Id
+                                        loopInstLoad.getParentId(),
+                                        loopInstLoad.getVariableId(),
+                                        loopInstLoad.getOperation(),
+                                        itemBlock.getExportFile(),
+                                        loopInstLoad.getTagName())))
+                        .collect(Collectors.toList());
+
+                // Step 1: Filter rows where actions = "REFRESH_LOOP" and collect their parent IDs
+                Set<Integer> parentIdsForRefreshLoop = blockLoopInstructions.stream()
+                        .filter(instruction -> "REFRESH_LOOP".equalsIgnoreCase(instruction.getActions()))
+                        .map(InstructionLoad::getParentId)
+                        .collect(Collectors.toSet());
+
+                // Step 2: Iterate through the list and set refreshLoop = true for rows with id in
+                // parentIdsForRefreshLoop
+                blockLoopInstructions.forEach(instruction -> {
+                    if (parentIdsForRefreshLoop.contains(instruction.getId())) {
+                        instruction.setRefreshLoop(true);
+                    }
+                });
+
+                // Step 1: Filter rows where actions = "LOOP" and collect their parent IDs
+                Set<Integer> parentIdsForLoopOnly = blockLoopInstructions.stream()
+                        .filter(instruction -> "LOOP".equalsIgnoreCase(instruction.getActions()))
+                        .map(InstructionLoad::getParentId)
+                        .collect(Collectors.toSet());
+
+                // Step 2: Iterate through the list and set loopOnly = true for rows with id in parentIdsForLoopOnly
+                blockLoopInstructions.forEach(instruction -> {
+                    if (parentIdsForLoopOnly.contains(instruction.getId())) {
+                        instruction.setLoopOnly(true);
+                    }
+                });
+
+                return blockLoopInstructions;
+            } catch (Exception error) {
+                log.error("No BotJob Loaded for buildJsonViewData");
+            }
+        }
+
+        return new ArrayList<>();
     }
 }

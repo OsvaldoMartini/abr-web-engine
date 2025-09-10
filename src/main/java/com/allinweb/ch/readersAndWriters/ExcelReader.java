@@ -1,34 +1,59 @@
 package com.allinweb.ch.readersAndWriters;
 
-import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARConstantsEngine;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ExtractedData;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import org.apache.poi.ss.usermodel.*;
+import java.util.*;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.DataFormatter;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
+@Slf4j
 public class ExcelReader {
 
     private static final ARPropertyManager arPropertyManager;
+    private static final DataFormatter formatter = new DataFormatter();
+    private static final int EXCEL_DATA_COLUMN_INTESTATION_ROW = 1;
+    private static String executed = "EXECUTED";
+    private static String OUTCOME = "outcome";
 
     static {
         arPropertyManager = ARPropertyManager.getInstance();
     }
 
-    private static final DataFormatter formatter = new DataFormatter();
-    private static final int EXCEL_DATA_COLUMN_INTESTATION_ROW = 1;
-
-    private static String executed = "EXECUTED";
-
-    private static String OUTCOME = "outcome";
-
     public ExcelReader() {}
+
+    // Basically, it mirrors exactly what Excel displays, without altering formats.
+    private static String getCellValue(Cell cell) {
+        if (cell == null) return null;
+        return formatter.formatCellValue(cell);
+
+        //        String cellValue = null;
+        //        CellType type = cell.getCellType();
+        //        switch (type) {
+        //            case STRING -> {
+        //                String val = cell.getStringCellValue();
+        //                if (!val.isBlank()) {
+        //                    cellValue = val;
+        //                }
+        //            }
+        //            case NUMERIC -> {
+        //                cellValue = String.valueOf(cell.getNumericCellValue());
+        //                //                if (cellValue.contains(".0")) {
+        //                //                    cellValue = cellValue.substring(0, cellValue.indexOf(".0"));
+        //                //                }
+        //                return cellValue;
+        //            }
+        //            case BOOLEAN, BLANK, FORMULA, ERROR -> {}
+        //        }
+        //        return cellValue;
+    }
 
     public ExtractedData extractData(String paymentsFilePath, List<String> allActions) throws Exception {
         // Initialize the extracted data
@@ -59,15 +84,15 @@ public class ExcelReader {
             // Iterate over each action in allActions
             for (String action : allActions) {
                 // Check if action contains ARConstants.INSERT and ARConstants.ACTION_SPECIFICATIONS_SPLITTER
-                if (action.contains(ARConstants.INSERT)
-                        && action.contains(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)) {
+                if (action.contains(ARConstantsEngine.INSERT)
+                        && action.contains(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER)) {
 
-                    String[] parts = action.split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
+                    String[] parts = action.split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER);
                     if (parts.length == 3
-                            && parts[0].equals(ARConstants.INSERT)
-                            && parts[1].equals(ARConstants.ENTER)) {
+                            && parts[0].equals(ARConstantsEngine.INSERT)
+                            && parts[1].equals(ARConstantsEngine.ENTER)) {
                         blockFields.add(parts[2]);
-                    } else if (parts.length == 2 && parts[0].equals(ARConstants.INSERT)) {
+                    } else if (parts.length == 2 && parts[0].equals(ARConstantsEngine.INSERT)) {
                         blockFields.add(parts[1]);
                     }
                 }
@@ -88,13 +113,27 @@ public class ExcelReader {
                     continue;
                 }
 
+                boolean rowHasData = false;
+                Map<String, String> rowValues = new HashMap<>();
+
                 for (int currentCellIndex = currentRow.getFirstCellNum();
                         currentCellIndex < currentRow.getLastCellNum();
                         currentCellIndex++) {
                     String fieldName = getCellValue(fieldNamesRow.getCell(currentCellIndex));
                     String value = getCellValue(currentRow.getCell(currentCellIndex));
-                    extractedDataWithMissingFields.addFieldValue(
-                            fieldName, value, currentRowIndex - EXCEL_DATA_COLUMN_INTESTATION_ROW - 1);
+
+                    if (value != null && !value.trim().isEmpty()) {
+                        rowHasData = true; // at least one non-empty value
+                    }
+                    rowValues.put(fieldName, value);
+
+                    // Only add the row if it has some data
+                    if (rowHasData) {
+                        int rowPosition = currentRowIndex - EXCEL_DATA_COLUMN_INTESTATION_ROW - 1;
+                        for (Map.Entry<String, String> entry : rowValues.entrySet()) {
+                            extractedDataWithMissingFields.addFieldValue(entry.getKey(), entry.getValue(), rowPosition);
+                        }
+                    }
                 }
             }
 
@@ -155,27 +194,6 @@ public class ExcelReader {
         return e.getMessage().contains("being used by another process");
     }
 
-    public File createLogFile(String filePath) {
-
-        File paymentsFile = new File(filePath);
-        String paymentsFileName = paymentsFile.getName();
-        int lastPeriodPos = paymentsFileName.lastIndexOf('.');
-        paymentsFileName = paymentsFileName.substring(0, lastPeriodPos);
-        String logDirectory = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
-        String logFilePath = logDirectory + "\\" + paymentsFileName + ARConstants.FILE_FORMAT_LOG;
-
-        File logFile = null;
-        try {
-            logFile = new File(logFilePath);
-            logFile.createNewFile();
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-            System.exit(0);
-        }
-
-        return logFile;
-    }
-
     /* TODO: To be removed
     public File createPaymentsExcelLogFile(String paymentsFilePath) {
 
@@ -214,36 +232,10 @@ public class ExcelReader {
     		logExcelWorkbook.close();
 
     	} catch (Exception e) {
-    		System.out.println(e.getMessage());
+    		log.info(e.getMessage());
     		System.exit(0);
     	}
     	return new File(logExcelFilePath);
     }
     */
-
-    // Basically, it mirrors exactly what Excel displays, without altering formats.
-    private static String getCellValue(Cell cell) {
-        if (cell == null) return null;
-        return formatter.formatCellValue(cell);
-
-        //        String cellValue = null;
-        //        CellType type = cell.getCellType();
-        //        switch (type) {
-        //            case STRING -> {
-        //                String val = cell.getStringCellValue();
-        //                if (!val.isBlank()) {
-        //                    cellValue = val;
-        //                }
-        //            }
-        //            case NUMERIC -> {
-        //                cellValue = String.valueOf(cell.getNumericCellValue());
-        //                //                if (cellValue.contains(".0")) {
-        //                //                    cellValue = cellValue.substring(0, cellValue.indexOf(".0"));
-        //                //                }
-        //                return cellValue;
-        //            }
-        //            case BOOLEAN, BLANK, FORMULA, ERROR -> {}
-        //        }
-        //        return cellValue;
-    }
 }

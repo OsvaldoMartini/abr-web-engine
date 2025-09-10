@@ -7,7 +7,7 @@
 /// **
 // * Simulates a CSV file with dynamic columns, missing values, and row numbering.
 // */
-// public class CsvSimulatorWithColumns {
+// import lombok.extern.slf4j.Slf4j;  @Slf4j public class CsvSimulatorWithColumns {
 //    private List<String> columns; // Column headers
 //    private List<List<String>> rows; // Data rows
 //    private static final String END_OF_FILE_MARKER = "END OF FILE";
@@ -92,7 +92,7 @@
 //     * Prints the CSV content.
 //     */
 //    public void printCsv() {
-//        System.out.println(getCsvContent());
+//        log.info(getCsvContent());
 //    }
 //
 //    // Example usage
@@ -140,9 +140,9 @@
 //        public static void writeToFile(String filename, String content) {
 //            try (FileWriter writer = new FileWriter(filename)) {
 //                writer.write(content);
-//                System.out.println("CSV written to file: " + filename);
+//                log.info("CSV written to file: " + filename);
 //            } catch (IOException e) {
-//                System.err.println("Error writing file: " + e.getMessage());
+//                log.error("Error writing file: " + e.getMessage());
 //            }
 //        }
 //    }

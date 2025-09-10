@@ -18,6 +18,6 @@ public class BlockDetailsDTO {
     private Boolean forceOrder;
     private String exportFile;
     private String sessionId;
-    private List<InstructionLoad> updatedInstructions; // For originalBlock
-    private List<InstructionLoad> instructions; // For newBlock
+    private List<UpdatedRow> updatedInstructions; // For originalBlock
+    private List<UpdatedRow> instructions; // For newBlock
 }

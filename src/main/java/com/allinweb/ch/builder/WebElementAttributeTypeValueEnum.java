@@ -15,10 +15,6 @@ public enum WebElementAttributeTypeValueEnum {
         this.value = value;
     }
 
-    public String getValue() {
-        return value;
-    }
-
     public static List<WebElementAttributeTypeValueEnum> getClickableValues() {
         List<WebElementAttributeTypeValueEnum> clickableList = new ArrayList<>();
         clickableList.add(WebElementAttributeTypeValueEnum.SUBMIT);
@@ -26,5 +22,9 @@ public enum WebElementAttributeTypeValueEnum {
         clickableList.add(WebElementAttributeTypeValueEnum.CHECKBOX);
         clickableList.add(WebElementAttributeTypeValueEnum.RADIO);
         return clickableList;
+    }
+
+    public String getValue() {
+        return value;
     }
 }

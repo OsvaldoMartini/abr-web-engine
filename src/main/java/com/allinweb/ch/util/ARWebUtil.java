@@ -1,9 +1,11 @@
 package com.allinweb.ch.util;
 
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebElement;
 
+@Slf4j
 public class ARWebUtil {
 
     public static String extractXPath(String input) {

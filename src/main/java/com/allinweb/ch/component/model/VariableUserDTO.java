@@ -57,119 +57,119 @@ public class VariableUserDTO {
         return id.get();
     }
 
-    public IntegerProperty idProperty() {
-        return id;
-    }
-
     public void setId(Integer id) {
         this.id.set(id);
+    }
+
+    public IntegerProperty idProperty() {
+        return id;
     }
 
     public String getType() {
         return type.get();
     }
 
-    public StringProperty typeProperty() {
-        return type;
-    }
-
     public void setType(String type) {
         this.type.set(type);
+    }
+
+    public StringProperty typeProperty() {
+        return type;
     }
 
     public String getName() {
         return name.get();
     }
 
-    public StringProperty nameProperty() {
-        return name;
-    }
-
     public void setName(String name) {
         this.name.set(name);
+    }
+
+    public StringProperty nameProperty() {
+        return name;
     }
 
     public String getValue() {
         return value.get();
     }
 
-    public StringProperty valueProperty() {
-        return value;
-    }
-
     public void setValue(String value) {
         this.value.set(value);
+    }
+
+    public StringProperty valueProperty() {
+        return value;
     }
 
     public Integer getBotJobId() {
         return botJobId.get();
     }
 
-    public IntegerProperty botJobIdProperty() {
-        return botJobId;
-    }
-
     public void setBotJobId(Integer botJobId) {
         this.botJobId.set(botJobId);
+    }
+
+    public IntegerProperty botJobIdProperty() {
+        return botJobId;
     }
 
     public Integer getParentId() {
         return parentId.get();
     }
 
-    public IntegerProperty parentIdProperty() {
-        return parentId;
-    }
-
     public void setParentId(Integer parentId) {
         this.parentId.set(parentId);
+    }
+
+    public IntegerProperty parentIdProperty() {
+        return parentId;
     }
 
     public String getParentName() {
         return parentName.get();
     }
 
-    public StringProperty parentNameProperty() {
-        return parentName;
-    }
-
     public void setParentName(String parentName) {
         this.parentName.set(parentName);
+    }
+
+    public StringProperty parentNameProperty() {
+        return parentName;
     }
 
     public String getUsedVars() {
         return usedVars.get();
     }
 
-    public StringProperty usedVarsProperty() {
-        return usedVars;
-    }
-
     public void setUsedVars(String usedVars) {
         this.usedVars.set(usedVars);
+    }
+
+    public StringProperty usedVarsProperty() {
+        return usedVars;
     }
 
     public String getLocalFormat() {
         return localFormat.get();
     }
 
-    public StringProperty localFormatProperty() {
-        return localFormat;
-    }
-
     public void setLocalFormat(String localFormat) {
         this.localFormat.set(localFormat);
+    }
+
+    public StringProperty localFormatProperty() {
+        return localFormat;
     }
 
     public String getDelimiter() {
         return delimiter.get();
     }
 
-    public StringProperty delimiterProperty() {
-        return delimiter;
-    }
-
     public void setDelimiter(String delimiter) {
         this.delimiter.set(delimiter);
+    }
+
+    public StringProperty delimiterProperty() {
+        return delimiter;
     }
 }

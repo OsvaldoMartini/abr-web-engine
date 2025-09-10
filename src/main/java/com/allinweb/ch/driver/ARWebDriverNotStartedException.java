@@ -1,5 +1,8 @@
 package com.allinweb.ch.driver;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 public class ARWebDriverNotStartedException extends RuntimeException {
 
     public ARWebDriverNotStartedException() {
