@@ -32,15 +32,15 @@ public class Engine {
         System.setProperty("org.eclipse.jetty.LEVEL", "OFF");
         logControl.disableLogging();
 
-        log.info("ENGINE STARTED");
+        System.out.println("ENGINE STARTED");
 
         if (args.length == 0) {
-            log.error("No parameters, please read documentation.");
+            System.out.println("No parameters, please read documentation.");
             System.exit(0);
         }
 
         for (int i = 0; i < args.length; i++) {
-            log.info("PARAM " + i + ">> " + args[i]);
+            System.out.println("PARAM " + i + ">> " + args[i]);
         }
 
         // --- configuration file setup
