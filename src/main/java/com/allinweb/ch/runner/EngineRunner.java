@@ -1709,40 +1709,41 @@ public class EngineRunner {
                                     stopAll = true;
                                 } else {
 
-                                    if (blocksLoaded.get(currentBlockOrder).isHasAnyInput()) {
+                                    //                                    if
+                                    // (blocksLoaded.get(currentBlockOrder).isHasAnyInput()) {
 
-                                        xExcelCurrentRow++;
+                                    xExcelCurrentRow++;
 
-                                        String bodyMsg = "Excel Data Calling Next Row: " + xExcelCurrentRow + 1;
+                                    String bodyMsg = "Excel Data Calling Next Row: " + xExcelCurrentRow + 1;
 
-                                        if (xExcelCurrentRow >= xExcelDataSize - 1) {
-                                            xExcelCurrentRow = xExcelDataSize - 1;
-                                            msgInstruction = new Pair<>(
-                                                    "Excel Data (limit reached) keeping last row",
-                                                    String.valueOf(xExcelCurrentRow + 1));
-                                            bodyMsg = "Excel Data (limit reached) keeping last row: " + xExcelCurrentRow
-                                                    + 1;
-                                            lastRecall = true;
-                                        } else {
-                                            msgInstruction = new Pair<>(
-                                                    "Excel Data next row", String.valueOf(xExcelCurrentRow + 1));
-                                        }
-
-                                        // Excel Report and Log
-                                        performActions.logAndReport(
-                                                currentCondition,
-                                                true,
-                                                true,
-                                                blockStartTime,
-                                                blockReportName,
-                                                success,
-                                                new String[] {ARConstantsEngine.NEXT_ROW},
-                                                msgInstruction,
-                                                dataExcel,
-                                                writerReport,
-                                                "Excel Data Calling Next Row",
-                                                bodyMsg);
+                                    if (xExcelCurrentRow >= xExcelDataSize - 1) {
+                                        xExcelCurrentRow = xExcelDataSize - 1;
+                                        msgInstruction = new Pair<>(
+                                                "Excel Data (limit reached) keeping last row",
+                                                String.valueOf(xExcelCurrentRow + 1));
+                                        bodyMsg =
+                                                "Excel Data (limit reached) keeping last row: " + xExcelCurrentRow + 1;
+                                        lastRecall = true;
+                                    } else {
+                                        msgInstruction =
+                                                new Pair<>("Excel Data next row", String.valueOf(xExcelCurrentRow + 1));
                                     }
+
+                                    // Excel Report and Log
+                                    performActions.logAndReport(
+                                            currentCondition,
+                                            true,
+                                            true,
+                                            blockStartTime,
+                                            blockReportName,
+                                            success,
+                                            new String[] {ARConstantsEngine.NEXT_ROW},
+                                            msgInstruction,
+                                            dataExcel,
+                                            writerReport,
+                                            "Excel Data Calling Next Row",
+                                            bodyMsg);
+                                    //                                    }
 
                                     //                                currentIndex++;
                                     currentBlockOrder = blockInitial; // BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
