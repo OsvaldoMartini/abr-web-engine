@@ -148,7 +148,7 @@ public class EngineRunner {
                 log.info("Running All Blocks");
             }
         } catch (Exception e) {
-            log.error("Running All Blocks: " + e.getMessage());
+            log.warn("Running All Blocks. Param passed for Block was: \"" + idsAndPaths[2] + "\"");
         }
 
         ErrorMessage errorMessage = performDBEngine.loadHomeBanking(homeBankId);

@@ -75,7 +75,7 @@ public class PerformLists {
 
     //    private List<BlockOptions> listComboOptions = new ArrayList<>();
 
-    public void initialize() {
+    public void initialize(String sessionId) {
         this.executorWebSocket = Executors.newSingleThreadExecutor();
 
         String port =
@@ -89,7 +89,7 @@ public class PerformLists {
         }
 
         if (!isConnectWebSocket) {
-            connectWebSocketClient(portSocketInitial, "perform-list-data");
+            connectWebSocketClient(portSocketInitial, sessionId);
         }
     }
 

@@ -585,6 +585,6 @@ public class PerformDBEngine {
     }
 
     public void callSocketLists() {
-        performLists.initialize();
+        performLists.initialize("engine-perform-bot-job");
     }
 }
