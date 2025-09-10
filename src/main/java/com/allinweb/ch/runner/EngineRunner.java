@@ -622,7 +622,8 @@ public class EngineRunner {
         } catch (InterruptedException error) {
             executorService.shutdownNow();
             Thread.currentThread().interrupt();
-            log.warn("ExecutorService did not terminate: " + error.getMessage());
+            log.warn("ExecutorService did not terminate");
+            System.exit(0);
         }
     }
 
