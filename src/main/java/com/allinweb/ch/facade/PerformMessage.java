@@ -3,6 +3,7 @@ package com.allinweb.ch.facade;
 import com.allinweb.ch.component.model.ElementDTO;
 import com.allinweb.ch.component.model.InstructionLoad;
 import com.allinweb.ch.util.ARExecution;
+import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;
@@ -133,16 +134,16 @@ public class PerformMessage {
     public void initializePerformMessages() {}
 
     public void couldNotFindElement(String criteria) {
-        showCustomModalDialogDragWin11(
-                criteria,
-                "1. Verify if you are on the correct web page.",
-                "2. Check if the page layout or content has been updated. (Page Refreshed)",
-                "3. Consider increasing the wait time to ensure the page loads completely.",
-                "4. Consider to Re Scanner or Re Select the Element!",
-                true,
-                "OK",
-                null,
-                0);
+        //        showCustomModalDialogDragWin11(
+        //                criteria,
+        //                "1. Verify if you are on the correct web page.",
+        //                "2. Check if the page layout or content has been updated. (Page Refreshed)",
+        //                "3. Consider increasing the wait time to ensure the page loads completely.",
+        //                "4. Consider to Re Scanner or Re Select the Element!",
+        //                true,
+        //                "OK",
+        //                null,
+        //                0);
     }
 
     public void couldNotInputBotJobVeryFast(String criteria) {
@@ -169,6 +170,23 @@ public class PerformMessage {
                 "OK",
                 null,
                 0);
+    }
+
+    public void errorMessageOperationFailed(ErrorMessage errorMessage) {
+        log.error(
+                "Error: {} Title: {} Message: {}",
+                errorMessage.getErrorHeader(),
+                errorMessage.getErrorTitle(),
+                errorMessage.getErrorMessage());
+        //        errorMessage(
+        //                errorMessage.getErrorHeader(),
+        //                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span>
+        // ❌",
+        //                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span>",
+        //                "<span style='color: #2E7D32; font-weight: bold;'>" + errorMessage.getErrorTitle() +
+        // "</span>",
+        //                "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+        //                0);
     }
 
     public void errorMessage(String criteria, String msg1, String msg2, String msg3, String msg4, int height) {

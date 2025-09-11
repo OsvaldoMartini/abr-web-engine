@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
 @Slf4j
 public class EngineRunner {
 
-    private static final Logger specialLog = LoggerFactory.getLogger("com.allinweb.special");
+    private static final Logger logOperations = LoggerFactory.getLogger("com.allinweb.operations");
 
     private String excelPath;
     private BotJobLoadDTO currentBotJob;
@@ -360,7 +360,7 @@ public class EngineRunner {
     private static void printLog(String resultActions, boolean result) {
         String resultMsg = result ? ARConstantsEngine.SUCCESS : ARConstantsEngine.FAIL;
         String log = String.join(ARConstantsEngine.FIELDS_SEPARATOR, resultMsg, resultActions);
-        specialLog.info(log);
+        logOperations.info(log);
     }
 
     private int handleGreaterThan(String value1, String value2) {
@@ -651,6 +651,19 @@ public class EngineRunner {
         }
     }
 
+    public void updateHasAnyInput() {
+        if (blocksLoaded == null) return;
+
+        blocksLoaded.forEach(block -> {
+            boolean hasInput = block.getInstructionLoad() != null
+                    && block.getInstructionLoad().stream()
+                            .anyMatch(instr -> instr.getActions() != null
+                                    && instr.getActions().startsWith("I:"));
+
+            block.setHasAnyInput(hasInput);
+        });
+    }
+
     private void updateRowStatusAndNotify(String color) {
         rowStatus.setColor(color);
         jsonStatus = gson.toJson(rowStatus);
@@ -674,7 +687,7 @@ public class EngineRunner {
         String baseLogString =
                 currentBotJobName + ARConstantsEngine.FIELDS_SEPARATOR + labelsValue.getProperty(Labels.START);
 
-        log.info(baseLogString);
+        logOperations.info(baseLogString);
 
         ExcelWriter.ExcelChain writerReport =
                 new ExcelWriter(currentBotJobName, performActions.getCurrentDriver(), false).withPurpose("report");
@@ -901,7 +914,7 @@ public class EngineRunner {
 
                     } catch (Exception ex) {
 
-                        log.error(String.format("Error Wait Block for :\"%s\"", blockLoad.getName()));
+                        logOperations.error(String.format("Error Wait Block for :\"%s\"", blockLoad.getName()));
                     }
 
                     // Step 1: Get all ParentIds For LOOPs Filter rows where actions = "REFRESH_LOOP" or "LOOP" on
@@ -1458,7 +1471,7 @@ public class EngineRunner {
                                         if (repeat > 0) {
                                             mapLoops.put(parentFieldLoop, repeat);
 
-                                            log.info(String.format(
+                                            logOperations.info(String.format(
                                                     "Loop to Parent :\"%s\" - %d Times",
                                                     parts[0] + "-(" + parts[1] + ") " + parts[2],
                                                     mapLoops.get(parentFieldLoop)));
@@ -1557,7 +1570,7 @@ public class EngineRunner {
                                             continue instructionLoop;
                                         } else {
 
-                                            log.info(String.format(
+                                            logOperations.info(String.format(
                                                     "IGNORING Loop to Parent :\"%s\" - %d Times",
                                                     parts[0] + "-(" + parts[1] + ") " + parts[2],
                                                     mapLoops.get(parentFieldLoop)));
@@ -1936,8 +1949,9 @@ public class EngineRunner {
                                     failedMessage = "Failed: General Execution ";
                                     msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                 }
-
-                                performMessage.errorMessage(resultActions, msg1, msg2, msg3, null, 260);
+                                logOperations.error("Error: {} - {} - {} - {}", resultActions, msg1, msg2, msg3);
+                                //                                performMessage.errorMessage(resultActions, msg1, msg2,
+                                // msg3, null, 260);
                                 //                            throw new RuntimeException(t);
                             }
 
@@ -2274,12 +2288,12 @@ public class EngineRunner {
             }
         }
 
-        log.info(baseLogString);
+        logOperations.info(baseLogString);
 
         if (resultActions.equalsIgnoreCase("Close Browser") || respModal.equals(ARExecution.DialogModal.STOP)) {
             currentARWebDriver.getCurrentDriver().quit();
         }
-        log.info(baseLogString);
+        logOperations.info(baseLogString);
 
         shutDownExecutorService(executorServicePreLaunch);
         performActions.setInterceptBotJob(true);

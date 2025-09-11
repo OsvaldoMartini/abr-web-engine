@@ -189,7 +189,6 @@ public class ARWebDriver {
 
         if (Strings.isNullOrEmpty(url.trim())) {
             log.info("URL IS EMPTY");
-
             performMessage.errorMessage("URL IS EMPTY", "URL Web Browser is Empty", null, null, null, 0);
 
             return null;
@@ -343,6 +342,7 @@ public class ARWebDriver {
             // messageChunks[3], 0);
             if (error.getMessage().contains("session deleted as the browser has closed the connection")
                     || error.getMessage().contains("Expected condition failed: waiting for com")) {
+                log.error("Interruption Calling SCANNER: {}", webDriverPath);
                 performMessage.errorMessage(
                         "Interruption Calling SCAN",
                         "<span style='font-style: italic;'>Session deleted as the browser has closed the connection!</span>",
@@ -353,8 +353,9 @@ public class ARWebDriver {
                                 + "</span>",
                         0);
             } else {
+                log.error("Error attempt to open WebDriver: {}", webDriverPath);
                 performMessage.errorMessage(
-                        "Access WebDriver",
+                        "Error attempt to open WebDriver",
                         "<span style='font-style: italic;'>The WebDriver data directory is probably already in use.</span>",
                         "<span style='color: #E65100; font-weight: bold;'>WebDriver path:</span> <span style='font-weight: bold;'>"
                                 + webDriverPath + "</span>",

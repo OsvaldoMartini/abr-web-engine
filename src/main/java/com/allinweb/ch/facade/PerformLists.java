@@ -285,6 +285,7 @@ public class PerformLists {
             }
         } catch (Exception error) {
             if (error.getMessage().contains("invalid session id")) {
+                log.error("Browser is Closed");
                 //                performMessage.errorMessage(
                 //                        "Browser is Closed",
                 //                        "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>To perform
@@ -294,9 +295,9 @@ public class PerformLists {
                 // window</span>",
                 //                        null,
                 //                        0);
+            } else {
+                log.error("Closed processing message: " + error.getMessage());
             }
-
-            log.error("Closed processing message: " + error.getMessage());
         }
     }
 

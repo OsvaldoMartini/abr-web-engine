@@ -17,4 +17,17 @@ public class DatabaseUserDTO {
     private String optionsConfig = "";
     private String username = "";
     private String password = "";
+
+    /**
+     * Shorter constructor (subset of fields)
+     */
+    public DatabaseUserDTO(
+            String id, String name, String url, String priority, String searchConfig, String optionsConfig) {
+        this.id = id;
+        this.name = name;
+        this.url = url;
+        this.priority = priority;
+        this.searchConfig = searchConfig;
+        this.optionsConfig = optionsConfig;
+    }
 }

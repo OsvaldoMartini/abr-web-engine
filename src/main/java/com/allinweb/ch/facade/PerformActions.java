@@ -30,6 +30,8 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.Wait;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * PerformActions.
@@ -39,8 +41,9 @@ import org.openqa.selenium.support.ui.WebDriverWait;
  */
 @Slf4j
 public class PerformActions {
+    private static final Logger logOperations = LoggerFactory.getLogger("com.allinweb.operations");
+
     private static final PerformMessage performMessage;
-    private static final PerformLists performLists;
     private static final IframeInputLocator iframeInputLocator;
     private static final ARPropertyManager arPropertyManager;
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -57,7 +60,6 @@ public class PerformActions {
     static {
         arPropertyManager = ARPropertyManager.getInstance();
         performMessage = PerformMessage.getInstance();
-        performLists = PerformLists.getInstance();
         iframeInputLocator = IframeInputLocator.getInstance();
     }
 
@@ -183,7 +185,7 @@ public class PerformActions {
         try {
             return element.isDisplayed() && isInViewport(element, driver);
         } catch (Exception e) {
-            log.info(e.getMessage());
+            logOperations.info(e.getMessage());
             return false;
         }
     }
@@ -635,7 +637,7 @@ public class PerformActions {
             tagName = extractTagName(targetXPath);
         } catch (Exception e) {
 
-            log.info(String.format(
+            logOperations.info(String.format(
                     "Error RemoveTrailingSlash for %s -> xPath  %s -> Cause: %s",
                     tagName, targetXPath, e.getMessage()));
         }
@@ -658,13 +660,9 @@ public class PerformActions {
                             waitForPage.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                         } catch (Exception e) {
 
-                            log.info(String.format(
+                            logOperations.warn(String.format(
                                     "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
                                     targetXPath, criteria, e.getMessage()));
-
-                            showNotFoundElement(targetXPath, criteria);
-
-                            //                                SwingUtilities.invokeLater(() ->
 
                             if (!byPassNotFound) {
                                 performMessage.couldNotFindElement(String.valueOf(criteria));
@@ -675,8 +673,7 @@ public class PerformActions {
                             new WebDriverWait(this.currentDriver, Duration.ofSeconds(actionCustomMaxWaitSec))
                                     .until(ExpectedConditions.presenceOfElementLocated(criteria));
                         } catch (Exception e) {
-
-                            log.info(String.format(
+                            logOperations.warn(String.format(
                                     "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
                                     targetXPath, criteria, e.getMessage()));
                             if (!byPassNotFound) {
@@ -688,7 +685,7 @@ public class PerformActions {
                             waitForAction.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                         } catch (Exception e) {
 
-                            log.info(String.format(
+                            logOperations.warn(String.format(
                                     "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
                                     targetXPath, criteria, e.getMessage()));
 
@@ -756,7 +753,7 @@ public class PerformActions {
             tagName = extractTagName(instructionPath);
         } catch (Exception e) {
 
-            log.info(String.format(
+            logOperations.warn(String.format(
                     "Error RemoveTrailingSlash for %s -> xPath  %s -> Cause: %s",
                     tagName, instructionPath, e.getMessage()));
         }
@@ -764,7 +761,7 @@ public class PerformActions {
 
         if (instructionReferenceList.size() == 0) {
 
-            log.warn("####    Not XPath to Be Located!   ####"
+            logOperations.warn("####    Not XPath to Be Located!   ####"
                     + "\n####    Remove and Re-Scan the Failed Field Again   ####");
 
             return null;
@@ -809,11 +806,11 @@ public class PerformActions {
                     priorityTypeEnum = PriorityTypeEnum.getPriorityType(
                             priority.getPriorityType().toString());
                 } catch (Exception e) {
-                    log.info(String.format("The ENUM: was not defined!"));
+                    logOperations.warn(String.format("The ENUM: was not defined!"));
                     continue;
                 }
                 if (priorityTypeEnum == null) {
-                    log.info("Define priorities!");
+                    logOperations.warn("Define priorities!");
                     return null;
                 }
 
@@ -829,7 +826,7 @@ public class PerformActions {
                 // Print or process the first matching instruction reference
                 if (instructionReference.isPresent()) {
 
-                    log.info(String.format(
+                    logOperations.info(String.format(
                             "Search for %s   Type:  %s   Value: %s",
                             priority.getName(),
                             instructionReference.get().getReferenceType(),
@@ -855,23 +852,23 @@ public class PerformActions {
                             //                                executeActionsAtInstructionCoordinates(currentInstruction,
                             // filedData);
                             //                            } catch (Exception e) {
-                            //                                log.info(e.getMessage());
+                            //                                operationsLog.warn(e.getMessage());
                             //
-                        } // log.info("coordinates case");
-                        case ById -> {} // log.info("ById case");
-                        case ByClassName -> {} // log.info("Default case");
-                        case ByName -> {} // log.info("Default case");
-                        case ByTagName -> {} // log.info("Default case");
-                        case ByLinkText -> {} // log.info("Default case");
-                        case ByPartialLinkText -> {} // log.info("Default case");
-                        case ByCssSelector -> {} // log.info("Default case"); //      ".nav-menu li";
-                        case ExecuteScript -> {} // log.info("Default case"); //      "return
+                        } // operationsLog.info("coordinates case");
+                        case ById -> {} // operationsLog.info("ById case");
+                        case ByClassName -> {} // operationsLog.info("Default case");
+                        case ByName -> {} // operationsLog.info("Default case");
+                        case ByTagName -> {} // operationsLog.info("Default case");
+                        case ByLinkText -> {} // operationsLog.info("Default case");
+                        case ByPartialLinkText -> {} // operationsLog.info("Default case");
+                        case ByCssSelector -> {} // operationsLog.info("Default case"); //      ".nav-menu li";
+                        case ExecuteScript -> {} // operationsLog.info("Default case"); //      "return
                             // document.getElementById('search-top')");
-                        case createXPath -> {} // log.info("Default case"); //         Generates XPath
+                        case createXPath -> {} // operationsLog.info("Default case"); //         Generates XPath
                             // Recursive tom the Elements Found
-                        case dynamic -> {} // log.info("Default case"); //         Generates Dynamic Action ->
+                        case dynamic -> {} // operationsLog.info("Default case"); //         Generates Dynamic Action ->
                             // Click, Hover, Etc.
-                        case jsoup -> {} // log.info("Default case");
+                        case jsoup -> {} // operationsLog.info("Default case");
                     }
 
                     if (this.currentDriver == null) {
@@ -885,12 +882,13 @@ public class PerformActions {
                         String msg2 = "Restart the APP";
                         String msg3 = "Close all Browser or Restart the APP";
 
-                        performMessage.errorMessage("Parent Id Error", msg1, msg2, msg3, null, 0);
+                        logOperations.error("WebDriver is not active. {} - {} - {}", msg1, msg2, msg3);
+                        performMessage.errorMessage("WebDriver is not active", msg1, msg2, msg3, null, 0);
 
                         return null;
                     }
 
-                    log.info("WebDriver Session ID: " + getSessionId());
+                    logOperations.info("WebDriver Session ID: " + getSessionId());
 
                     // Actualy here is Calling the Actions
                     if (criterias != null) {
@@ -901,7 +899,7 @@ public class PerformActions {
                             //                            try {
                             //                                elementFound = scroolUntilFindElement(criteria);
                             //                            } catch (Exception e) {
-                            //                                log.info(e.getMessage());
+                            //                                operationsLog.warn(e.getMessage());
                             //                            }
                             //                            if (elementFound != null) {
                             //                                break;
@@ -913,7 +911,7 @@ public class PerformActions {
                                         waitForPage.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                                     } catch (Exception e) {
 
-                                        log.info(String.format(
+                                        logOperations.warn(String.format(
                                                 "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
                                                 instructionPath, criteria, e.getMessage()));
 
@@ -930,7 +928,7 @@ public class PerformActions {
                                                 .until(ExpectedConditions.presenceOfElementLocated(criteria));
                                     } catch (Exception e) {
 
-                                        log.info(String.format(
+                                        logOperations.warn(String.format(
                                                 "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
                                                 instructionPath, criteria, e.getMessage()));
 
@@ -942,7 +940,7 @@ public class PerformActions {
                                         waitForAction.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                                     } catch (Exception e) {
 
-                                        log.info(String.format(
+                                        logOperations.warn(String.format(
                                                 "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
                                                 instructionPath, criteria, e.getMessage()));
 
@@ -1001,7 +999,7 @@ public class PerformActions {
             tagName = extractTagName(instructionPath);
         } catch (Exception e) {
 
-            log.info(String.format(
+            logOperations.warn(String.format(
                     "Error RemoveTrailingSlash for %s -> xPath  %s -> Cause: %s",
                     tagName, instructionPath, e.getMessage()));
         }
@@ -1010,7 +1008,7 @@ public class PerformActions {
 
         if (instructionReferenceList.isEmpty()) {
 
-            log.warn("####    Not XPath to Be Located!   ####"
+            logOperations.warn("####    Not XPath to Be Located!   ####"
                     + "\n####    Remove and Re-Scan the Failed Field Again   ####");
             return null;
         }
@@ -1055,9 +1053,9 @@ public class PerformActions {
                 WebElement iframe = this.currentDriver.findElement(By.xpath(currentInstruction.getIFrameXPath()));
                 this.currentDriver.switchTo().frame(iframe);
 
-                log.info("Found iFrame XPath: " + currentInstruction.getIFrameXPath());
+                logOperations.info("Found iFrame XPath: " + currentInstruction.getIFrameXPath());
             } catch (Exception e) {
-                log.info("iFrame Not Found with XPath: " + currentInstruction.getIFrameXPath());
+                logOperations.warn("iFrame Not Found with XPath: " + currentInstruction.getIFrameXPath());
                 //                performMessage.generalErrorIFrame(currentInstruction.getName());
                 return null;
             }
@@ -1084,12 +1082,13 @@ public class PerformActions {
                     priorityTypeEnum = PriorityTypeEnum.getPriorityType(
                             priority.getPriorityType().toString());
                 } catch (Exception e) {
-                    log.warn("The ENUM: \"" + priority.getPriorityType().toString() + "\" was not defined!");
+                    logOperations.warn(
+                            "The ENUM: \"" + priority.getPriorityType().toString() + "\" was not defined!");
                     continue;
                 }
 
                 if (priorityTypeEnum == null) {
-                    log.info("Define priorities!");
+                    logOperations.info("Define priorities!");
                     return null;
                 }
 
@@ -1100,7 +1099,7 @@ public class PerformActions {
 
                 if (instructionReference.isPresent()) {
 
-                    log.info(String.format(
+                    logOperations.info(String.format(
                             "Search for %s   Type:  %s   Value: %s",
                             priority.getName(),
                             instructionReference.get().getReferenceType(),
@@ -1153,7 +1152,7 @@ public class PerformActions {
                         }
                         case coordinates, js_coordinates, cp_coordinates, allAttributes -> {
                             // These cases are placeholders and do not need additional handling
-                            //                            log.info(
+                            //                            operationsLog.info(
                             //                                    String.format("Locate by \"coordinates,
                             // js_coordinates, cp_coordinates\" "));
                         }
@@ -1222,7 +1221,7 @@ public class PerformActions {
                                 //                                    scrollToElement(currentInstruction.getXpath());
                                 //                                } catch (Exception e) {
                                 //
-                                //                                            log.info(String.format(
+                                //                                            operationsLog.info(String.format(
                                 //                                                    "Could Not Find xPath \"%s\"
                                 // Criteria \"%s\" -> Cause: %s",
                                 //                                                    instructionPath, criteria,
@@ -1267,7 +1266,7 @@ public class PerformActions {
                     }
                     onHoldInSeconds(5);
 
-                    log.info(String.format(
+                    logOperations.warn(String.format(
                             "Re-try %d Locate Web Element TagName \"%s\"", attempts, currentInstruction.getName()));
 
                 } catch (Exception e) {
@@ -1285,7 +1284,7 @@ public class PerformActions {
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception e) {
 
-            log.info(String.format(
+            logOperations.warn(String.format(
                     "Could Not Find Field Name \"%s\" Value \"%s\" -> Cause: %s",
                     fieldName, dataFieldValue, e.getMessage()));
 
@@ -1309,7 +1308,8 @@ public class PerformActions {
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception e) {
 
-            log.info(String.format("Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
+            logOperations.warn(
+                    String.format("Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
 
             if (!byPassNotFound) {
                 performMessage.couldNotFindElement(element.getTagName());
@@ -1370,7 +1370,7 @@ public class PerformActions {
                         .equals("complete"));
             } catch (Exception ex) {
 
-                log.warn(String.format(
+                logOperations.warn(String.format(
                         "WaitForPage.until(d -> ((JavascriptExecutor) driver) error: %s", ex.getMessage()));
 
                 performMessage.couldNotFindElement("WaitForPage.until");
@@ -1378,7 +1378,7 @@ public class PerformActions {
         } else {
             // Handle the case when driver is null (e.g., throw an exception or initialize the driver)
 
-            log.warn("WaitForPage.until(d -> ((JavascriptExecutor) driver) is returning nulls");
+            logOperations.warn("WaitForPage.until(d -> ((JavascriptExecutor) driver) is returning nulls");
         }
     }
 
@@ -1389,7 +1389,7 @@ public class PerformActions {
             return true;
         } catch (Exception e) {
 
-            log.error(String.format(
+            logOperations.error(String.format(
                     "Failed to Scroll to Element \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
             if (!byPassNotFound) {
                 performMessage.couldNotFindElement("Failed to Scroll to Element " + element.getTagName());
@@ -1408,7 +1408,8 @@ public class PerformActions {
             }));
         } catch (Exception e) {
 
-            log.info(String.format("Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
+            logOperations.warn(
+                    String.format("Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
 
             if (!byPassNotFound) {
                 performMessage.couldNotFindElement(element.getTagName());
@@ -1418,26 +1419,38 @@ public class PerformActions {
 
         // Custom visibility and enabled checks
         if (!element.isDisplayed()) {
-            performMessage.errorMessage(
-                    "BOT JOB STOP - Web Field is not Visible",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Verify the rules and behavior of your web page.</span>",
-                    "<span style='color: #D32F2F; font-weight: bold;'>Some fields may be conditionally enabled based on other inputs.</span>",
-                    "<span style='color: #E65100; font-weight: bold; font-size: 1.1em;'>Element is present but not visible. It may be hidden or overlapped.</span>",
-                    "<span style='color: #D32F2F; font-style: italic;'>Example: Invalid IBAN may block branch autofill.</span>",
-                    0);
+            logOperations.error(
+                    "BOT JOB STOP - Web Field is not Visible. Verify the rules and behavior of your web page.");
+            //            performMessage.errorMessage(
+            //                    "BOT JOB STOP - Web Field is not Visible",
+            //                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Verify the rules
+            // and behavior of your web page.</span>",
+            //                    "<span style='color: #D32F2F; font-weight: bold;'>Some fields may be conditionally
+            // enabled based on other inputs.</span>",
+            //                    "<span style='color: #E65100; font-weight: bold; font-size: 1.1em;'>Element is present
+            // but not visible. It may be hidden or overlapped.</span>",
+            //                    "<span style='color: #D32F2F; font-style: italic;'>Example: Invalid IBAN may block
+            // branch autofill.</span>",
+            //                    0);
             return false;
         }
 
         if (!element.isEnabled()) {
             //        callErrorMessageNotEnabled(element.getTagName());
-            performMessage.errorMessage(
-                    "BOT JOB STOP - Web Field is not Enabled",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Verify the rules and behavior of your web page.</span>",
-                    "<span style='color: #D32F2F; font-weight: bold;'>Some fields may be conditionally enabled based on other inputs.</span>",
-                    "<span style='color: #E65100; font-weight: bold; font-size: 1.1em;'>It is visually present but cannot be clicked.</span>",
-                    "<span style='color: #D32F2F; font-style: italic;'>Example: Invalid IBAN may block branch autofill.</span>",
-                    0);
-            // throw new TimeoutException();
+            logOperations.error(
+                    "BOT JOB STOP - Web Field is not Visible. Verify the rules and behavior of your web page.");
+            //            performMessage.errorMessage(
+            //                    "BOT JOB STOP - Web Field is not Enabled",
+            //                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Verify the rules
+            // and behavior of your web page.</span>",
+            //                    "<span style='color: #D32F2F; font-weight: bold;'>Some fields may be conditionally
+            // enabled based on other inputs.</span>",
+            //                    "<span style='color: #E65100; font-weight: bold; font-size: 1.1em;'>It is visually
+            // present but cannot be clicked.</span>",
+            //                    "<span style='color: #D32F2F; font-style: italic;'>Example: Invalid IBAN may block
+            // branch autofill.</span>",
+            //                    0);
+            //            // throw new TimeoutException();
             return false;
         }
 
@@ -1468,7 +1481,7 @@ public class PerformActions {
                 return true;
             } catch (Exception ex) {
 
-                log.info(
+                logOperations.warn(
                         String.format("Could Not Click on  \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
                 return false;
             }
@@ -1491,7 +1504,7 @@ public class PerformActions {
 
         //        for (String handle : this.currentDriver.getWindowHandles()) {
         //            this.currentDriver.switchTo().window(handle);
-        //            log.info("Window title: " + this.currentDriver.getTitle());
+        //            operationsLog.info("Window title: " + this.currentDriver.getTitle());
         //        }
     }
 
@@ -1509,7 +1522,8 @@ public class PerformActions {
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception e) {
 
-            log.info(String.format("Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
+            logOperations.warn(
+                    String.format("Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
             if (!byPassNotFound) {
                 performMessage.couldNotFindElement(element.getTagName());
             }
@@ -1568,7 +1582,7 @@ public class PerformActions {
             }
         } catch (Exception e) {
 
-            log.error(String.format(
+            logOperations.error(String.format(
                     "Could Not Input Value to \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
 
             //            performMessage.couldNotFindElement("Could Input Values to Element " + element.getTagName());
@@ -1629,7 +1643,7 @@ public class PerformActions {
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception e) {
 
-            log.info(String.format(
+            logOperations.warn(String.format(
                     "Could Not Find Select \"%s\" Value  \"%s\" -> Cause: %s",
                     data.getKey(), data.getValue(), e.getMessage()));
             if (!byPassNotFound) {
@@ -1649,7 +1663,7 @@ public class PerformActions {
 
         } catch (Exception e) {
 
-            log.error(String.format(
+            logOperations.error(String.format(
                     "Could Not Input Value to \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
 
             performMessage.couldNotFindElement("Could Input Values to Element " + element.getTagName());
@@ -1673,7 +1687,8 @@ public class PerformActions {
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception ex) {
 
-            log.warn(String.format("Could Not Find Field Name \"%s\" -> Cause: %s", fieldName, ex.getMessage()));
+            logOperations.warn(
+                    String.format("Could Not Find Field Name \"%s\" -> Cause: %s", fieldName, ex.getMessage()));
 
             if (!byPassNotFound) {
                 performMessage.couldNotFindElement(fieldName);
@@ -1691,7 +1706,7 @@ public class PerformActions {
             textByhJS = (String) js.executeScript("return arguments[0].textContent;", element);
         } catch (Exception ex) {
 
-            log.warn(
+            logOperations.warn(
                     String.format("By JavascriptExecutor - Not succeeded to get a Text from Label for: %s", fieldName));
         }
 
@@ -1704,14 +1719,15 @@ public class PerformActions {
             finalTextNested = textByNested.toString().trim();
         } catch (Exception ex) {
 
-            log.warn(String.format("By Text Nested - Not succeeded to get a Text from Label for: %s", fieldName));
+            logOperations.warn(
+                    String.format("By Text Nested - Not succeeded to get a Text from Label for: %s", fieldName));
         }
 
         try {
             textAttribute = element.getAttribute("value");
         } catch (Exception ex) {
 
-            log.warn(String.format(
+            logOperations.warn(String.format(
                     "By Text Attribute - Not succeeded to get a Text from Label for: %s Operation: %s",
                     fieldName, action));
         }
@@ -1720,7 +1736,7 @@ public class PerformActions {
             textContext = element.getAttribute("textContent");
         } catch (Exception ex) {
 
-            log.warn(String.format(
+            logOperations.warn(String.format(
                     "By Text Content - Not succeeded to get a Text from Label for: %s Operation: %s",
                     fieldName, action));
         }
@@ -1732,7 +1748,7 @@ public class PerformActions {
             isClickable = true;
         } catch (Exception e) {
 
-            log.warn(String.format("Element is not clickable: \"%s\"", fieldName));
+            logOperations.warn(String.format("Element is not clickable: \"%s\"", fieldName));
         }
 
         // Set the final text value by priority and add to mapOperators
@@ -1756,7 +1772,7 @@ public class PerformActions {
         } else {
             mapOperators.put(fieldName.trim(), "Failed to Load teh Text");
 
-            log.error(String.format("Failed to retrieve text from element for: %s", fieldName));
+            logOperations.error(String.format("Failed to retrieve text from element for: %s", fieldName));
         }
 
         return finalText;
@@ -1773,15 +1789,15 @@ public class PerformActions {
 
         if (success) {
 
-            log.info(String.format(
-                    success ? "SUCCESS %s Current Cmd: %s - Duration: %s" : "FAILED %s Current Cmd: %s - Duration: %s",
+            logOperations.info(String.format(
+                    success ? "Success %s Current Cmd: %s - Duration: %s" : "Failed %s Current Cmd: %s - Duration: %s",
                     mainMsg,
                     currentExecution,
                     LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME)));
         } else {
 
-            log.warn(String.format(
-                    success ? "SUCCESS %s Current Cmd: %s - Duration: %s" : "FAILED %s Current Cmd: %s - Duration: %s",
+            logOperations.warn(String.format(
+                    success ? "Success %s Current Cmd: %s - Duration: %s" : "Failed %s Current Cmd: %s - Duration: %s",
                     mainMsg,
                     currentExecution,
                     LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME)));
@@ -1865,6 +1881,13 @@ public class PerformActions {
                     msg4 = "Ensure a valid parent field is assigned.";
                 }
             }
+            logOperations.error(
+                    "Missing Variable for \"{}\" - {} - {} - {} - {}",
+                    currentInstruction.getName(),
+                    msg1,
+                    msg2,
+                    msg3,
+                    msg4);
             performMessage.errorMessage(
                     "Missing Variable for \"" + currentInstruction.getName() + "\"", msg1, msg2, msg3, msg4, 0);
         }
@@ -1900,6 +1923,7 @@ public class PerformActions {
         String msg2 = "There is NOT PARENT VALUE defined for: ";
         String msg3 = "Check the PARENT Web field for \"" + parentField + "\"";
 
+        logOperations.error("Parent Id Error: {} - {} - {}", msg1, msg2, msg3);
         performMessage.errorMessage("Parent Id Error", msg1, msg2, msg3, null, 0);
 
         return resultActions;
@@ -1920,6 +1944,7 @@ public class PerformActions {
         String msg2 = "There is NOT PARENT VALUE defined for: \"" + instructionName + "\"";
         String msg3 = "Check the PARENT Web field for \"" + parentField + "\"";
 
+        logOperations.error("Parent Id Error: {} - {} - {}", msg1, msg2, msg3);
         performMessage.errorMessage("Parent Id Error", msg1, msg2, msg3, null, 0);
 
         return resultActions;
@@ -1953,7 +1978,7 @@ public class PerformActions {
 
         if (ifClause || elseClause) {
 
-            log.warn(String.format(
+            logOperations.warn(String.format(
                     "%sParent Id Error Check Parent Id: %d "
                             + "For the \"%s\" Does not belong to this block: "
                             + blockLoad.getId() + "-" + blockLoad.getName(),
@@ -1963,7 +1988,7 @@ public class PerformActions {
 
         } else {
 
-            log.error(String.format(
+            logOperations.error(String.format(
                     "Parent Id Error Check Parent Id: %d "
                             + "For the \"%s\" Does not belong to this block: "
                             + blockLoad.getId() + "-" + blockLoad.getName(),
@@ -1998,6 +2023,7 @@ public class PerformActions {
                     + operation + "\"";
             String msg4 = "Check the Web Field \" ( ID ) <NAME> \" per Block";
 
+            logOperations.error("Parent Id Error: {} - {} - {} - {}", msg1, msg2, msg3, msg4);
             performMessage.errorMessage("Parent Id Error", msg1, msg2, msg3, msg4, 0);
         }
 
@@ -2011,7 +2037,7 @@ public class PerformActions {
 
         if (!conditionStatus.equals(ARExecution.ConditionStatus.NONE)) {
 
-            log.warn(String.format(
+            logOperations.warn(String.format(
                     "%sParent Id Error Check Parent Id: %d For the \"%s\" Does not belong to this block: %d-%s",
                     conditionalBlock,
                     currentInstruction.getParentId(),
@@ -2020,7 +2046,7 @@ public class PerformActions {
                     blockLoad.getName()));
         } else {
 
-            log.error(String.format(
+            logOperations.error(String.format(
                     "Parent Id Error Check Parent Id: %d For the \"%s\" Does not belong to this block: %d-%s",
                     currentInstruction.getParentId(),
                     currentInstruction.getOperation(),
@@ -2123,6 +2149,7 @@ public class PerformActions {
                     invalidValues += " Operator: (\" " + operations[1] + " \")";
                 }
             }
+            logOperations.error("Invalid Values Error: {} - {} - {} - {} - {}", invalidValues, msg1, msg2, msg3, msg4);
             performMessage.errorMessage(invalidValues, msg1, msg2, msg3, msg4, 0);
         }
 
@@ -2169,9 +2196,10 @@ public class PerformActions {
         String msg2 = "Check Correct Block Existence";
         String msg3 = "CMD: " + resultActions;
 
+        logOperations.error("Parent Id Error: {} - {} - {}", msg1, msg2, msg3);
         performMessage.errorMessage("Parent Id Error", msg1, msg2, msg3, null, 0);
 
-        log.error("Block GO TO Error: -> Check Correct Block Existence! -> CMD: " + resultActions);
+        logOperations.error("Block GO TO Error: -> Check Correct Block Existence! -> CMD: " + resultActions);
 
         return resultActions;
     }
@@ -2186,6 +2214,10 @@ public class PerformActions {
         // %s\nWe are Exiting All of processes Now!",
         //                        executionTimes, lastInstructionExecuted));
 
+        logOperations.warn(
+                "Block Execution LIMIT Reached!. Process Reached BLOCK LIMIT of {} executions. Last Exetution: {}",
+                executionTimes,
+                lastInstructionExecuted);
         performMessage.errorMessage(
                 "Block Execution LIMIT Reached!",
                 String.format("Process Reached BLOCK LIMIT of %d executions", executionTimes),
@@ -2237,7 +2269,7 @@ public class PerformActions {
         try {
             Thread.sleep(5000); // 10 minutes in milliseconds
         } catch (InterruptedException e) {
-            log.info(e.getMessage());
+            logOperations.warn(e.getMessage());
         }
 
         // Accept (close) the alert
@@ -2535,7 +2567,7 @@ public class PerformActions {
                     .map(s -> "\"" + s.replace("\"", "\\\"") + "\"") // Escape double quotes
                     .collect(Collectors.joining(", ", "[", "]"))); // Format as JSON array
         } catch (IOException e) {
-            log.info("Error writing to file: " + e.getMessage());
+            logOperations.warn("Error writing to file: " + e.getMessage());
         } finally {
             // Close the browser if necessary
             // driver.quit();
@@ -3148,7 +3180,7 @@ public class PerformActions {
                     .collect(Collectors.joining(":")); // Join with ':'
 
             // Print the key and value
-            log.info("Key: " + key + ", Value: " + valuesAsString);
+            logOperations.info("Key: " + key + ", Value: " + valuesAsString);
         }
 
         return mapRefreshLoops;
@@ -3236,7 +3268,7 @@ public class PerformActions {
         if (this.currentDriver != null) {
             // Get all iframe elements on the page
             List<WebElement> iframeList = this.currentDriver.findElements(By.tagName("iframe"));
-            log.info("Number of iframes found: " + iframeList.size());
+            logOperations.info("Number of iframes found: " + iframeList.size());
 
             for (WebElement iframe : iframeList) {
                 try {
@@ -3247,9 +3279,9 @@ public class PerformActions {
                     List<WebElement> elementsInsideIframe = this.currentDriver.findElements(By.xpath("//*"));
                     iframeElementsMap.put(iframe, elementsInsideIframe);
 
-                    log.info("Iframe contains " + elementsInsideIframe.size() + " elements");
+                    logOperations.info("Iframe contains " + elementsInsideIframe.size() + " elements");
                 } catch (Exception e) {
-                    log.info("Could not access iframe: " + e.getMessage());
+                    logOperations.warn("Could not access iframe: " + e.getMessage());
                 } finally {
                     // Switch back to the main page
                     this.currentDriver.switchTo().defaultContent();
@@ -3554,7 +3586,7 @@ public class PerformActions {
             }
 
         } catch (Exception e) {
-            log.info("Error define Target Name Titles");
+            logOperations.warn("Cannot define Target Name Titles");
         }
         return target;
     }
@@ -3584,14 +3616,14 @@ public class PerformActions {
     public TargetElement defineTagType(TargetElement targetTagType) {
 
         try {
-            log.info("Defined Name: " + targetTagType.getDefinedName());
-            log.info("Tag Name: " + targetTagType.getTagName());
-            log.info("Id: " + targetTagType.getAttribId());
-            log.info("Name: " + targetTagType.getAttribName());
-            log.info("xPath: " + targetTagType.getCurrentXPath());
-            log.info("Absolut xPath: " + targetTagType.getAttributeData());
-            log.info("Custom xPath: " + targetTagType.getCustomXPath());
-            log.info("iFrame xPath: " + targetTagType.getIFrameXPath());
+            logOperations.info("Defined Name: " + targetTagType.getDefinedName());
+            logOperations.info("Tag Name: " + targetTagType.getTagName());
+            logOperations.info("Id: " + targetTagType.getAttribId());
+            logOperations.info("Name: " + targetTagType.getAttribName());
+            logOperations.info("xPath: " + targetTagType.getCurrentXPath());
+            logOperations.info("Absolut xPath: " + targetTagType.getAttributeData());
+            logOperations.info("Custom xPath: " + targetTagType.getCustomXPath());
+            logOperations.info("iFrame xPath: " + targetTagType.getIFrameXPath());
 
             if (targetTagType.getCoordinates() != null) {
                 String[] coords = targetTagType.getCoordinates().split(",");
@@ -3599,8 +3631,8 @@ public class PerformActions {
                     String coordLeft = coords[0].trim();
                     String coordRight = coords[1].trim();
                     // Print or use the extracted values
-                    log.info("CoordLeft: " + coordLeft);
-                    log.info("CoordRight: " + coordRight);
+                    logOperations.info("CoordLeft: " + coordLeft);
+                    logOperations.info("CoordRight: " + coordRight);
                 }
             }
 
@@ -3627,7 +3659,7 @@ public class PerformActions {
 
         } catch (Exception ex) {
 
-            log.error("Could not find any Web Element with XPath/Id/Attributes values.");
+            logOperations.error("Could not find any Web Element with XPath/Id/Attributes values.");
         }
         return null;
     }
@@ -3659,7 +3691,7 @@ public class PerformActions {
                 }
             } catch (Exception e) {
                 // Log or handle the exception if needed
-                log.error("Error locating element with XPath: " + xpath + ". Exception: " + e.getMessage());
+                logOperations.error("Error locating element with XPath: " + xpath + ". Exception: " + e.getMessage());
             }
         }
         return null;
@@ -3833,7 +3865,7 @@ public class PerformActions {
             savedReferences.put("coordinates", newCoordinates);
             targetRefs.setCoordinates(newCoordinates);
         } catch (Exception coords) {
-            log.error("Invalid coordinates from WebDriver Selenium");
+            logOperations.error("Invalid coordinates from WebDriver Selenium");
         }
 
         String[] parts = targetRefs.getCoordinates().split(",");
@@ -3856,7 +3888,7 @@ public class PerformActions {
             // Computed
             savedReferences.put("cp_coordinates", newCoordinates);
         } catch (NumberFormatException e) {
-            log.error("Invalid coordinates from Javascript code: " + targetRefs.getCoordinates());
+            logOperations.error("Invalid coordinates from Javascript code: " + targetRefs.getCoordinates());
         }
     }
 
@@ -3887,7 +3919,7 @@ public class PerformActions {
                     elementFound = getCurrentDriver().findElement(By.xpath(targetFind.getXPath()));
                 } catch (Exception error) {
 
-                    log.info("iFrame Element not Located\niFrameXPath"
+                    logOperations.warn("iFrame Element not Located\niFrameXPath"
                             + targetFind.getIFrameXPath()
                             + "iFrameChild: "
                             + targetFind.getXPath());
@@ -3897,7 +3929,7 @@ public class PerformActions {
             }
 
         } catch (Exception error) {
-            log.info("Element not Located: " + targetFind.getXPath());
+            logOperations.warn("Element not Located: " + targetFind.getXPath());
             //            performMessage.errorMessage(
             //                    "Element not Located",
             //                    "Cannot able to find the ",
@@ -3926,14 +3958,14 @@ public class PerformActions {
 
             if (foundElement == null) {
 
-                log.info(String.format("Element with CSS Selector \"%s\" not found.", cssSelector));
+                logOperations.warn(String.format("Element with CSS Selector \"%s\" not found.", cssSelector));
                 return null;
             }
             return foundElement;
 
         } catch (Exception e) {
 
-            log.error(String.format(
+            logOperations.error(String.format(
                     "Error finding element with CSS Selector \"%s\" -> Cause: %s", cssSelector, e.getMessage()));
             return null;
         }
@@ -3942,6 +3974,7 @@ public class PerformActions {
     public WebElement findElementByCssSelector(String cssSelector, boolean byPassNotFound) throws Exception {
         WebElement element = findElementByCssSelector(cssSelector);
         if (element == null && !byPassNotFound) {
+            logOperations.warn("Could not find element with CSS Selector: " + cssSelector);
             performMessage.couldNotFindElement("Could not find element with CSS Selector: " + cssSelector);
         }
         return element;
@@ -4005,7 +4038,7 @@ public class PerformActions {
             return decimalPart.isEmpty() ? groupedInteger : groupedInteger + decimalSeparator + decimalPart;
 
         } catch (Exception e) {
-            log.error("Error formatting number: " + numberString + " - " + e.getMessage());
+            logOperations.error("Error formatting number: " + numberString + " - " + e.getMessage());
             return numberString;
         }
     }
@@ -4036,7 +4069,7 @@ public class PerformActions {
     // waitForPage.until(ExpectedConditions.visibilityOfElementLocated(By.tagName(complexActionParts[2])));
     //            } catch (Exception e) {
     //
-    //                        log.info(String.format(
+    //                        operationsLog.warn(String.format(
     //                                "Could Not Find TagName \"%s\" Criteria \"%s\" -> Cause: %s",
     //                                complexActionParts[2], By.tagName(complexActionParts[2]), e.getMessage()));
     //
@@ -4061,7 +4094,7 @@ public class PerformActions {
     //                        webElementList = this.currentDriver.findElements(By.tagName(complexActionParts[2]));
     //                    } catch (Exception e) {
     //
-    //                                log.info(String.format(
+    //                                operationsLog.warn(String.format(
     //                                        "Could Not Find TagName \"%s\" Criteria \"%s\" -> Cause: %s",
     //                                        complexActionParts[2], By.tagName(complexActionParts[2]),
     // e.getMessage()));
@@ -4108,7 +4141,7 @@ public class PerformActions {
     //
     // ".//avq-breadcrumb[@test-id='web-banking-portal.pages.payments-overview.breadcrumb']")));
     //                } catch (Exception e) {
-    //                    log.info("Impossible execute operation on this element: " + element.toString());
+    //                    operationsLog.warn("Impossible execute operation on this element: " + element.toString());
     //                }
     //            }
     //

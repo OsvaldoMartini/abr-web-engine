@@ -74,7 +74,7 @@ public class IframeInputLocator {
 
                         // Validate if the input was correctly received
                         if (inputText.equals(retrievedValue)) {
-                            log.info("SUCCESS: Sent '" + inputText + "' and received '" + retrievedValue
+                            log.info("Success: Sent '" + inputText + "' and received '" + retrievedValue
                                     + "' in IFrame.");
                         } else {
                             log.info(

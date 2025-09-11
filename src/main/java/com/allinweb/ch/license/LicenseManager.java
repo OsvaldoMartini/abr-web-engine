@@ -104,6 +104,7 @@ public class LicenseManager {
             byte[] decrypted = cipher.doFinal(Base64.getDecoder().decode(encryptedData));
             return new String(decrypted);
         } catch (Exception error) {
+            log.error("An error occurred while decrypting the license file.");
             performMessage.errorMessage(
                     "An error occurred while decrypting the license file.",
                     "File Name:",
