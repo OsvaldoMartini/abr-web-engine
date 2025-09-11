@@ -976,7 +976,7 @@ public class EngineRunner {
                             byPassFlagLoop = parentIdsForLoop.contains(currentInstruction.getId());
 
                             mainMsg =
-                                    currentInstruction.getOptional() ? "OPTIONAL INSTRUCTION" : "MANDATORY INSTRUCTION";
+                                    currentInstruction.getOptional() ? "optional instruction" : "mandatory instruction";
 
                             if (!currentInstruction.getInstructionActive()) {
 
