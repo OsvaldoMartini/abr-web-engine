@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 @Slf4j
 public class EngineRunner {
 
+    private static final Logger logLaunch = LoggerFactory.getLogger("com.allinweb.launch");
     private static final Logger logOperations = LoggerFactory.getLogger("com.allinweb.operations");
 
     private String excelPath;
@@ -360,7 +361,7 @@ public class EngineRunner {
     private static void printLog(String resultActions, boolean result) {
         String resultMsg = result ? ARConstantsEngine.SUCCESS : ARConstantsEngine.FAIL;
         String log = String.join(ARConstantsEngine.FIELDS_SEPARATOR, resultMsg, resultActions);
-        logOperations.info(log);
+        logLaunch.info(log);
     }
 
     private int handleGreaterThan(String value1, String value2) {
@@ -687,7 +688,7 @@ public class EngineRunner {
         String baseLogString =
                 currentBotJobName + ARConstantsEngine.FIELDS_SEPARATOR + labelsValue.getProperty(Labels.START);
 
-        logOperations.info(baseLogString);
+        logLaunch.info(baseLogString);
 
         ExcelWriter.ExcelChain writerReport =
                 new ExcelWriter(currentBotJobName, performActions.getCurrentDriver(), false).withPurpose("report");
@@ -2288,12 +2289,11 @@ public class EngineRunner {
             }
         }
 
-        logOperations.info(baseLogString);
+        logLaunch.info(baseLogString);
 
         if (resultActions.equalsIgnoreCase("Close Browser") || respModal.equals(ARExecution.DialogModal.STOP)) {
             currentARWebDriver.getCurrentDriver().quit();
         }
-        logOperations.info(baseLogString);
 
         shutDownExecutorService(executorServicePreLaunch);
         performActions.setInterceptBotJob(true);
