@@ -9,6 +9,7 @@ import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.PrintStream;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -48,6 +49,10 @@ public class Engine {
         for (int i = 0; i < args.length; i++) {
             System.out.println("PARAM " + i + ">> " + args[i]);
         }
+
+        // Redirect System.out and System.err
+        System.setOut(new PrintStream(new LoggingOutputStream(log, false), true));
+        System.setErr(new PrintStream(new LoggingOutputStream(log, true), true));
 
         // --- configuration file setup
         configureProperties(args);
