@@ -143,7 +143,7 @@ public class ARPropertyManager {
             missingMandatoryPats();
 
             setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.2f Beta Test");
-            setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 12/09/2025");
+            setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 16/09/2025");
         } catch (IOException error) {
             log.error("Error creating \"ARWeb.config\": {} -> {}", configurationFileName, error.getMessage());
             //            performMessage.errorMessage(
