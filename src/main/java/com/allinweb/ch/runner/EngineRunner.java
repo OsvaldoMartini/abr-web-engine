@@ -2030,35 +2030,41 @@ public class EngineRunner {
 
                                     xExcelCurrentRow++;
 
-                                    String bodyMsg = "Excel Data Calling Next Row: " + xExcelCurrentRow + 1;
+                                    //                                    String bodyMsg = "Excel Data Calling Next Row:
+                                    // " + xExcelCurrentRow + 1;
 
                                     if (xExcelCurrentRow >= xExcelDataSize - 1) {
                                         xExcelCurrentRow = xExcelDataSize - 1;
-                                        msgInstruction = new FieldData(
-                                                "Excel Data (limit reached) keeping last row",
-                                                String.valueOf(xExcelCurrentRow + 1));
-                                        bodyMsg =
-                                                "Excel Data (limit reached) keeping last row: " + xExcelCurrentRow + 1;
+                                        //                                        msgInstruction = new FieldData(
+                                        //                                                "Excel Data (limit reached)
+                                        // keeping last row",
+                                        //
+                                        // String.valueOf(xExcelCurrentRow + 1));
+                                        //                                        bodyMsg =
+                                        //                                                "Excel Data (limit reached)
+                                        // keeping last row: " + xExcelCurrentRow + 1;
                                         lastRecall = true;
                                     } else {
-                                        msgInstruction = new FieldData(
-                                                "Excel Data next row", String.valueOf(xExcelCurrentRow + 1));
+                                        //                                        msgInstruction = new FieldData(
+                                        //                                                "Excel Data next row",
+                                        // String.valueOf(xExcelCurrentRow + 1));
                                     }
 
                                     // Excel Report and Log
-                                    performActions.logAndReport(
-                                            currentCondition,
-                                            true,
-                                            true,
-                                            blockStartTime,
-                                            blockReportName,
-                                            success,
-                                            new String[] {ARConstantsEngine.NEXT_ROW},
-                                            msgInstruction,
-                                            dataExcel,
-                                            writerReport,
-                                            "Excel Data Calling Next Row",
-                                            bodyMsg);
+                                    //                                    performActions.logAndReport(
+                                    //                                            currentCondition,
+                                    //                                            true,
+                                    //                                            true,
+                                    //                                            blockStartTime,
+                                    //                                            blockReportName,
+                                    //                                            success,
+                                    //                                            new String[]
+                                    // {ARConstantsEngine.NEXT_ROW},
+                                    //                                            msgInstruction,
+                                    //                                            dataExcel,
+                                    //                                            writerReport,
+                                    //                                            "Excel Data Calling Next Row",
+                                    //                                            bodyMsg);
                                     //                                    }
 
                                     //                                currentIndex++;
