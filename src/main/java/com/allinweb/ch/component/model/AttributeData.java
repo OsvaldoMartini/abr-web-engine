@@ -10,4 +10,12 @@ import lombok.NoArgsConstructor;
 public class AttributeData {
     private String name;
     private String value;
+
+    // Copy constructor
+    public AttributeData(AttributeData other) {
+        if (other != null) {
+            this.name = other.name;
+            this.value = other.value;
+        }
+    }
 }

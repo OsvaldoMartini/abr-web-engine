@@ -54,7 +54,24 @@ public class ARPropertyManager {
     }
 
     public void loadProperties(FileInputStream configFile) {
-        configurationFileName = System.getProperty("ARWebConfig");
+        if (System.getProperty("ARWebConfig") != null) {
+            configurationFileName = System.getProperty("ARWebConfig");
+        } else {
+            // Use application directory as default
+            String appDir = System.getProperty("user.dir"); // root folder where app is running
+            configurationFileName = appDir + File.separator + "Config-4.2" + File.separator + "TESTS.config";
+
+            // Ensure directories exist
+            File config = new File(configurationFileName);
+            if (!config.exists()) {
+                try {
+                    config.getParentFile().mkdirs(); // create Config-4.2 folder
+                    config.createNewFile(); // create TESTS.config
+                } catch (IOException e) {
+                    log.error("Failed to create default config file in app directory: {}", configurationFileName, e);
+                }
+            }
+        }
 
         //        if (!Strings.isNullOrEmpty(configurationFileName)) {
         //            File configurationFile = new File(configurationFileName);
@@ -64,6 +81,10 @@ public class ARPropertyManager {
 
             String logLevel = this.properties.getProperty(ARPropertyEnum.LOG_LEVEL.getValue());
             System.out.println("LOG_LEVEL = " + logLevel + "   ConfigFile=" + configurationFileName);
+
+            // Redirect System.out and System.err
+            System.setOut(new PrintStream(new LoggingOutputStream(log, false), true));
+            System.setErr(new PrintStream(new LoggingOutputStream(log, true), true));
 
             String logPath = getProperty(ARPropertyEnum.PATH_LOG);
             if (logPath == null || logPath.isBlank()) {
@@ -207,12 +228,26 @@ public class ARPropertyManager {
         log.warn("Creation of new \"ARWeb.config\" file: {}", configurationFileName);
         performMessage.errorMessage(
                 "Creation of new \"ARWeb.config\" file", // Using configurationFileName as the title
-                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Configuration file not found!</span>",
                 "<span style='color: #2E7D32; font-weight: bold;'>A new configuration file has been created at:</span>",
                 "<span style='font-weight: bold;'>" + configurationFileName + "</span>.", // Filename on a new line
                 "<span style='color: #E65100;'>Please set the necessary configuration values in this new file.</span><br><span style='font-style: italic;'>Details: "
                         + "ARWeb.config" + "</span>",
+                null,
                 0);
+
+        // Nice Msg Pattern
+        //        performMessage.errorMessage(
+        //                "Creation of new \"ARWeb.config\" file", // Using configurationFileName as the title
+        //                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Configuration
+        // file not found!</span>",
+        //                "<span style='color: #2E7D32; font-weight: bold;'>A new configuration file has been created
+        // at:</span>",
+        //                "<span style='font-weight: bold;'>" + configurationFileName + "</span>.", // Filename on a new
+        // line
+        //                "<span style='color: #E65100;'>Please set the necessary configuration values in this new
+        // file.</span><br><span style='font-style: italic;'>Details: "
+        //                        + "ARWeb.config" + "</span>",
+        //                0);
 
         boolean dirSuccess = configurationFile.mkdirs();
         configurationFile.delete();

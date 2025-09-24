@@ -113,4 +113,59 @@ public class TargetElement {
         this.instructionId = null;
         this.clickElement = false;
     }
+
+    public TargetElement deepCopy() {
+        TargetElement copy = new TargetElement();
+
+        copy.nameLabel = this.nameLabel;
+        copy.nameField = this.nameField;
+        copy.currentXPath = this.currentXPath;
+
+        // Deep copy AttributeData[]
+        if (this.attributeData != null) {
+            copy.attributeData = new AttributeData[this.attributeData.length];
+            for (int i = 0; i < this.attributeData.length; i++) {
+                copy.attributeData[i] = this.attributeData[i] != null ? new AttributeData(this.attributeData[i]) : null;
+            }
+        }
+
+        copy.customXPath = this.customXPath;
+        copy.coordinates = this.coordinates;
+        copy.XPath = this.XPath;
+        copy.xPathWorkedFirst = this.xPathWorkedFirst;
+        copy.iFrameXPath = this.iFrameXPath;
+
+        // Defensive copy of List
+        copy.iFrameElements = this.iFrameElements != null ? List.copyOf(this.iFrameElements) : null;
+
+        copy.shadowHost = this.shadowHost;
+        copy.shadowRoot = this.shadowRoot;
+        copy.nestedShadow = this.nestedShadow;
+        copy.cssSelector = this.cssSelector;
+        copy.someText = this.someText;
+        copy.attribId = this.attribId;
+        copy.attribName = this.attribName;
+        copy.attributeType = this.attributeType;
+        copy.attributeValue = this.attributeValue;
+        copy.tagName = this.tagName;
+        copy.definedName = this.definedName;
+        copy.tagType = this.tagType;
+        copy.iconType = this.iconType;
+
+        // WebElement is not safely cloneable - just reference it
+        copy.element = this.element;
+
+        copy.isElementHidden = this.isElementHidden;
+        copy.cloned = this.cloned;
+        copy.searchAttributeValue = this.searchAttributeValue;
+        copy.forceCoordinates = this.forceCoordinates;
+
+        // Defensive copy of Map
+        copy.savedReferences = this.savedReferences != null ? new HashMap<>(this.savedReferences) : new HashMap<>();
+
+        copy.instructionId = this.instructionId;
+        copy.clickElement = this.clickElement;
+
+        return copy;
+    }
 }
