@@ -234,7 +234,7 @@ public class PerformLists {
                     jsonObjMSG.has("sessionId") ? jsonObjMSG.get("sessionId").getAsString() : null;
 
             // Debug print (optional)
-            log.info("homeBankingId=%d, sessionId=%s, type=%s, body=%s%n", homeBankingId, sessionId, type, body);
+            log.info("homeBankingId={}, sessionId={}, type={}, body={}", homeBankingId, sessionId, type, body);
             // After Decoding
             if (type == null || type.trim().isEmpty() || type.contains("CONNECT") || type.contains("ping")) {
                 // Ignore null or empty messages

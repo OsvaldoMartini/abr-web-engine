@@ -3748,7 +3748,6 @@ public class PerformActions {
 
         String action = buildAction(forceTag, actionReq, identityHover, targetBuild);
         loop.setActions(action);
-        loop.setName(targetBuild.getNameLabel());
         loop.setExportToABR(true);
 
         return loop;
@@ -3929,7 +3928,7 @@ public class PerformActions {
             }
 
         } catch (Exception error) {
-            logOperations.warn("Element not Located: " + targetFind.getXPath());
+            logOperations.warn("Scope Changed - Element not Located - : " + targetFind.getXPath());
             //            performMessage.errorMessage(
             //                    "Element not Located",
             //                    "Cannot able to find the ",

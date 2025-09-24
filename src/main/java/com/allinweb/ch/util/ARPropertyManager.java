@@ -129,9 +129,7 @@ public class ARPropertyManager {
 
             if (dataBasePath == null || dataBasePath.isBlank()) {
                 dataBasePath = "C:\\ARWeb\\ARWeb";
-
                 setProperty(ARPropertyEnum.PATH_DB.getValue(), dataBasePath);
-
                 File dbDirectory = new File(dataBasePath);
                 if (!dbDirectory.exists() && !dbDirectory.mkdirs()) {
                     log.error(
