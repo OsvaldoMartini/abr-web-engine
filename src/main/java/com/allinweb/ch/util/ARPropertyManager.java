@@ -59,13 +59,13 @@ public class ARPropertyManager {
         } else {
             // Use application directory as default
             String appDir = System.getProperty("user.dir"); // root folder where app is running
-            configurationFileName = appDir + File.separator + "Config-4.2" + File.separator + "TESTS.config";
+            configurationFileName = appDir + File.separator + "Config-4.6" + File.separator + "TESTS.config";
 
             // Ensure directories exist
             File config = new File(configurationFileName);
             if (!config.exists()) {
                 try {
-                    config.getParentFile().mkdirs(); // create Config-4.2 folder
+                    config.getParentFile().mkdirs(); // create Config-4.6 folder
                     config.createNewFile(); // create TESTS.config
                 } catch (IOException e) {
                     log.error("Failed to create default config file in app directory: {}", configurationFileName, e);
@@ -163,8 +163,8 @@ public class ARPropertyManager {
 
             missingMandatoryPats();
 
-            setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.2f Beta Test");
-            setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 16/09/2025");
+            setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.6f Beta Test");
+            setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 01/10/2025");
         } catch (IOException error) {
             log.error("Error creating \"ARWeb.config\": {} -> {}", configurationFileName, error.getMessage());
             //            performMessage.errorMessage(

@@ -62,11 +62,16 @@ public class PerformDBEngine {
         ACCESS_DB = false;
 
         if (dataBaseType != null) {
-            if (dataBaseType.equalsIgnoreCase("TEXT")) {
+            if ("Postgres".equalsIgnoreCase(dataBaseType)) {
+                // Postgres-specific logic
+                POSTGRES_DB = true;
+            } else if ("TEXT".equalsIgnoreCase(dataBaseType)) {
+                // SQLite-specific logic
                 SQLITE_DB = true;
-            } else
-                // else default to Access
+            } else if ("Access".equalsIgnoreCase(dataBaseType)) {
+                // Access-specific logic
                 ACCESS_DB = true;
+            }
         }
 
         try {
@@ -166,7 +171,10 @@ public class PerformDBEngine {
         ACCESS_DB = false;
 
         if (dataBaseType != null) {
-            if ("TEXT".equalsIgnoreCase(dataBaseType)) {
+            if ("Postgres".equalsIgnoreCase(dataBaseType)) {
+                // Postgres-specific logic
+                POSTGRES_DB = true;
+            } else if ("TEXT".equalsIgnoreCase(dataBaseType)) {
                 // SQLite-specific logic
                 SQLITE_DB = true;
             } else if ("Access".equalsIgnoreCase(dataBaseType)) {
