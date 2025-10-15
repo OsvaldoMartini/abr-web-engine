@@ -1,6 +1,6 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.component.model.*;
+import com.allinweb.ch.model.*;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ComboBoxVars;

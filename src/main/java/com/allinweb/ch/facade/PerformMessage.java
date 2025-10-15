@@ -1,7 +1,7 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.component.model.ElementDTO;
-import com.allinweb.ch.component.model.InstructionLoad;
+import com.allinweb.ch.model.ElementDTO;
+import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.util.ARExecution;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;

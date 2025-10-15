@@ -1,6 +1,6 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.component.model.*;
+import com.allinweb.ch.model.*;
 import com.allinweb.ch.util.ARConstantsEngine;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
@@ -586,7 +586,7 @@ public class PerformDBEngine {
         return InstructionLoadList;
     }
 
-    public void callSocketLists() {
-        performLists.initialize("engine-perform-bot-job");
+    public void callSocketLists(String sessionId) {
+        performLists.initialize(sessionId);
     }
 }

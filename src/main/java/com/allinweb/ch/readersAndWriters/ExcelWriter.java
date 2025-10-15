@@ -1,6 +1,6 @@
 package com.allinweb.ch.readersAndWriters;
 
-import com.allinweb.ch.component.model.FieldData;
+import com.allinweb.ch.model.FieldData;
 import com.allinweb.ch.util.ARConstantsEngine;
 import com.allinweb.ch.util.ARExecution;
 import com.allinweb.ch.util.ARPropertyEnum;

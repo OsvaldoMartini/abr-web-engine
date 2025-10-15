@@ -219,6 +219,6 @@ public class Engine {
     private static void initializeServers() {
         System.setProperty(
                 "ARWebChosenPort", String.valueOf(arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET)));
-        performDBEngine.callSocketLists();
+        performDBEngine.callSocketLists("engine-perform-bot-job");
     }
 }
