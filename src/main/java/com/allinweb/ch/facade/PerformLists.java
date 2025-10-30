@@ -130,7 +130,7 @@ public class PerformLists {
         try {
             sessionId = session.getRequestParameterMap().get("sessionId").get(0);
 
-            // Add the Session to be Possiboe to send messages from Clients via PerformLists
+            // Add the Session to be Possible to send messages from Clients via PerformLists
             if (!Strings.isNullOrEmpty(sessionId) && sessionId.equals("engine-perform-bot-job")) {
                 webSocketSessionManager.addSession(sessionId, session);
             } else {

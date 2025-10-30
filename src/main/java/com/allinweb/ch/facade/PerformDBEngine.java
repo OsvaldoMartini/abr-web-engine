@@ -285,7 +285,7 @@ public class PerformDBEngine {
     public ErrorMessage loadCompleteJobs(int botJobId) {
         String query = "SELECT bot.home_banking_id, bot.home_url_id, bot.id AS bot_job_id, bot.name AS bot_job_name, "
                 + " b.id AS block_id, b.block_order_number, b.name AS block_name, "
-                + " b.description AS block_description, b.type_id, "
+                + " b.description AS block_description, bot.priority AS bot_job_priority, b.type_id, "
                 + " bli.id AS instruction_id, bli.instruction_order_number, "
                 + " bli.actions, bli.name AS instruction_name, bli.xpath, bli.coordinates,  bli.iframe_xpath, "
                 + " bli.tag_name, bli.shadow_host, bli.shadow_root, bli.css_selector, "
@@ -326,6 +326,13 @@ public class PerformDBEngine {
                     botJobDTO.setHomeBankingId(rs.getInt("home_banking_id"));
                     botJobDTO.setHomeUrlId(rs.getInt("home_url_id"));
                     botJobDTO.setName(rs.getString("bot_job_name"));
+
+                    String priority = rs.getString("bot_job_priority");
+                    if (priority == null || priority.trim().isEmpty()) {
+                        priority = "Web App";
+                    }
+                    botJobDTO.setPriority(priority);
+
                     botJobDTO.setBlockLoadDTOList(new ArrayList<>());
                     botJobMapDTO.put(botJobId, botJobDTO);
                     performLists.getListBotJob().add(botJobDTO);
