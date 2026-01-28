@@ -1,6 +1,7 @@
 package com.allinweb.ch.util;
 
 public enum ARPropertyEnum {
+    PATH_APPIUM("path_appium"),
     PATH_LICENSE("path_license"),
     DATABASE_TYPE("data_base"),
     PORT_SOCKET("port_socket"),

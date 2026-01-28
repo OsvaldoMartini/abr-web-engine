@@ -59,13 +59,13 @@ public class ARPropertyManager {
         } else {
             // Use application directory as default
             String appDir = System.getProperty("user.dir"); // root folder where app is running
-            configurationFileName = appDir + File.separator + "Config-4.6" + File.separator + "TESTS.config";
+            configurationFileName = appDir + File.separator + "Config-4.7" + File.separator + "TESTS.config";
 
             // Ensure directories exist
             File config = new File(configurationFileName);
             if (!config.exists()) {
                 try {
-                    config.getParentFile().mkdirs(); // create Config-4.6 folder
+                    config.getParentFile().mkdirs(); // create Config-4.7 folder
                     config.createNewFile(); // create TESTS.config
                 } catch (IOException e) {
                     log.error("Failed to create default config file in app directory: {}", configurationFileName, e);
@@ -163,8 +163,8 @@ public class ARPropertyManager {
 
             missingMandatoryPats();
 
-            setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.6f Beta Test");
-            setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 01/10/2025");
+            setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.7f Beta Test");
+            setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 28/01/2026");
         } catch (IOException error) {
             log.error("Error creating \"ARWeb.config\": {} -> {}", configurationFileName, error.getMessage());
             //            performMessage.errorMessage(
@@ -255,12 +255,14 @@ public class ARPropertyManager {
             configurationFile.createNewFile();
             setProperty(ARPropertyEnum.PATH_LICENSE.getValue(), ARConstantsEngine.USER_PATH);
 
-            setProperty(ARPropertyEnum.PATH_EXCEL.getValue(), "C:\\ARWeb\\ARWeb\\Excel");
-            setProperty(ARPropertyEnum.PATH_LOG.getValue(), "C:\\ARWeb\\ARWeb\\Logs");
-            setProperty(ARPropertyEnum.PATH_EXPORT.getValue(), "C:\\ARWeb\\ARWeb\\Export");
-            setProperty(ARPropertyEnum.PATH_REPORT.getValue(), "C:\\ARWeb\\ARWeb\\Reports");
-            setProperty(ARPropertyEnum.PATH_DB.getValue(), "C:\\ARWeb\\ARWeb");
-            setProperty(ARPropertyEnum.PATH_PRIORITY.getValue(), "C:\\ARWeb\\ARWeb");
+            String parentPath = new File(ARConstantsEngine.USER_PATH).getParent();
+
+            setProperty(ARPropertyEnum.PATH_EXCEL.getValue(), parentPath + "\\ARWeb\\Excel");
+            setProperty(ARPropertyEnum.PATH_LOG.getValue(), parentPath + "\\ARWeb\\Logs");
+            setProperty(ARPropertyEnum.PATH_EXPORT.getValue(), parentPath + "\\ARWeb\\Export");
+            setProperty(ARPropertyEnum.PATH_REPORT.getValue(), parentPath + "\\ARWeb\\Reports");
+            setProperty(ARPropertyEnum.PATH_DB.getValue(), parentPath + "\\ARWeb");
+            setProperty(ARPropertyEnum.PATH_PRIORITY.getValue(), parentPath + "\\ARWeb");
 
             setProperty(ARPropertyEnum.DB_URL.getValue(), "jdbc:postgresql://localhost:5432/ar_web");
             setProperty(ARPropertyEnum.DB_USER.getValue(), "XXXXXX");
@@ -271,6 +273,7 @@ public class ARPropertyManager {
             setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), "54525");
             setProperty(ARPropertyEnum.PATH_ENGINE.getValue(), ARConstantsEngine.USER_PATH);
             setProperty(ARPropertyEnum.PATH_WEBDRIVER.getValue(), ARConstantsEngine.USER_PATH + "\\driver");
+            setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH + "\\appium");
             setProperty(ARPropertyEnum.LOG_LEVEL.getValue(), Level.INFO.getName());
             setProperty(ARPropertyEnum.BROWSER.getValue(), ARConstantsEngine.EDGE);
             setProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC.getValue(), "60");
@@ -299,6 +302,7 @@ public class ARPropertyManager {
             //            "db_url",
             //            "db_user",
             //            "db_pwd",
+            "path_appium",
             "path_excel",
             "path_log",
             "path_db",
@@ -359,6 +363,13 @@ public class ARPropertyManager {
             //                    Strings.isNullOrEmpty(part2) ? null : part2,
             //                    Strings.isNullOrEmpty(part3) ? null : part3,
             //                    0);
+
+            for (String prop : missingProperties) {
+                if ("path_appium".equals(prop)) {
+                    setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH + "\\appium");
+                }
+            }
+
             return true;
         }
         return false;

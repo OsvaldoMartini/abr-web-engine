@@ -15,22 +15,38 @@ public class SystemDetails {
 
     public static String getSystemDetails() {
         try {
-            // Ottiene il nome del computer
-            String computerName = System.getenv("COMPUTERNAME");
+            // Computer name
+            String computerName = System.getenv("COMPUTERNAME"); // Windows
+            if (computerName == null || computerName.isEmpty()) {
+                // Linux fallback
+                computerName = InetAddress.getLocalHost().getHostName();
+            }
 
-            // Ottiene il nome dell'utente loggato
+            // Domain name (Windows only)
+            String domainName = System.getenv("USERDOMAIN");
+            if (domainName == null || domainName.isEmpty()) {
+                // Linux fallback
+
+                domainName = System.getenv("DOMAIN"); // sometimes set
+                if (domainName == null) {
+                    domainName = SystemDetails.getSystemDomainName();
+
+                    if (domainName == null) {
+                        domainName = "local"; // default if no domain
+                    }
+                }
+            }
+
+            // Logged-in user
             String userName = System.getProperty("user.name");
 
-            // Ottiene il dominio, che può essere derivato in ambienti specifici; esempio sotto è solo
-            // illustrativo
-            String domainName = System.getenv("USERDOMAIN");
-
-            // Formatta la data e ora corrente
+            // Current date
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
             String dateTime = sdf.format(new Date());
 
-            // Concatena le informazioni
-            return computerName + "|" + domainName + "|" + userName + "|" + dateTime; // "2025-02-01"; // ;
+            // Concatenate info
+            return computerName + "|" + domainName + "|" + userName + "|" + dateTime;
+
         } catch (Exception e) {
             e.printStackTrace();
             return null;
@@ -79,39 +95,49 @@ public class SystemDetails {
 
     public static String getSystemComputerName() {
         try {
-            // Ottiene il nome del computer
-            String computerName = System.getenv("COMPUTERNAME");
-            ;
-
+            String computerName = System.getenv("COMPUTERNAME"); // Windows
+            if (computerName == null || computerName.isEmpty()) {
+                // Linux fallback
+                computerName = InetAddress.getLocalHost().getHostName();
+            }
             return computerName;
         } catch (Exception e) {
             e.printStackTrace();
-            return null;
+            return "unknown";
         }
     }
 
     public static String getSystemDomainName() {
         try {
-            // Ottiene il nome del computer
-            String domainName = System.getenv("USERDOMAIN");
-
+            String domainName = System.getenv("USERDOMAIN"); // Windows
+            if (domainName == null || domainName.isEmpty()) {
+                // Linux fallback: try hostname -d
+                try {
+                    Process proc = new ProcessBuilder("hostname", "-d").start();
+                    java.io.BufferedReader reader =
+                            new java.io.BufferedReader(new java.io.InputStreamReader(proc.getInputStream()));
+                    domainName = reader.readLine();
+                    reader.close();
+                    if (domainName == null || domainName.isEmpty()) {
+                        domainName = "local"; // default if no domain
+                    }
+                } catch (Exception ex) {
+                    domainName = "local";
+                }
+            }
             return domainName;
         } catch (Exception e) {
             e.printStackTrace();
-            return null;
+            return "local";
         }
     }
 
     public static String getSystemUserName() {
         try {
-            // Ottiene il nome dell'utente loggato
-            String userName = System.getProperty("user.name");
-
-            // Concatena le informazioni
-            return userName;
+            return System.getProperty("user.name");
         } catch (Exception e) {
             e.printStackTrace();
-            return null;
+            return "unknown";
         }
     }
 

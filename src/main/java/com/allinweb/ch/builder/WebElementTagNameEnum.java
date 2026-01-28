@@ -17,6 +17,7 @@ public enum WebElementTagNameEnum {
     HEADER("H"),
     PARAGRAPH("p"),
     ANCHOR("a"),
+    LINK("link"),
     SELECT("select"),
     OPTION("option"),
     MAT_SELECT("mat-select"),

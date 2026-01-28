@@ -75,6 +75,7 @@ public class InstructionLoad {
             Integer parentId,
             Integer variableId,
             String operation,
+            String defaultValue,
             String exportFile,
             String tagName) {
         this.homeBankingId = homeBankingId;
@@ -95,6 +96,7 @@ public class InstructionLoad {
         this.parentId = parentId;
         this.variableId = variableId;
         this.operation = operation;
+        this.defaultValue = defaultValue;
         this.exportFile = exportFile;
         this.tagName = tagName;
     }

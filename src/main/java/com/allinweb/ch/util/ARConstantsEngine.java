@@ -17,8 +17,8 @@ public class ARConstantsEngine {
     // IMPORTANT FILE NAMES
     public static final String FILE_NAME_CONFIGURATION = "\\config\\configuration.properties";
     public static final String FILE_NAME_PRIORITIES = "\\priorities.properties";
-    public static final String FILE_NAME_ACCESS = "\\database.mdb";
-    public static final String FILE_NAME_SQLITE = "\\database.db";
+    public static final String FILE_NAME_ACCESS = "/database.mdb";
+    public static final String FILE_NAME_SQLITE = "/database.db";
     public static final String USER_PATH = System.getProperty("user.dir");
 
     // ACTION CODES
@@ -59,6 +59,8 @@ public class ARConstantsEngine {
     public static final String SET_VALUE = "SET";
     public static final String GET_VALUE = "GET";
     public static final String CHECK_VALUE = "CK";
+    public static final String PDF_CHECK = "PDF CHECK";
+    public static final String CSV_CHECK = "CSV CHECK";
     public static final String IF = "IF";
     public static final String ELSEIF = "ELSEIF";
     public static final String ELSE = "ELSE";

@@ -83,7 +83,7 @@ public class LicenseManager {
             licensePath = System.getProperty("user.dir");
         }
 
-        licensePath += "\\ARWeb.lic";
+        licensePath += "/ARWeb.lic";
         Files.writeString(Paths.get(licensePath), encrypt(data, KEY));
     }
 

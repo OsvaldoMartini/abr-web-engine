@@ -3,16 +3,14 @@ package com.allinweb.ch.readersAndWriters;
 import com.allinweb.ch.util.ARConstantsEngine;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ExtractedData;
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.DataFormatter;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.ss.usermodel.*;
 
 @Slf4j
 public class ExcelReader {
@@ -59,7 +57,9 @@ public class ExcelReader {
         // Initialize the extracted data
         ExtractedData extractedDataWithMissingFields = new ExtractedData();
 
-        try (XSSFWorkbook workbook = new XSSFWorkbook(new File(paymentsFilePath))) {
+        try (InputStream in = Files.newInputStream(Paths.get(paymentsFilePath));
+                Workbook workbook = WorkbookFactory.create(in)) {
+
             Sheet firstSheet = workbook.getSheetAt(0);
 
             if (allActions == null || allActions.isEmpty()) {

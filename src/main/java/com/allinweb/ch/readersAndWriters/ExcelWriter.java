@@ -202,6 +202,8 @@ public class ExcelWriter {
                             case ARConstantsEngine.SET_VALUE -> "SET VALUE";
                             case ARConstantsEngine.GET_VALUE -> "GET VALUE";
                             case ARConstantsEngine.CHECK_VALUE -> "CHECK VALUE";
+                            case ARConstantsEngine.PDF_CHECK -> "PDF CHECK";
+                            case ARConstantsEngine.CSV_CHECK -> "CSV CHECK";
                             case ARConstantsEngine.GOTO -> "GOTO";
                             case ARConstantsEngine.IF -> "IF";
                             case ARConstantsEngine.ELSE -> "ELSE";

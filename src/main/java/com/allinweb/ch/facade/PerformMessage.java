@@ -741,7 +741,7 @@ public class PerformMessage {
         if (message3 != null && message4 == null) {
             concatenateMsg +=
                     "<br>------------------------------<br><span style='color: blue;'>" + message3 + "</span></html>";
-        } else if (message3 != null && message4 != null) {
+        } else if (message3 != null && message4 != null && !message4.contains("to close")) {
             concatenateMsg += "<br>------------------------------<br><span style='color: blue;'>"
                     + message3 + "</span><br>------------------------------<br><span style='color: blue;'>"
                     + message4 + "</span><br><br></html>";
@@ -758,8 +758,8 @@ public class PerformMessage {
         if (seconds > 0) {
             concatenateMsg = concatenateMsg.replace(
                     "</html>",
-                    "<br>------------------------------<br><span style='color: green; font-weight:bold;'>The Browser is going to close in "
-                            + seconds + " seconds!</span></html>");
+                    "<br>------------------------------<br><span style='color: green; font-weight:bold;'>" + message4
+                            + " " + seconds + " seconds!</span></html>");
         }
 
         concatenateMsg = titleMessage + concatenateMsg;
@@ -811,6 +811,166 @@ public class PerformMessage {
         }
 
         panel.add(buttonPanel, BorderLayout.SOUTH);
+
+        // Add drag support
+        addDragSupport(dialog, panel);
+
+        // Add panel to dialog
+        dialog.getContentPane().add(panel);
+        dialog.setAlwaysOnTop(true);
+        dialog.setVisible(true); // This blocks other input until the dialog is closed
+
+        return status[0];
+    }
+
+    /**
+     * Creates a styled button with Windows 11 theme
+     */
+    public ARExecution.DialogModal showCustomModalDialogDragWin11TimerAuto(
+            String title,
+            String message1,
+            String message2,
+            String message3,
+            String message4,
+            boolean redMsg,
+            String firstButton,
+            String secondButton,
+            int height,
+            int seconds) {
+
+        // Create a JDialog as a custom modal message dialog
+        JDialog dialog = new JDialog((Frame) null, title, true); // Modal dialog
+        dialog.setUndecorated(true); // Remove the default border
+
+        // Set dialog size dynamically
+        if (height > 0) {
+            dialog.setSize(600, height);
+        } else if (message2 != null && message3 == null && message4 == null) {
+            dialog.setSize(600, 270);
+        } else if (message2 != null && message3 != null && message4 == null) {
+            dialog.setSize(600, 310);
+        } else if (message2 != null && message3 != null && message4 != null) {
+            dialog.setSize(600, 380);
+        } else {
+            dialog.setSize(600, 210);
+        }
+
+        dialog.setLocationRelativeTo(null); // Center on screen
+
+        // Main panel
+        JPanel panel = new JPanel();
+        panel.setBackground(new Color(243, 243, 243)); // Windows 11 Light Gray
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(200, 200, 200)), // Border color
+                BorderFactory.createEmptyBorder(20, 20, 20, 20))); // Padding
+        panel.setLayout(new BorderLayout());
+
+        // Build the message
+        String titleMessage = "<html><br><span style='color: blue;'>"
+                + "<span  style='font-size: 14px; font-weight: bold;'>" + title
+                + "</span><br>------------------------------<br>";
+
+        String concatenateMsg = "<span style='color: blue;'>" + message1;
+        if (message2 != null) {
+            concatenateMsg +=
+                    "</span><br>------------------------------<br><span style='color: blue;'>" + message2 + "</span>";
+        } else {
+            concatenateMsg += "</span><br>------------------------------<br><br>                            <br>";
+        }
+
+        if (message3 != null && message4 == null) {
+            concatenateMsg +=
+                    "<br>------------------------------<br><span style='color: blue;'>" + message3 + "</span></html>";
+        } else if (message3 != null && message4 != null) {
+            concatenateMsg += "<br>------------------------------<br><span style='color: blue;'>"
+                    + message3 + "</span><br>------------------------------<br><span style='color: blue;'>"
+                    + message4 + "</span><br><br></html>";
+        } else {
+            concatenateMsg += "</html>";
+        }
+
+        // Apply red color if redMsg is true
+        if (redMsg) {
+            concatenateMsg = concatenateMsg.replaceAll("blue", "#D32F2F");
+        }
+
+        // At this point concatenateMsg already ends with </html>
+        // We keep a base HTML version WITHOUT the timer text
+        String baseHtml = titleMessage + concatenateMsg;
+
+        // Create a JLabel to display the formatted message
+        JLabel messageLabel = new JLabel(baseHtml, SwingConstants.CENTER);
+        messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+        panel.add(messageLabel, BorderLayout.CENTER);
+
+        final ARExecution.DialogModal[] status = {ARExecution.DialogModal.NONE};
+
+        // Create button panel if second button exists
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 0));
+        buttonPanel.setBackground(new Color(243, 243, 243)); // Windows 11 Light Gray
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        Dimension buttonSize = new Dimension(150, 20);
+
+        // OK button
+        JButton okButton = createStyledButtonWin11(firstButton);
+        okButton.setPreferredSize(buttonSize);
+        okButton.addActionListener(e -> {
+            dialog.dispose();
+            status[0] = ARExecution.DialogModal.OK;
+        });
+        buttonPanel.add(okButton);
+
+        // Stop button if provided
+        JButton stopButton;
+        if (!Strings.isNullOrEmpty(secondButton)) {
+            stopButton = createStyledButtonWin11(secondButton);
+            stopButton.setPreferredSize(buttonSize);
+            stopButton.addActionListener(e -> {
+                log.info("Stop button clicked!");
+                dialog.dispose();
+                status[0] = ARExecution.DialogModal.STOP;
+            });
+            buttonPanel.add(stopButton);
+        } else {
+            stopButton = null;
+        }
+
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+
+        // ---- Timer with live countdown & auto-close ----
+        if (seconds > 0) {
+            final int[] remaining = {seconds};
+
+            // Helper lambda to rebuild the label HTML with countdown
+            java.util.function.IntFunction<String> htmlWithTimer = (sec) -> {
+                String timerLine = "<br>------------------------------<br>"
+                        + "<span style='color: green; font-weight:bold;'>This window will close in "
+                        + sec + " second" + (sec == 1 ? "" : "s") + "!</span></html>";
+                // Remove the final </html> from baseHtml and append the timer line
+                return baseHtml.replace("</html>", timerLine);
+            };
+
+            // Initialize label with first countdown value
+            messageLabel.setText(htmlWithTimer.apply(remaining[0]));
+
+            Timer timer = new Timer(1000, e -> {
+                remaining[0]--;
+                if (remaining[0] <= 0) {
+                    ((Timer) e.getSource()).stop();
+                    // Auto-click Stop if present, otherwise OK
+                    if (stopButton != null) {
+                        stopButton.doClick();
+                    } else {
+                        okButton.doClick();
+                    }
+                } else {
+                    messageLabel.setText(htmlWithTimer.apply(remaining[0]));
+                }
+            });
+            timer.setRepeats(true);
+            timer.start();
+        }
 
         // Add drag support
         addDragSupport(dialog, panel);

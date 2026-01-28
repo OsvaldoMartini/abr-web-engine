@@ -124,7 +124,7 @@ public class WebSocketSessionManager {
     }
 
     // Method to send a message to a specific session ID
-    public void sendMessageJson(int homeBankingId, String sessionId, String body, String operationId) {
+    public Session sendMessageJson(int homeBankingId, String sessionId, String body, String operationId) {
         Session session = getAllSessions().get(sessionId);
 
         if (session != null && session.isOpen()) {
@@ -137,12 +137,14 @@ public class WebSocketSessionManager {
                     jsonMessage.addProperty("operationId", operationId);
                 }
                 session.getBasicRemote().sendText(jsonMessage.toString());
+                return session;
             } catch (IOException e) {
                 log.error("Error sending message to session " + sessionId + ": " + e.getMessage());
             }
         } else {
             log.error("Session " + sessionId + " not found or closed.");
         }
+        return null;
     }
 
     //    public static void sendMessageJson(int homeBankingId, String sessionId, String msg1, String msg2) {

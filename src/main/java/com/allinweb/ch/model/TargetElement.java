@@ -41,10 +41,10 @@ public class TargetElement {
     Boolean isElementHidden;
     Boolean cloned;
     String searchAttributeValue;
-    Boolean forceCoordinates;
+    Boolean forceCoordinates = true;
     Map<String, String> savedReferences = new HashMap<>();
     Integer instructionId;
-    Boolean clickElement;
+    Boolean clickElement = true;
 
     public TargetElement(TargetElement origin) {
         this.nameLabel = origin.nameLabel;

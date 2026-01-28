@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 public class PerformActions {
     private static final Logger logOperations = LoggerFactory.getLogger("com.allinweb.operations");
 
+    //    private static final AndroidDevice androidDevice = AndroidDevice.getInstance();
     private static final PerformMessage performMessage;
     private static final IframeInputLocator iframeInputLocator;
     private static final ARPropertyManager arPropertyManager;
@@ -406,7 +407,9 @@ public class PerformActions {
             InstructionLoad currentInstruction,
             Map<String, String> mapOperators,
             WebElement instructionElement,
-            String actions[])
+            String actions[],
+            boolean isMobileApp,
+            SplitDTO splitDTO)
             throws Exception {
 
         WebDriver originalDriver = this.currentDriver; // Save the original WebDriver state
@@ -453,46 +456,60 @@ public class PerformActions {
                         return !Strings.isNullOrEmpty(valueElem);
                     case ARConstantsEngine.CLICK:
                     case ARConstantsEngine.OTHER:
-                        passed = clickElement(byPassNotFound, instructionElement);
-                        if (!passed) {
-                            // Try by coordinates
-                            FieldData filedData = new FieldData("&EMPTY", "&EMPTY");
-                            //                            passed = executeActionsAtCoordinates(
-                            //                                    savedCoordinates, filedData, ARConstants.CLICK,
-                            // pressEnterAfter);
+                        if (isMobileApp) {
+                            //                            androidDevice.executeAction(instructionElement, splitDTO);
+                        } else {
+                            passed = clickElement(byPassNotFound, instructionElement);
+                            if (!passed) {
+                                // Try by coordinates
+                                FieldData filedData = new FieldData("&EMPTY", "&EMPTY");
+                                //                            passed = executeActionsAtCoordinates(
+                                //                                    savedCoordinates, filedData, ARConstants.CLICK,
+                                // pressEnterAfter);
+                            }
                         }
                         return passed;
                     case ARConstantsEngine.INSERT:
                         if ("select".equalsIgnoreCase(instructionElement.getTagName())) {
-                            passed = insertDataInSelectElement(
-                                    byPassNotFound, instructionElement, savedCoordinates, data, pressEnterAfter);
+                            if (isMobileApp) {
+                                //                                androidDevice.executeAction(instructionElement,
+                                // splitDTO, null, data.getValue());
+                            } else {
+                                passed = insertDataInSelectElement(
+                                        byPassNotFound, instructionElement, savedCoordinates, data, pressEnterAfter);
 
-                            if (!passed) {
-                                // Try by coordinates
-                                passed = executeActionsAtCoordinates(
-                                        savedCoordinates, data, ARConstantsEngine.SELECT, pressEnterAfter);
+                                if (!passed) {
+                                    // Try by coordinates
+                                    passed = executeActionsAtCoordinates(
+                                            savedCoordinates, data, ARConstantsEngine.SELECT, pressEnterAfter);
+                                }
+                                return passed;
                             }
-                            return passed;
                         } else {
-                            //                            instructionElement.click();
-                            instructionElement.clear();
-                            clearElement(instructionElement);
-                            //                            clearValueAtCoordinates(savedCoordinates);
+                            if (isMobileApp) {
+                                //                                androidDevice.executeAction(instructionElement,
+                                // splitDTO, null, data.getValue());
+                            } else {
+                                //                            instructionElement.click();
+                                instructionElement.clear();
+                                clearElement(instructionElement);
+                                //                            clearValueAtCoordinates(savedCoordinates);
 
-                            passed = insertInElement(
-                                    byPassNotFound,
-                                    instructionElement,
-                                    data.getValue(),
-                                    currentInstruction.getDefaultValue(),
-                                    currentInstruction.getCodified(),
-                                    pressEnterAfter);
+                                passed = insertInElement(
+                                        byPassNotFound,
+                                        instructionElement,
+                                        data.getValue(),
+                                        currentInstruction.getDefaultValue(),
+                                        currentInstruction.getCodified(),
+                                        pressEnterAfter);
 
-                            if (!passed) {
-                                // Try by coordinates
-                                passed = executeActionsAtCoordinates(
-                                        savedCoordinates, data, ARConstantsEngine.INSERT, pressEnterAfter);
+                                if (!passed) {
+                                    // Try by coordinates
+                                    passed = executeActionsAtCoordinates(
+                                            savedCoordinates, data, ARConstantsEngine.INSERT, pressEnterAfter);
+                                }
+                                return passed;
                             }
-                            return passed;
                         }
                 }
 
@@ -563,30 +580,33 @@ public class PerformActions {
             String[] operations,
             String parentField,
             String variableField,
-            Map<String, String> mapOperators) {
+            Map<String, String> mapOperators,
+            WebElement instructionElement) {
 
-        WebElement instructionElement = null;
         try {
             onHoldInSeconds(1);
         } catch (Exception ignore) {
-
         }
-        if (!StringUtils.isBlank(targetXPath)) {
+
+        if (!StringUtils.isBlank(targetXPath) && instructionElement == null) {
             instructionElement =
                     locateTargetElement(byPassNotFound, targetXPath, instruction.getActionCustomMaxWaitSec());
         }
+
         String msgReturn = "Error performing GET or SET";
+        boolean success = false;
+
         if (instructionElement != null) {
-
             try {
-
                 switch (action) {
                     case "SET":
                         msgReturn = "SET_VALUE to (Parent: " + parentField + ") Var:" + variableField + " <-- "
                                 + operations[1];
                         insertTargetElement(byPassNotFound, instructionElement, operations[0], operations[1]);
                         mapOperators.put(variableField.trim(), operations[1].trim());
+                        success = true;
                         break;
+
                     case "GET":
                         String valueElem;
                         msgReturn = "GET_VALUE from (Parent: " + parentField + ") Var" + variableField;
@@ -597,36 +617,60 @@ public class PerformActions {
                                     parentField,
                                     instruction.getActions(),
                                     mapOperators);
-                        } // else if (mapOperators.containsKey(variableField)) {
-                        //   valueElem = mapOperators.get(variableField);
-                        else {
+                        } else {
                             valueElem = getValueInElement(byPassNotFound, instructionElement);
                         }
                         if (!Strings.isNullOrEmpty(valueElem)) {
                             msgReturn += " <-- " + valueElem;
                         }
                         mapOperators.put(variableField.trim(), valueElem.trim());
+                        success = true;
                         break;
+
                     case "CopyVar":
-                        String valueVar;
-                        if (mapOperators.containsKey(variableField)) {
-                            valueVar = mapOperators.get(variableField);
-                        } else {
-                            valueVar = "";
-                        }
+                        String valueVar = mapOperators.getOrDefault(variableField, "");
                         msgReturn =
                                 "COPY_VAR from (Parent: " + parentField + ") Var" + variableField + " <-- " + valueVar;
+                        success = true;
                         break;
                 }
                 onHoldForSeconds(null);
 
             } catch (Exception error) {
-                msgReturn = "Error: " + error.getMessage();
+                switch (action) {
+                    case "SET":
+                        msgReturn = String.format(
+                                "SET failed — unable to set value \"%s\". Verify that the target element is correct, visible, and editable.",
+                                "\"" + operations[1] + "\"");
+                        break;
+                }
             }
         } else {
             msgReturn = "Error: Instruction is null";
         }
-        return msgReturn;
+
+        // =========================
+        // 🔹 ONLY NEW PART (RETURN)
+        // =========================
+
+        String time = new java.text.SimpleDateFormat("HH:mm:ss").format(new java.util.Date());
+
+        String testName = "";
+        String mainField = "";
+
+        if (parentField != null && parentField.contains("-")) {
+            int idx = parentField.indexOf('-');
+            testName = parentField.substring(0, idx).trim();
+            mainField = parentField.substring(idx + 1).trim();
+        } else {
+            mainField = parentField == null ? "" : parentField;
+        }
+
+        String desc = instruction != null && instruction.getName() != null ? instruction.getName() : "";
+        String result = success ? "PASSED" : "FAIL";
+        String conditionText = msgReturn;
+
+        return time + " | " + testName + " | " + desc + " | " + mainField + " | " + conditionText + " | " + result;
     }
 
     private WebElement locateTargetElement(boolean byPassNotFound, String targetXPath, Integer actionCustomMaxWaitSec) {
@@ -1862,7 +1906,10 @@ public class PerformActions {
         if (conditionStatus.equals(ARExecution.ConditionStatus.NONE)) {
             String msg1, msg2, msg3, msg4 = null;
 
-            if (action.equals(ARConstantsEngine.EXTRACT_FIELD) || action.equals(ARConstantsEngine.CHECK_VALUE)) {
+            if (action.equals(ARConstantsEngine.EXTRACT_FIELD)
+                    || action.equals(ARConstantsEngine.CHECK_VALUE)
+                    || action.equals(ARConstantsEngine.PDF_CHECK)
+                    || action.equals(ARConstantsEngine.CSV_CHECK)) {
                 msg1 = "The variable \"" + variableField + "\" has not been assigned.";
                 msg2 = "Please add a <span style='color: #000080; font-weight: bold;'>GET</span> step for \""
                         + currentInstruction.getName() + "\" to assign this variable.";
@@ -2169,6 +2216,392 @@ public class PerformActions {
         }
     }
 
+    public String buildValidationReason(
+            String invalidValues,
+            String parent,
+            String actualValue, // current web field value
+            String expectedValue, // EXPECTED VALUE AS PARAM
+            String lastInstructionExecuted,
+            String[] operations, // [0]=variableName, [1]=operator
+            ARExecution.ConditionStatus conditionStatus,
+            boolean byPassFlagLoop,
+            boolean includeLengths,
+            String blockName,
+            Integer testRow,
+            boolean success) {
+
+        if (operations == null || operations.length < 2) {
+            return withConditionalPrefix(conditionStatus, "Validation failed — malformed operation definition");
+        }
+
+        if (byPassFlagLoop) {
+            return withConditionalPrefix(conditionStatus, lastInstructionExecuted);
+        }
+
+        String varName = operations.length > 0 ? operations[0] : "?";
+        String op = operations.length > 1 ? operations[1] : "?";
+
+        String rawActual = actualValue == null ? "" : actualValue;
+        String rawExpected = expectedValue == null ? "" : expectedValue;
+
+        String safeActual = rawActual;
+        String safeExpected = rawExpected;
+
+        if (">".equals(op) || "<".equals(op)) {
+            safeActual = normalizeNumber(rawActual);
+            safeExpected = normalizeNumber(rawExpected);
+        }
+
+        String summary;
+        if (invalidValues == null || invalidValues.trim().isEmpty()) {
+            summary = "Check Validation Value Error";
+        } else {
+            summary = invalidValues.trim() + " Operator: (" + op + ")";
+        }
+
+        String reason;
+
+        String conditionText; // ✅ will go into "Condition" column
+
+        if (">".equals(op)) {
+            conditionText =
+                    String.format("value \"%s\" is not > \"%s\" (variable \"%s\")", safeActual, safeExpected, varName);
+
+        } else if ("<".equals(op)) {
+            conditionText =
+                    String.format("value \"%s\" is not < \"%s\" (variable \"%s\")", safeActual, safeExpected, varName);
+
+        } else if ("!=".equals(op)) {
+            conditionText =
+                    String.format("value \"%s\" is not != \"%s\" (variable \"%s\")", safeActual, safeExpected, varName);
+
+        } else {
+            conditionText = String.format(
+                    "value \"%s\" is not %s \"%s\" (variable \"%s\")", safeActual, op, safeExpected, varName);
+
+            if (includeLengths) {
+                conditionText +=
+                        String.format(" [actualLen=%d, expectedLen=%d]", safeActual.length(), safeExpected.length());
+            }
+        }
+
+        // ✅ Main Field column should be just the field name (no quotes)
+        String mainField = (parent == null) ? "" : parent;
+
+        // ✅ Description column
+        String desc = (blockName == null) ? "" : blockName;
+
+        // ✅ Test column: use action name (your “CSV Check Value for ...”) OR fallback to varName
+        // You said Test should be "Test-1", "Test-2"... so do NOT generate it here.
+        // Pass "Test-1" from the caller via lastInstructionExecuted (recommended), OR change this variable name.
+        String testName = (testRow == null) ? "" : String.valueOf(testRow);
+
+        // ✅ Result column
+        String result = success ? "PASSED" : "FAIL";
+
+        // ✅ Time column (your JTable expects Time as first col)
+        String time = new java.text.SimpleDateFormat("HH:mm:ss").format(new java.util.Date());
+
+        String row =
+                time + " | " + testName + " | " + desc + " | " + mainField + " | " + conditionText + " | " + result;
+
+        // appendLog() contract preserved
+        return row;
+    }
+
+    //    /**
+    //     * Builds a human-readable reason when a required GET variable is missing / not assigned.
+    //     *
+    //     * IMPORTANT:
+    //     * - This method does NOT log.
+    //     * - Callers can logOperations.error(...) OUTSIDE using the returned string.
+    //     * - It follows the same principle as buildValidationFailureReason:
+    //     *   - If conditionStatus != NONE -> prepend block transition text + " -> " + lastInstructionExecuted
+    //     *   - If conditionStatus == NONE -> return lastInstructionExecuted (keep original behavior)
+    //     *
+    //     * If you want a message even when NONE, just change the last return branch accordingly.
+    //     */
+    //    public String buildGetVariableReason(
+    //            String action,
+    //            InstructionLoad currentInstruction,
+    //            String lastInstructionExecuted,
+    //            ARExecution.ConditionStatus conditionStatus,
+    //            String parentField,
+    //            String variableField,
+    //            boolean byPassFlagLoop) {
+    //
+    //        // If bypassing, behave like original logic: just return the last instruction executed
+    //        if (byPassFlagLoop) {
+    //            return withConditionalPrefix(conditionStatus, lastInstructionExecuted);
+    //        }
+    //
+    //        // Preserve raw values
+    //        String instrName =
+    //                currentInstruction != null && currentInstruction.getName() != null ? currentInstruction.getName()
+    // : "?";
+    //
+    //        String var = variableField == null ? "?" : variableField;
+    //        String parent = parentField == null ? "" : parentField;
+    //
+    //        // Build a concise reason (plain text; keep HTML out because caller may log it)
+    //        String summary;
+    //        if (ARConstantsEngine.EXTRACT_FIELD.equals(action) || ARConstantsEngine.CHECK_VALUE.equals(action)) {
+    //            summary = String.format(
+    //                    "Get Value Is Not Defined — variable \"%s\" has not been assigned (instruction \"%s\")",
+    //                    var, instrName);
+    //        } else {
+    //            if (parentField != null) {
+    //                summary = String.format(
+    //                        "Get Value Is Not Defined — no GET value defined for instruction \"%s\" (parent field
+    // \"%s\")",
+    //                        instrName, parent);
+    //            } else {
+    //                summary = String.format(
+    //                        "Get Value Is Not Defined — no GET value defined for instruction \"%s\" (parent field not
+    // defined)",
+    //                        instrName);
+    //            }
+    //        }
+    //
+    //        // Follow the SAME “append lastInstructionExecuted + conditional prefix” pattern
+    //        // Note: original getValueIsNotDefined returned lastInstructionExecuted when conditionStatus==NONE.
+    //        // We keep that behavior here.
+    //        String reasonWithTrail = summary + " -> " + lastInstructionExecuted;
+    //
+    //        return withConditionalPrefix(conditionStatus, reasonWithTrail);
+    //    }
+
+    public String messageExcel(
+            String action, // ✅ action FIRST (e.g. "EXCEL", "INSERT", etc.)
+            InstructionLoad instruction, // for desc
+            String parentField, // e.g. "8838-BancaStato"
+            String variableField, // e.g. "331-$BancaStato"
+            String value, // value written to Excel
+            String blockName, // fallback desc
+            Integer testRow, // fallback test
+            boolean success // PASSED / FAIL
+            ) {
+
+        String time = new java.text.SimpleDateFormat("HH:mm:ss").format(new java.util.Date());
+
+        // TEST + Main Field parsing (unchanged)
+        String testName = "";
+        String mainField = "";
+
+        if (parentField != null && parentField.contains("-")) {
+            int idx = parentField.indexOf('-');
+            testName = parentField.substring(0, idx).trim();
+            mainField = parentField.substring(idx + 1).trim();
+        } else {
+            mainField = (parentField == null) ? "" : parentField;
+            testName = (testRow == null) ? "" : String.valueOf(testRow);
+        }
+
+        // desc (unchanged)
+        String desc = (instruction != null && instruction.getName() != null)
+                ? instruction.getName()
+                : (blockName == null ? "" : blockName);
+
+        // ✅ ONLY CHANGE: conditionText built here, ACTION first
+        String conditionText = success
+                ? action + " --> Insert into Excel -> " + variableField + "-" + value
+                : action + " --> NO Export Excel File defined -> " + variableField + "-" + value;
+
+        String result = success ? "PASSED" : "FAIL";
+
+        return time + " | " + testName + " | " + desc + " | " + mainField + " | " + conditionText + " | " + result;
+    }
+
+    /**
+     * Builds a JTable row (pipe-separated) for CHECK_VALUE / validation messages.
+     *
+     * Output pattern:
+     *   time | testName | desc | mainField | conditionText | result
+     */
+    public String checkValidationMesssage(
+            String action,
+            InstructionLoad currentInstruction,
+            String lastInstructionExecuted,
+            ARExecution.ConditionStatus conditionStatus,
+            String parentField, // e.g. "8838-BancaStato" OR "BancaStato"
+            String variableField, // e.g. "$BancaStato"
+            String actualValue, // actual extracted value
+            String expectedValue, // expected value
+            String operator, // "=", "!=", ">", "<", etc.
+            boolean byPassFlagLoop,
+            String blockName,
+            Integer testRow,
+            boolean includeLengths,
+            boolean success) {
+
+        if (byPassFlagLoop) {
+            return withConditionalPrefix(conditionStatus, lastInstructionExecuted);
+        }
+
+        String instrName =
+                currentInstruction != null && currentInstruction.getName() != null ? currentInstruction.getName() : "?";
+
+        String var = (variableField == null) ? "?" : variableField;
+
+        String rawActual = (actualValue == null) ? "" : actualValue;
+        String rawExpected = (expectedValue == null) ? "" : expectedValue;
+
+        String safeActual = rawActual;
+        String safeExpected = rawExpected;
+
+        if (">".equals(operator) || "<".equals(operator)) {
+            safeActual = normalizeNumber(rawActual);
+            safeExpected = normalizeNumber(rawExpected);
+        }
+
+        // ✅ parse TEST + Main Field like your other methods
+        String testName = "";
+        String mainField = "";
+        if (parentField != null && parentField.contains("-")) {
+            int idx = parentField.indexOf('-');
+            testName = parentField.substring(0, idx).trim();
+            mainField = parentField.substring(idx + 1).trim();
+        } else {
+            mainField = (parentField == null) ? "" : parentField;
+            testName = (testRow == null) ? "" : String.valueOf(testRow);
+        }
+
+        // ✅ Description column
+        String desc = (blockName == null) ? "" : blockName;
+
+        // ✅ Condition column (action first)
+        String op = (operator == null) ? "?" : operator;
+
+        String conditionText;
+        if (">".equals(op)) {
+            conditionText = String.format(
+                    "%s] --> value \"%s\" is not > \"%s\" (variable \"%s\", instruction \"%s\")",
+                    action, safeActual, safeExpected, var, instrName);
+
+        } else if ("<".equals(op)) {
+            conditionText = String.format(
+                    "%s] --> value \"%s\" is not < \"%s\" (variable \"%s\", instruction \"%s\")",
+                    action, safeActual, safeExpected, var, instrName);
+
+        } else if ("!=".equals(op)) {
+            conditionText = String.format(
+                    "%s] --> value \"%s\" is not != \"%s\" (variable \"%s\", instruction \"%s\")",
+                    action, safeActual, safeExpected, var, instrName);
+
+        } else {
+            conditionText = String.format(
+                    "%s] --> value \"%s\" is not %s \"%s\" (variable \"%s\", instruction \"%s\")",
+                    action, safeActual, op, safeExpected, var, instrName);
+
+            if (includeLengths) {
+                conditionText +=
+                        String.format(" [actualLen=%d, expectedLen=%d]", safeActual.length(), safeExpected.length());
+            }
+        }
+
+        // ✅ Result column
+        String result = success ? "PASSED" : "FAIL";
+
+        // ✅ Time column
+        String time = new java.text.SimpleDateFormat("HH:mm:ss").format(new java.util.Date());
+
+        String row =
+                time + " | " + testName + " | " + desc + " | " + mainField + " | " + conditionText + " | " + result;
+
+        return withConditionalPrefix(conditionStatus, row);
+    }
+
+    /**
+     * Builds a JTable row (same pipe-separated pattern as buildValidationReason)
+     * for the case "GET variable missing / not assigned".
+     *
+     * Output pattern:
+     *   time | testName | desc | mainField | conditionText | result
+     */
+    public String buildGetVariableReason(
+            String action,
+            InstructionLoad currentInstruction,
+            String lastInstructionExecuted,
+            ARExecution.ConditionStatus conditionStatus,
+            String parentField, // MAIN FIELD (e.g. "BancaStato")
+            String variableField, // variable name (e.g. "$BancaStato")
+            boolean byPassFlagLoop,
+            String blockName,
+            Integer testRow,
+            boolean success // usually false for "not defined"
+            ) {
+
+        if (byPassFlagLoop) {
+            return withConditionalPrefix(conditionStatus, lastInstructionExecuted);
+        }
+
+        // Preserve raw values
+        String instrName =
+                currentInstruction != null && currentInstruction.getName() != null ? currentInstruction.getName() : "?";
+
+        String var = (variableField == null) ? "?" : variableField;
+        String parent = (parentField == null) ? "" : parentField;
+
+        // ✅ Condition column text (human readable, like buildValidationReason)
+        String conditionText;
+        if (ARConstantsEngine.EXTRACT_FIELD.equals(action) || ARConstantsEngine.CHECK_VALUE.equals(action)) {
+            conditionText = String.format(
+                    "Get Value Is Not Defined — variable \"%s\" has not been assigned (instruction \"%s\")",
+                    var, instrName);
+        } else {
+            if (parentField != null) {
+                conditionText = String.format(
+                        "Get Value Is Not Defined — no GET value defined for instruction \"%s\" (parent field \"%s\")",
+                        instrName, parent);
+            } else {
+                conditionText = String.format(
+                        "Get Value Is Not Defined — no GET value defined for instruction \"%s\" (parent field not defined)",
+                        instrName);
+            }
+        }
+
+        // ✅ Main Field column: just field name
+        String mainField = parent;
+
+        // ✅ Description column
+        String desc = (blockName == null) ? "" : blockName;
+
+        // ✅ Test column
+        String testName = (testRow == null) ? "" : String.valueOf(testRow);
+
+        // ✅ Result column
+        String result = success ? "PASSED" : "FAIL";
+
+        // ✅ Time column
+        String time = new java.text.SimpleDateFormat("HH:mm:ss").format(new java.util.Date());
+
+        String row =
+                time + " | " + testName + " | " + desc + " | " + mainField + " | " + conditionText + " | " + result;
+
+        // Preserve conditional prefix behavior
+        return withConditionalPrefix(conditionStatus, row);
+    }
+
+    private String normalizeNumber(String value) {
+        if (value == null) return null;
+        return value.replaceAll("[^0-9,.-]", "").replace(",", ".");
+    }
+
+    private String withConditionalPrefix(ARExecution.ConditionStatus conditionStatus, String message) {
+        String conditionalBlock = conditionStatus == ARExecution.ConditionStatus.IF_PASSED
+                ? "Closing Block { IF -> ELSE } -> "
+                : conditionStatus == ARExecution.ConditionStatus.ELSEIF_PASSED
+                        ? "Closing Block { ELSEIF -> ELSE } -> "
+                        : conditionStatus == ARExecution.ConditionStatus.ELSE_PASSED
+                                ? "Closing Block { ELSE -> ENDIF } -> "
+                                : "";
+
+        if (conditionStatus != null && conditionStatus != ARExecution.ConditionStatus.NONE) {
+            return conditionalBlock + message;
+        }
+        return message;
+    }
+
     public boolean excelReportWrite(
             ARExecution.ConditionStatus currentCondition,
             String blockName,
@@ -2278,90 +2711,132 @@ public class PerformActions {
 
     public String actionResultMessage(String blockJobName, String actions[], FieldData msgInstruction) {
 
+        // ✅ existing message becomes "conditionText"
+        String conditionText;
+
         switch (actions[0]) {
             case ARConstantsEngine.VISUALIZE:
-                return "Visualize " + msgInstruction.getKey();
+                conditionText = "Visualize " + msgInstruction.getKey();
+                break;
             case ARConstantsEngine.OTHER:
-                return "Other Element --> " + msgInstruction.getKey();
+                conditionText = "Other Element --> " + msgInstruction.getKey();
+                break;
             case ARConstantsEngine.OUTPUT:
-                return "Output Element --> " + msgInstruction.getKey();
+                conditionText = "Output Element --> " + msgInstruction.getKey();
+                break;
             case ARConstantsEngine.CLICK:
-                return "Click Element --> " + msgInstruction.getKey();
+                conditionText = "Click Element --> " + msgInstruction.getKey();
+                break;
             case ARConstantsEngine.INSERT:
                 if (actions[0].equals(ARConstantsEngine.INSERT) && actions[1].equals(ARConstantsEngine.ENTER)) {
-                    return "Insert/<Enter> action for  -> " + msgInstruction.getKey() + " = "
+                    conditionText = "Insert/<Enter> action for  -> " + msgInstruction.getKey() + " = "
                             + msgInstruction.getValue();
                 } else {
-                    return "Insert action for  -> " + msgInstruction.getKey() + " = " + msgInstruction.getValue();
+                    conditionText =
+                            "Insert action for  -> " + msgInstruction.getKey() + " = " + msgInstruction.getValue();
                 }
+                break;
             case ARConstantsEngine.LIST_OPERATION:
-                return "List Operation " + msgInstruction.getKey();
+                conditionText = "List Operation " + msgInstruction.getKey();
+                break;
             case ARConstantsEngine.HOLD:
-                return "Hold executed " + msgInstruction.getKey();
+                conditionText = "Hold executed " + msgInstruction.getKey();
+                break;
             case ARConstantsEngine.PAUSE:
-                return "Pause action triggered";
+                conditionText = "Pause action triggered";
+                break;
             case ARConstantsEngine.GOTO:
                 if (msgInstruction.getValue().equals("Unknown")) {
-                    return msgInstruction.getKey();
+                    conditionText = msgInstruction.getKey();
                 } else {
                     String[] parts = msgInstruction.getKey().split(":");
-                    return String.format(
+                    conditionText = String.format(
                             "GO TO Block \"%s\" Limit %s times",
                             "(" + parts[0] + ")-#" + parts[2] + " " + parts[3], msgInstruction.getValue());
                 }
+                break;
             case ARConstantsEngine.REFRESH_ONLY:
-                return " Refresh Web Page";
+                conditionText = " Refresh Web Page";
+                break;
             case ARConstantsEngine.REFRESH_HOLD:
                 String[] msgParent = msgInstruction.getKey().split(":");
                 String[] msgValue = msgInstruction.getValue().split(":");
-                return String.format(
+                conditionText = String.format(
                         "Wait for Parent \"%s\" Limit %s seconds",
                         "(" + msgParent[1] + ") " + msgParent[2], msgValue[0]);
+                break;
             case ARConstantsEngine.LOOP:
                 if (msgInstruction.getValue().equals("Unknown")) {
-                    return msgInstruction.getKey();
+                    conditionText = msgInstruction.getKey();
                 } else {
                     msgParent = msgInstruction.getKey().split(":");
-                    return String.format(
+                    conditionText = String.format(
                             "Jump To Parent \"%s\" Limit %s times",
                             msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2], msgInstruction.getValue());
                 }
+                break;
             case ARConstantsEngine.REFRESH_LOOP:
                 if (msgInstruction.getValue().equals("Unknown")) {
-                    return msgInstruction.getKey();
+                    conditionText = msgInstruction.getKey();
                 } else {
                     msgParent = msgInstruction.getKey().split(":");
                     msgValue = msgInstruction.getValue().split(":");
-                    return String.format(
+                    conditionText = String.format(
                             "Refresh in %s seconds Loop %s times Jump To Parent \"%s\" ",
                             msgValue[0], msgValue[1], msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
                 }
+                break;
             case ARConstantsEngine.QUIT:
-                return "Quit action processed";
+                conditionText = "Quit action processed";
+                break;
             case ARConstantsEngine.SCREEN:
-                return "Screen action executed for " + msgInstruction.getKey() + " --> " + blockJobName;
+                conditionText = "Screen action executed for " + msgInstruction.getKey() + " --> " + blockJobName;
+                break;
             case ARConstantsEngine.GET_VALUE:
             case ARConstantsEngine.SET_VALUE:
-                return actions[0]
+                conditionText = actions[0]
                         + ARConstantsEngine.BLANK_STRING
                         + msgInstruction.getKey()
                         + ARConstantsEngine.BLANK_STRING
                         + msgInstruction.getValue();
+                break;
             case ARConstantsEngine.CHECK_VALUE:
-                return actions[0]
+            case ARConstantsEngine.PDF_CHECK:
+            case ARConstantsEngine.CSV_CHECK:
+                conditionText = actions[0]
                         + ARConstantsEngine.BLANK_STRING
                         + msgInstruction.getValue()
                         + ARConstantsEngine.BLANK_STRING
                         + msgInstruction.getKey();
+                break;
             case ARConstantsEngine.EXTRACT_FIELD:
-                return ARConstantsEngine.BLANK_STRING
+                conditionText = ARConstantsEngine.BLANK_STRING
                         + msgInstruction.getKey() + " Extract "
                         + ARConstantsEngine.BLANK_STRING
                         + msgInstruction.getValue();
+                break;
 
             default:
-                return "No Action Detected for " + msgInstruction.getKey();
+                conditionText = "No Action Detected for " + msgInstruction.getKey();
+                break;
         }
+
+        // ✅ SAME PATTERN AS performOperatorActions
+        String time = new java.text.SimpleDateFormat("HH:mm:ss").format(new java.util.Date());
+
+        // If you don't have a test number here, keep it empty (caller can fill elsewhere)
+        String testName = "";
+
+        // Best default mainField: the key (e.g. "(8869)-OK" or "8838-BancaStato")
+        String mainField = (msgInstruction == null || msgInstruction.getKey() == null) ? "" : msgInstruction.getKey();
+
+        // Description: block/job name (or empty)
+        String desc = (blockJobName == null) ? "" : blockJobName;
+
+        // ✅ default PASSED for this method
+        String result = "PASSED";
+
+        return time + " | " + testName + " | " + desc + " | " + mainField + " | " + conditionText + " | " + result;
     }
 
     public int[] addElementToArray(int[] refreshLoopArray, int newItem) {
@@ -3191,6 +3666,14 @@ public class PerformActions {
                 .filter(instruction -> "REFRESH_LOOP".equalsIgnoreCase(instruction.getActions())
                         || "LOOP".equalsIgnoreCase(instruction.getActions()))
                 .map(InstructionLoad::getParentId)
+                .collect(Collectors.toSet());
+    }
+
+    public Set<Integer> getAllOutputsPerBlock(List<InstructionLoad> InstructionLoadS) {
+        return InstructionLoadS.stream()
+                .filter(instruction -> instruction.getActions() != null
+                        && instruction.getActions().trim().toUpperCase().startsWith("O:"))
+                .map(InstructionLoad::getId)
                 .collect(Collectors.toSet());
     }
 

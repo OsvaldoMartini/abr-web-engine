@@ -1,5 +1,7 @@
 package com.allinweb.ch.facade;
 
+import com.allinweb.ch.executors.AppExecutors;
+import com.allinweb.ch.executors.ExecutorsManager;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARPropertyManager;
@@ -24,17 +26,24 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PerformLists {
 
-    // WebSocket needs
-    private static final CountDownLatch latch = new CountDownLatch(1);
-    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-    // Lists for tables
+    // track sessionId for executor lifecycle
+    private String wsSessionId;
+
+    // executor is now per-session (from manager)
+    private ExecutorService executorWebSocket;
+
+    // scheduler is shared (DO NOT shutdown it here)
+    private final ScheduledExecutorService scheduler = AppExecutors.get().scheduler(ExecutorsManager.Pool.SCHEDULER);
+
+    // cancel handle for pings (instead of shutting down scheduler)
+    private ScheduledFuture<?> pingFuture; // Lists for tables
+
     private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     // Static final variable to hold the singleton instance
     protected static volatile PerformLists instance;
     private final Gson gson = new Gson();
     private Session session;
-    private ExecutorService executorWebSocket;
     private int portSocketInitial = 54525;
     private boolean isConnectWebSocket = false;
     private List<HomeBankingLoadDTO> listHomeBanking = new ArrayList<>();
@@ -76,10 +85,12 @@ public class PerformLists {
     //    private List<BlockOptions> listComboOptions = new ArrayList<>();
 
     public void initialize(String sessionId) {
-        this.executorWebSocket = Executors.newSingleThreadExecutor();
+        this.wsSessionId = sessionId;
 
-        String port =
-                System.getProperty("ARWebChosenPort"); // arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
+        // per-session single-thread executor
+        this.executorWebSocket = AppExecutors.get().websocketExecutor(sessionId);
+
+        String port = System.getProperty("ARWebChosenPort");
         if (!Strings.isNullOrEmpty(port)) {
             try {
                 portSocketInitial = Integer.parseInt(port);
@@ -97,32 +108,43 @@ public class PerformLists {
     //    private static final ScheduledExecutorService pingScheduler = Executors.newScheduledThreadPool(1);
 
     private void stopKeepAlivePings() {
-        scheduler.shutdownNow();
+        if (pingFuture != null) {
+            pingFuture.cancel(true);
+            pingFuture = null;
+        }
     }
 
     private void startKeepAlivePings() {
-        scheduler.scheduleAtFixedRate(
+        // already running?
+        if (pingFuture != null && !pingFuture.isCancelled() && !pingFuture.isDone()) {
+            return;
+        }
+
+        pingFuture = scheduler.scheduleAtFixedRate(
                 () -> {
                     try {
                         if (session != null && session.isOpen()) {
-                            session.getBasicRemote()
-                                    .sendText("ping-perform-list-data"); // Or a specific keep-alive message
+                            session.getBasicRemote().sendText("ping-perform-list-data");
                         }
                     } catch (IOException e) {
-                        log.error("Error sending ping: " + e.getMessage());
-                        // Handle potential disconnection
+                        log.error("Error sending ping: {}", e.getMessage(), e);
                     }
                 },
                 0,
                 15,
-                TimeUnit.SECONDS); // Adjust interval as needed
+                TimeUnit.SECONDS);
     }
 
     @OnOpen
     public void onOpen(Session session) {
         this.session = session;
-        latch.countDown(); // Release the latch after connection is established
-        log.info("Connected to WebSocket server at: " + session.getRequestURI());
+        this.isConnectWebSocket = true;
+
+        log.info("Connected to WebSocket server at: {}", session.getRequestURI());
+
+        // Start keepalive once the connection is really open
+        startKeepAlivePings();
+
         // Sending an initial message
         sendMessage("Hello from JavaFX WebSocket client!");
 
@@ -130,27 +152,34 @@ public class PerformLists {
         try {
             sessionId = session.getRequestParameterMap().get("sessionId").get(0);
 
-            // Add the Session to be Possible to send messages from Clients via PerformLists
+            // Add the Session to be Possiboe to send messages from Clients via PerformLists
             if (!Strings.isNullOrEmpty(sessionId) && sessionId.equals("engine-perform-bot-job")) {
                 webSocketSessionManager.addSession(sessionId, session);
             } else {
-                //                addSession(generateCustomSessionId(session), session);
+                // addSession(generateCustomSessionId(session), session);
             }
         } catch (Exception noSessionId) {
-            //            addSession(generateCustomSessionId(session), session);
+            // addSession(generateCustomSessionId(session), session);
         }
     }
 
     @OnClose
     public void onClose(Session session) {
-        log.info("Connection closed.");
+        log.info("Connection closed");
+
         stopKeepAlivePings();
+        isConnectWebSocket = false;
+
+        AppExecutors.get().releaseWebsocketExecutor(wsSessionId);
     }
 
     @OnError
     public void onError(Session session, Throwable throwable) {
-        log.info("Error: " + throwable.getMessage());
+        log.info("WebSocket Error: {}", throwable.getMessage(), throwable);
         stopKeepAlivePings();
+        isConnectWebSocket = false;
+
+        AppExecutors.get().releaseWebsocketExecutor(wsSessionId);
     }
 
     // Method to send a message
@@ -172,7 +201,6 @@ public class PerformLists {
             try {
                 WebSocketContainer container = ContainerProvider.getWebSocketContainer();
                 container.connectToServer(this, new URI(serverUri));
-                latch.await();
                 startKeepAlivePings();
                 isConnectWebSocket = true;
             } catch (Exception e) {
@@ -1339,6 +1367,7 @@ public class PerformLists {
                                         loopInstLoad.getParentId(),
                                         loopInstLoad.getVariableId(),
                                         loopInstLoad.getOperation(),
+                                        loopInstLoad.getDefaultValue(),
                                         itemBlock.getExportFile(),
                                         loopInstLoad.getTagName())))
                         .collect(Collectors.toList());
