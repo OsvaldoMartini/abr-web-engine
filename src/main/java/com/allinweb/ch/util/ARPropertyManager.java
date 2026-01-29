@@ -302,7 +302,7 @@ public class ARPropertyManager {
             //            "db_url",
             //            "db_user",
             //            "db_pwd",
-            "path_appium",
+            //            "path_appium",
             "path_excel",
             "path_log",
             "path_db",
