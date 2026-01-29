@@ -709,7 +709,7 @@ public class EngineRunner {
         boolean byPassFlagLoop = false;
         boolean success = true;
         boolean stopAll = false;
-        boolean lastRecall = false;
+        boolean firstRound = true;
         boolean anyFailure = false;
         boolean alreadyLogged = false;
         long botJobStartTime = System.nanoTime();
@@ -744,13 +744,14 @@ public class EngineRunner {
 
             // Execute All Blocks starting from executeSpecificBlock if Defined
             currentBlockOrder = (executeSpecificBlock > -1) ? executeSpecificBlock : 0;
-            int blockInitial = currentBlockOrder;
+            int blockRecall = currentBlockOrder;
+            int blockExcelGoto = blockRecall;
 
             // BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
             if (!excelDataGoto.isEmpty() && !blocksLoaded.isEmpty()) {
                 Integer parentBlockId =
                         excelDataGoto.get(excelDataGoto.size() - 1).getParentBlockId();
-                blockInitial = performActions.getBlockOrderNumber(blocksLoaded, parentBlockId) - 1;
+                blockExcelGoto = performActions.getBlockOrderNumber(blocksLoaded, parentBlockId) - 1;
             }
 
             int xExcelCurrentRow = 0;
@@ -765,8 +766,12 @@ public class EngineRunner {
                 mapLoops.clear();
                 mapRefresh.clear();
 
-                lastRecall = false;
-                currentBlockOrder = blockInitial; // start blocks from initial for this row
+                if (firstRound) {
+                    firstRound = false;
+                    currentBlockOrder = blockRecall; // start blocks from initial for this row
+                } else {
+                    currentBlockOrder = blockExcelGoto; // start blocks from initial for this row
+                }
 
                 blockLoop:
                 while (currentBlockOrder <= blocksLoaded.size() - 1 && !blocksLoaded.isEmpty() && !stopAll) {
@@ -1774,6 +1779,9 @@ public class EngineRunner {
                                             || (webElementFound == null && !forceCoordinates)) {
                                         failedMessage = "Failed execution Web Element ";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
+                                        if (resultActions.contains("PASSED")) {
+                                            resultActions = resultActions.replaceAll("PASSED", "FAIL");
+                                        }
                                         success = false;
                                     } else if (resultActions != null && success) {
                                         failedMessage = "";
@@ -1840,6 +1848,9 @@ public class EngineRunner {
                                         if (resultActions.contains("FAIL")) {
                                             failedMessage = "Failed: Operation (GetValue / SetValue) ";
                                             msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
+                                            if (resultActions.contains("PASSED")) {
+                                                resultActions = resultActions.replaceAll("PASSED", "FAIL");
+                                            }
                                             success = false;
                                         } else {
                                             failedMessage = "";
@@ -2615,7 +2626,7 @@ public class EngineRunner {
                     currentBlockOrder++;
                 }
 
-                currentBlockOrder = blockInitial; // BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
+                currentBlockOrder = blockExcelGoto; // BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
                 xExcelCurrentRow++;
                 addRowFromMap(mapExportRows);
                 if (excelFieldName != null && excelFieldName.toLowerCase().endsWith(".csv")) {
