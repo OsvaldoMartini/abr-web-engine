@@ -59,7 +59,7 @@ public class ARPropertyManager {
         } else {
             // Use application directory as default
             String appDir = System.getProperty("user.dir"); // root folder where app is running
-            configurationFileName = appDir + File.separator + "Config-4.7" + File.separator + "TESTS.config";
+            configurationFileName = appDir + File.separator + "Config-4.2" + File.separator + "TESTS.config";
 
             // Ensure directories exist
             File config = new File(configurationFileName);
@@ -163,8 +163,8 @@ public class ARPropertyManager {
 
             missingMandatoryPats();
 
-            setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.7f Beta Test");
-            setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 28/01/2026");
+            setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.2g Beta Test");
+            setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 29/01/2026");
         } catch (IOException error) {
             log.error("Error creating \"ARWeb.config\": {} -> {}", configurationFileName, error.getMessage());
             //            performMessage.errorMessage(
@@ -273,7 +273,7 @@ public class ARPropertyManager {
             setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), "54525");
             setProperty(ARPropertyEnum.PATH_ENGINE.getValue(), ARConstantsEngine.USER_PATH);
             setProperty(ARPropertyEnum.PATH_WEBDRIVER.getValue(), ARConstantsEngine.USER_PATH + "\\driver");
-            setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH + "\\appium");
+            //            setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH + "\\appium");
             setProperty(ARPropertyEnum.LOG_LEVEL.getValue(), Level.INFO.getName());
             setProperty(ARPropertyEnum.BROWSER.getValue(), ARConstantsEngine.EDGE);
             setProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC.getValue(), "60");
@@ -366,7 +366,8 @@ public class ARPropertyManager {
 
             for (String prop : missingProperties) {
                 if ("path_appium".equals(prop)) {
-                    setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH + "\\appium");
+                    //                    setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH
+                    // + "\\appium");
                 }
             }
 

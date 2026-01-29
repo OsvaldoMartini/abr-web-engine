@@ -178,15 +178,13 @@ public class PerformMessage {
                 errorMessage.getErrorHeader(),
                 errorMessage.getErrorTitle(),
                 errorMessage.getErrorMessage());
-        //        errorMessage(
-        //                errorMessage.getErrorHeader(),
-        //                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span>
-        // ❌",
-        //                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span>",
-        //                "<span style='color: #2E7D32; font-weight: bold;'>" + errorMessage.getErrorTitle() +
-        // "</span>",
-        //                "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-        //                0);
+        errorMessage(
+                errorMessage.getErrorHeader(),
+                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span>",
+                "<span style='color: #2E7D32; font-weight: bold;'>" + errorMessage.getErrorTitle() + "</span>",
+                "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                0);
     }
 
     public void errorMessage(String criteria, String msg1, String msg2, String msg3, String msg4, int height) {
