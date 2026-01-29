@@ -903,17 +903,21 @@ public class PerformActions {
 
                     if (criterias == null) continue;
 
-                    for (By criteria : criterias) {
-                        List<WebElement> elements;
-                        try {
-                            elements = getCurrentDriver().findElements(criteria);
-                        } catch (Exception ignore) {
-                            continue;
-                        }
+                    WebDriverWait wait = new WebDriverWait(getCurrentDriver(), Duration.ofSeconds(5));
 
-                        if (!elements.isEmpty()) {
-                            elementFound = elements.get(0);
-                            break;
+                    for (By criteria : criterias) {
+
+                        List<WebElement> foundElementList = new ArrayList<>();
+                        try {
+                            wait.until(ExpectedConditions.presenceOfElementLocated(criteria));
+                            foundElementList = getCurrentDriver().findElements(criteria);
+
+                            if (!foundElementList.isEmpty()) {
+                                elementFound = foundElementList.get(0);
+                                break;
+                            }
+                        } catch (TimeoutException ignored) {
+                        } catch (Exception ignored) {
                         }
                     }
                 }
