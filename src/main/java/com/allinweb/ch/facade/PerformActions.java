@@ -925,7 +925,17 @@ public class PerformActions {
 
             attempts++;
             if (elementFound == null) {
-                //                onHoldInSeconds(5);
+                try {
+                    if (isInterceptBotJob()) {
+                        break;
+                    }
+                    onHoldInSeconds(1);
+
+                    logOperations.warn(String.format(
+                            "Re-try %d Locate Web Element TagName \"%s\"", attempts, currentInstruction.getName()));
+
+                } catch (Exception e) {
+                }
             }
         }
 
