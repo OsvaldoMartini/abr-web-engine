@@ -6,6 +6,7 @@ import com.allinweb.ch.model.*;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ComboBoxVars;
+import com.allinweb.ch.util.TargetElementHelperEngine;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -19,6 +20,7 @@ import javax.websocket.*;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.openqa.selenium.WebElement;
 
 @Getter
 @Setter
@@ -40,6 +42,8 @@ public class PerformLists {
 
     private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
+    private static final TargetElementHelperEngine targetElementHelperEngine = TargetElementHelperEngine.getInstance();
+    private PerformActions performActions = PerformActions.getInstance();
     // Static final variable to hold the singleton instance
     protected static volatile PerformLists instance;
     private final Gson gson = new Gson();
@@ -66,6 +70,7 @@ public class PerformLists {
     private List<VariableUserDTO> listVariablesUser = new ArrayList<>();
     private List<ComboBoxVars> listWebPageItems = new ArrayList<>();
     private List<ParentOperations> listParentOperations = new ArrayList<>();
+    private final List<TargetElement> listTargetElements = new ArrayList<>();
 
     // Private constructor to prevent instantiation
     private PerformLists() {}
@@ -280,6 +285,13 @@ public class PerformLists {
 
             // Process the message based on its type
             switch (type) {
+                case "UPDATE_LIST_ELEMENTS":
+                    SplitDTO splitDTO = gson.fromJson(body, SplitDTO.class);
+                    splitDTO.setType("UPDATE_LIST_ELEMENTS");
+
+                    addElementsFromSplit(splitDTO);
+
+                    break;
                 case "UPDATE_BLOCKS":
                     BlockMoveDTO blockMoveDTO = gson.fromJson(body, BlockMoveDTO.class);
                     blockMoveDTO.setType("UPDATE_BLOCKS");
@@ -1406,5 +1418,25 @@ public class PerformLists {
         }
 
         return new ArrayList<>();
+    }
+
+    public void addElementsFromSplit(SplitDTO splitDTO) {
+        if (splitDTO == null || splitDTO.getElementDetails() == null) return;
+
+        targetElementHelperEngine.initialize(performActions);
+        for (ElementDTO elementDTO : splitDTO.getElementDetails()) {
+            TargetElement targetEach = targetElementHelperEngine.extractPickClone(elementDTO, null);
+
+            WebElement elementFound = performActions.findWebElement(targetEach);
+            if (targetEach.getElement() == null && elementFound != null) {
+                targetEach.setElement(elementFound);
+            }
+
+            listTargetElements.add(targetEach);
+        }
+    }
+
+    public void resetListElements() {
+        listTargetElements.clear();
     }
 }

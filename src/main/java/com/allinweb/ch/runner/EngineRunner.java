@@ -1,10 +1,7 @@
 package com.allinweb.ch.runner;
 
 import com.allinweb.ch.driver.ARWebDriver;
-import com.allinweb.ch.facade.PerformActions;
-import com.allinweb.ch.facade.PerformDBEngine;
-import com.allinweb.ch.facade.PerformLists;
-import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.facade.*;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
@@ -57,6 +54,7 @@ public class EngineRunner {
     private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformActions performActions = PerformActions.getInstance();
     private static final ARWebDriver currentARWebDriver = ARWebDriver.getInstance();
+    private static final PerformListElements performListElements = PerformListElements.getInstance();
 
     static final String EXECUTE_JOB = "execute/j";
 
@@ -717,6 +715,8 @@ public class EngineRunner {
         String resultActions = "No instruction executed yet";
         String failedMessage = "";
         Map<String, String> dataExcel = null;
+        Integer lastBlockOrderPushed = null;
+        List<InputInfo> inputs = new ArrayList<>();
 
         sessionRowStatus = "engine-perform-bot-job"; // + botJobId;
 
@@ -799,6 +799,20 @@ public class EngineRunner {
                     boolean blockActive = blocksLoaded.get(currentBlockOrder).getActive();
 
                     if (blockActive) {
+
+                        // Fire only when the block CHANGES, and only for ACTIVE blocks
+                        if (blockActive) {
+                            if (lastBlockOrderPushed == null || !lastBlockOrderPushed.equals(currentBlockOrder)) {
+                                lastBlockOrderPushed = currentBlockOrder;
+                                performLists.resetListElements();
+                                pushUpdateListElements();
+                                // Inputs-only list with inferred labels
+                                inputs.clear();
+                                inputs =
+                                        DomIntrospectionUtil.listAllRelevantElements(performActions.getCurrentDriver());
+                            }
+                        }
+
                         excelFieldName = blockLoad.getExportFile();
 
                         if (!Strings.isNullOrEmpty(excelFieldName)) {
@@ -1672,11 +1686,34 @@ public class EngineRunner {
 
                                     if (!isMobileApp) {
                                         try {
-                                            webElementFound = performActions.searchElement(
-                                                    currentInstruction,
-                                                    this.currentBotJob.getId(),
-                                                    forceCoordinates,
-                                                    byPassFlagLoop);
+                                            performActions.waitPage();
+
+                                            TargetElement matchXPath =
+                                                    InstructionLoadMatcher.findMatchingTargetElementByXPath(
+                                                            performLists.getListTargetElements(), currentInstruction);
+                                            TargetElement matchScanned = null;
+                                            InputInfo match = findMatchingInput(inputs, currentInstruction);
+
+                                            if (matchXPath == null) {
+                                                matchScanned = InstructionLoadMatcher.findMatchingTargetElement(
+                                                        performLists.getListTargetElements(), currentInstruction);
+
+                                                if (matchScanned != null) {
+                                                    InstructionLoadUpdater.applyMatchToInstruction(
+                                                            currentInstruction, matchScanned);
+                                                }
+                                            }
+                                            // VERY IMPORTANT TO VALIDAE IF THE ELEMENT IS ON TEH PAGE FIRST
+                                            if (matchXPath != null || matchScanned != null || match != null) {
+                                                webElementFound = performActions.searchElement(
+                                                        currentInstruction,
+                                                        this.currentBotJob.getId(),
+                                                        forceCoordinates,
+                                                        byPassFlagLoop);
+                                            } else {
+                                                webElementFound = null;
+                                                forceCoordinates = false;
+                                            }
                                         } catch (Exception ex) {
                                             success = false;
                                         }
@@ -2811,4 +2848,79 @@ public class EngineRunner {
     }
 
     private void appendLog(String message, String style) {}
+
+    public static InputInfo findMatchingInput(List<InputInfo> inputs, InstructionLoad currentInstruction) {
+        if (inputs == null || inputs.isEmpty() || currentInstruction == null) {
+            return null;
+        }
+
+        String instrName = normalize(currentInstruction.getName());
+        String instrTag = normalize(currentInstruction.getTagName());
+
+        for (InputInfo info : inputs) {
+            if (info == null) continue;
+
+            String inputName = normalize(info.name());
+            String inputTag = normalize(info.tag());
+
+            if (instrName.equalsIgnoreCase(inputName) && instrTag.equalsIgnoreCase(inputTag)) {
+                return info;
+            }
+        }
+
+        return null;
+    }
+
+    private static String normalize(String s) {
+        return s == null ? "" : s.trim();
+    }
+
+    private void pushUpdateListElements() {
+        if (performActions == null || performActions.getCurrentDriver() == null) return;
+
+        int finalPort = portSocketInitial;
+        String socketSessionId = "UPDATE_LIST_ELEMENTS";
+        String destinationId = "perform-list-data";
+        String[] dataArray = new String[] {"input", "textarea", "button", "a", "select", "label"};
+
+        updateListElements(
+                performActions.getCurrentDriver(),
+                dataArray,
+                finalPort,
+                socketSessionId,
+                destinationId,
+                "searchTerms",
+                this.currentBotJob.getHomeBankingId(),
+                this.currentBotJob.getId());
+    }
+
+    public void updateListElements(
+            WebDriver driver,
+            String[] dataArray,
+            int port,
+            String sessionId,
+            String destinationId,
+            String operationId,
+            int homeBankingId,
+            int botJobId) {
+        // "UPDATE_LIST_ELEMENTS", "perform-list-data", "searchTerms"
+        ErrorMessage errorMessage = performListElements.dynamicLoadElementsDTO(
+                driver,
+                dataArray,
+                searchHiddenFields,
+                port,
+                sessionId,
+                destinationId,
+                operationId,
+                homeBankingId,
+                botJobId);
+
+        if (errorMessage != null) {
+            logOperations.error(
+                    "Error: Dynamic Pick One Clone ElementsDTO - {} - {} - {}",
+                    errorMessage.getErrorTitle(),
+                    errorMessage.getErrorHeader(),
+                    errorMessage.getErrorMessage());
+        }
+    }
 }
