@@ -1,5 +1,7 @@
 package com.allinweb.ch.model;
 
+import com.allinweb.ch.util.BooleanAsStringAdapter;
+import com.google.gson.annotations.JsonAdapter;
 import java.util.Arrays;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -21,8 +23,13 @@ public class ElementDTO {
     private String customXPath;
     private String iFrameXPath;
     private String shadowHost;
+
+    @JsonAdapter(BooleanAsStringAdapter.class)
     private String shadowRoot;
+
+    @JsonAdapter(BooleanAsStringAdapter.class)
     private String nestedShadow;
+
     private String cssSelector;
     private String attributeValue;
     private String attributeType;

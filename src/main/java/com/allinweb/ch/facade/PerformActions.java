@@ -1090,28 +1090,18 @@ public class PerformActions {
         UtilsMethods.exceptionIfNullWebElement(element);
 
         try {
-            // short wait only for this interaction (e.g. 5 seconds)
-            WebDriverWait quickWait = new WebDriverWait(this.currentDriver, Duration.ofSeconds(5));
-            quickWait.pollingEvery(Duration.ofMillis(200));
-            quickWait.ignoring(StaleElementReferenceException.class);
-            quickWait.ignoring(ElementClickInterceptedException.class);
-
-            // wait visible (short), then scroll, then clickable (short)
-            quickWait.until(ExpectedConditions.visibilityOf(element));
-            ((JavascriptExecutor) this.currentDriver)
-                    .executeScript("arguments[0].scrollIntoView({block:'center'});", element);
-            quickWait.until(ExpectedConditions.elementToBeClickable(element));
-
-        } catch (TimeoutException e) {
-            logOperations.warn(String.format(
-                    "Timeout waiting clickable for tag \"%s\" after 5s -> %s", safeTag(element), e.getMessage()));
-            if (!byPassNotFound) performMessage.couldNotFindElement(safeTag(element));
-            return false;
-
+            waitForAction.until(ExpectedConditions.visibilityOf(element).andThen(e -> {
+                ((JavascriptExecutor) this.currentDriver).executeScript("arguments[0].scrollIntoView(true);", element);
+                return waitForAction.until(ExpectedConditions.elementToBeClickable(element));
+            }));
         } catch (Exception e) {
+
             logOperations.warn(
-                    String.format("Could Not Find TagName \"%s\" -> Cause: %s", safeTag(element), e.getMessage()));
-            if (!byPassNotFound) performMessage.couldNotFindElement(safeTag(element));
+                    String.format("Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
+
+            if (!byPassNotFound) {
+                performMessage.couldNotFindElement(element.getTagName());
+            }
             return false;
         }
 

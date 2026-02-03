@@ -20,7 +20,6 @@ import javax.websocket.*;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.openqa.selenium.WebElement;
 
 @Getter
 @Setter
@@ -1426,11 +1425,6 @@ public class PerformLists {
         targetElementHelperEngine.initialize(performActions);
         for (ElementDTO elementDTO : splitDTO.getElementDetails()) {
             TargetElement targetEach = targetElementHelperEngine.extractPickClone(elementDTO, null);
-
-            WebElement elementFound = performActions.findWebElement(targetEach);
-            if (targetEach.getElement() == null && elementFound != null) {
-                targetEach.setElement(elementFound);
-            }
 
             listTargetElements.add(targetEach);
         }

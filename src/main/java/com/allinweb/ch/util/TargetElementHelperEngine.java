@@ -554,10 +554,10 @@ public class TargetElementHelperEngine {
     public TargetElement extractPickClone(ElementDTO elementDTO, String ignore) {
         TargetElement targetLocal = defineSearchReturn(elementDTO, null);
 
-        WebElement elementFound = performActions.findWebElement(targetLocal);
-        if (targetLocal.getElement() == null && elementFound != null) {
-            targetLocal.setElement(elementFound);
-        }
+        //        WebElement elementFound = performActions.findWebElement(targetLocal);
+        //        if (targetLocal.getElement() == null && elementFound != null) {
+        //            targetLocal.setElement(elementFound);
+        //        }
 
         // Save references for different coordinate strategies
         // 3 Different Coordinates // Original from JavaScript  // WebDriver Selenium ElementFound
@@ -566,7 +566,7 @@ public class TargetElementHelperEngine {
         performActions.defineSavedReferenced(targetLocal);
 
         // Define tag name/title
-        targetLocal = defineNameTitles(targetLocal);
+        //        targetLocal = defineNameTitles(targetLocal);
 
         // Validate Shadow DOM or regular CSS selectors
         if (Strings.isNullOrEmpty(targetLocal.getShadowHost()) && Strings.isNullOrEmpty(targetLocal.getCssSelector())) {

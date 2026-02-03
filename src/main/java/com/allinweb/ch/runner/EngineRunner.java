@@ -716,7 +716,7 @@ public class EngineRunner {
         String failedMessage = "";
         Map<String, String> dataExcel = null;
         Integer lastBlockOrderPushed = null;
-        List<InputInfo> inputs = new ArrayList<>();
+        //        List<InputInfo> inputs = new ArrayList<>();
 
         sessionRowStatus = "engine-perform-bot-job"; // + botJobId;
 
@@ -801,16 +801,18 @@ public class EngineRunner {
                     if (blockActive) {
 
                         // Fire only when the block CHANGES, and only for ACTIVE blocks
-                        if (blockActive) {
-                            if (lastBlockOrderPushed == null || !lastBlockOrderPushed.equals(currentBlockOrder)) {
-                                lastBlockOrderPushed = currentBlockOrder;
-                                performLists.resetListElements();
-                                pushUpdateListElements();
-                                // Inputs-only list with inferred labels
-                                inputs.clear();
-                                inputs =
-                                        DomIntrospectionUtil.listAllRelevantElements(performActions.getCurrentDriver());
-                            }
+                        if (lastBlockOrderPushed == null || !lastBlockOrderPushed.equals(currentBlockOrder)) {
+                            performActions.waitPage();
+                            lastBlockOrderPushed = currentBlockOrder;
+                            performLists.resetListElements();
+                            pushUpdateListElements();
+                            logOperations.info("Total Taget Elements: "
+                                    + performLists.getListTargetElements().size());
+
+                            // Inputs-only list with inferred labels
+                            //                            inputs.clear();
+                            //                            inputs =
+                            // DomIntrospectionUtil.listAllRelevantElements(performActions.getCurrentDriver());
                         }
 
                         excelFieldName = blockLoad.getExportFile();
@@ -1692,7 +1694,8 @@ public class EngineRunner {
                                                     InstructionLoadMatcher.findMatchingTargetElementByXPath(
                                                             performLists.getListTargetElements(), currentInstruction);
                                             TargetElement matchScanned = null;
-                                            InputInfo match = findMatchingInput(inputs, currentInstruction);
+                                            //                                            InputInfo match =
+                                            // findMatchingInput(inputs, currentInstruction);
 
                                             if (matchXPath == null) {
                                                 matchScanned = InstructionLoadMatcher.findMatchingTargetElement(
@@ -1704,16 +1707,17 @@ public class EngineRunner {
                                                 }
                                             }
                                             // VERY IMPORTANT TO VALIDAE IF THE ELEMENT IS ON TEH PAGE FIRST
-                                            if (matchXPath != null || matchScanned != null || match != null) {
-                                                webElementFound = performActions.searchElement(
-                                                        currentInstruction,
-                                                        this.currentBotJob.getId(),
-                                                        forceCoordinates,
-                                                        byPassFlagLoop);
-                                            } else {
-                                                webElementFound = null;
-                                                forceCoordinates = false;
-                                            }
+                                            //                                            if (matchXPath != null ||
+                                            // matchScanned != null || match != null) {
+                                            webElementFound = performActions.searchElement(
+                                                    currentInstruction,
+                                                    this.currentBotJob.getId(),
+                                                    forceCoordinates,
+                                                    byPassFlagLoop);
+                                            //                                            } else {
+                                            //                                                webElementFound = null;
+                                            //                                                forceCoordinates = false;
+                                            //                                            }
                                         } catch (Exception ex) {
                                             success = false;
                                         }
