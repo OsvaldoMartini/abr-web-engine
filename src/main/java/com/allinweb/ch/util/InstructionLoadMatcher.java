@@ -2,6 +2,7 @@ package com.allinweb.ch.util;
 
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.TargetElement;
+import com.google.common.base.Strings;
 import java.util.List;
 
 public final class InstructionLoadMatcher {
@@ -18,17 +19,34 @@ public final class InstructionLoadMatcher {
         }
 
         String targetXPath = normalize(currentInstruction.getXpath());
-
         if (isBlank(targetXPath)) {
             return null;
         }
 
+        boolean isShadowInstruction = !Strings.isNullOrEmpty(currentInstruction.getShadowHost())
+                && !Strings.isNullOrEmpty(currentInstruction.getCssSelector());
+
+        // Only needed if shadow instruction
+        String targetCssSelector = isShadowInstruction ? normalize(currentInstruction.getCssSelector()) : null;
+
         for (TargetElement el : currentElements) {
             if (el == null) continue;
 
-            if (equalsIgnoreIgnoreBlank(targetXPath, el.getXPath())) {
-                return el;
+            // 1) XPath must always match
+            if (!equalsIgnoreIgnoreBlank(targetXPath, el.getXPath())) {
+                continue;
             }
+
+            // 2) If shadow instruction, also require CSS selector match
+            if (isShadowInstruction) {
+                if (equalsIgnoreIgnoreBlank(targetCssSelector, el.getCssSelector())) {
+                    return el;
+                }
+                continue;
+            }
+
+            // Non-shadow: XPath match is enough
+            return el;
         }
 
         return null;

@@ -18,11 +18,17 @@ public final class InstructionLoadUpdater {
         if (currentInstruction == null || matchScanned == null) return;
 
         // 1) Update xpath
-        // Choose the field you want to use as source:
         String newXpath = pickXpath(matchScanned);
         if (newXpath != null && !newXpath.trim().isEmpty()) {
             currentInstruction.setXpath(newXpath.trim());
         }
+
+        // 1b) IMPORTANT: Update iFrame / shadow / cssSelector fields
+        // (only overwrite when scanned value is non-blank)
+        setIfNotBlank(currentInstruction::setIFrameXPath, matchScanned.getIFrameXPath());
+        setIfNotBlank(currentInstruction::setShadowHost, matchScanned.getShadowHost());
+        setIfNotBlank(currentInstruction::setShadowRoot, matchScanned.getShadowRoot());
+        setIfNotBlank(currentInstruction::setCssSelector, matchScanned.getCssSelector());
 
         // 2) Update ReferenceLoadDTO list from savedReferences map
         Map<String, String> saved = matchScanned.getSavedReferences();
@@ -34,7 +40,6 @@ public final class InstructionLoadUpdater {
             currentInstruction.setReferenceLoadDTOList(refs);
         }
 
-        // Index existing by referenceType (case-sensitive; change to lower-case if you want)
         Map<String, ReferenceLoadDTO> byType = new HashMap<>();
         for (ReferenceLoadDTO r : refs) {
             if (r == null) continue;
@@ -49,13 +54,11 @@ public final class InstructionLoadUpdater {
 
             ReferenceLoadDTO existing = byType.get(type);
             if (existing != null) {
-                // update existing
                 existing.setValue(value);
                 existing.setInstructionId(currentInstruction.getId());
                 existing.setHomeBankingId(currentInstruction.getHomeBankingId());
                 existing.setBotJobId(currentInstruction.getBotJobId());
             } else {
-                // create new
                 ReferenceLoadDTO r = new ReferenceLoadDTO();
                 r.setReferenceType(type);
                 r.setValue(value);
@@ -64,6 +67,16 @@ public final class InstructionLoadUpdater {
                 r.setBotJobId(currentInstruction.getBotJobId());
                 refs.add(r);
             }
+        }
+    }
+
+    /** Helper: only set target if value is not null/blank. */
+    private static void setIfNotBlank(java.util.function.Consumer<String> setter, String value) {
+        if (setter == null) return;
+        if (value == null) return;
+        String v = value.trim();
+        if (!v.isEmpty()) {
+            setter.accept(v);
         }
     }
 

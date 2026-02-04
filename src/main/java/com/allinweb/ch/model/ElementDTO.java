@@ -12,6 +12,9 @@ public class ElementDTO {
     private Integer id;
     private String typeElement;
     private String tagName;
+    private String nameLabel;
+    private String nameField;
+    private String definedName;
     private String xPath;
     private String someText;
     private String attribId;

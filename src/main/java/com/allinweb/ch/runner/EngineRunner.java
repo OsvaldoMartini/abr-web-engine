@@ -716,6 +716,8 @@ public class EngineRunner {
         String failedMessage = "";
         Map<String, String> dataExcel = null;
         Integer lastBlockOrderPushed = null;
+        TargetElement matchScanned = null;
+        TargetElement matchXPath = null;
         //        List<InputInfo> inputs = new ArrayList<>();
 
         sessionRowStatus = "engine-perform-bot-job"; // + botJobId;
@@ -1690,10 +1692,9 @@ public class EngineRunner {
                                         try {
                                             performActions.waitPage();
 
-                                            TargetElement matchXPath =
-                                                    InstructionLoadMatcher.findMatchingTargetElementByXPath(
-                                                            performLists.getListTargetElements(), currentInstruction);
-                                            TargetElement matchScanned = null;
+                                            matchXPath = InstructionLoadMatcher.findMatchingTargetElementByXPath(
+                                                    performLists.getListTargetElements(), currentInstruction);
+                                            matchScanned = null;
                                             //                                            InputInfo match =
                                             // findMatchingInput(inputs, currentInstruction);
 
@@ -1706,6 +1707,7 @@ public class EngineRunner {
                                                             currentInstruction, matchScanned);
                                                 }
                                             }
+
                                             // VERY IMPORTANT TO VALIDAE IF THE ELEMENT IS ON TEH PAGE FIRST
                                             //                                            if (matchXPath != null ||
                                             // matchScanned != null || match != null) {
@@ -1767,28 +1769,40 @@ public class EngineRunner {
                                         //                                        }
                                     }
 
-                                    if (webElementFound == null && forceCoordinates && !isMobileApp) {
-
-                                        Boolean pressEnterAfter = false;
-                                        if (actions[0].equals(ARConstantsEngine.INSERT)
-                                                && actions[1].equals(ARConstantsEngine.ENTER)) {
-                                            pressEnterAfter = true;
-                                        }
-                                        if (actions[0].equalsIgnoreCase(ARConstantsEngine.VISUALIZE)
-                                                || actions[0].equalsIgnoreCase(ARConstantsEngine.CLICK)
-                                                || actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT)) {
-
-                                            List<WebElement> smartSearch = performActions.findBySmartLocator(
-                                                    currentInstruction.getCssSelector());
-                                            if (!smartSearch.isEmpty()) {
-                                                success = performActions.executeActionsAtCoordinates(
-                                                        mapSavedLocators.get("coordinates"),
-                                                        fieldData,
-                                                        actions[0],
-                                                        pressEnterAfter);
-                                            }
-                                        }
-                                    }
+                                    // VERY IMPORTANT FORCE COORDINATES
+                                    // FORCE COORDINATES COMMENTED
+                                    //                                    if (webElementFound == null &&
+                                    // forceCoordinates && !isMobileApp) {
+                                    //
+                                    //                                        Boolean pressEnterAfter = false;
+                                    //                                        if
+                                    // (actions[0].equals(ARConstantsEngine.INSERT)
+                                    //                                                &&
+                                    // actions[1].equals(ARConstantsEngine.ENTER)) {
+                                    //                                            pressEnterAfter = true;
+                                    //                                        }
+                                    //                                        if
+                                    // (actions[0].equalsIgnoreCase(ARConstantsEngine.VISUALIZE)
+                                    //                                                ||
+                                    // actions[0].equalsIgnoreCase(ARConstantsEngine.CLICK)
+                                    //                                                ||
+                                    // actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT)) {
+                                    //
+                                    //                                            List<WebElement> smartSearch =
+                                    // performActions.findBySmartLocator(
+                                    //
+                                    // currentInstruction.getCssSelector());
+                                    //                                            if (!smartSearch.isEmpty()) {
+                                    //                                                success =
+                                    // performActions.executeActionsAtCoordinates(
+                                    //
+                                    // mapSavedLocators.get("coordinates"),
+                                    //                                                        fieldData,
+                                    //                                                        actions[0],
+                                    //                                                        pressEnterAfter);
+                                    //                                            }
+                                    //                                        }
+                                    //                                    }
 
                                     byPassNotFound = byPassFlagLoop
                                             || !currentCondition.equals(ARExecution.ConditionStatus.NONE);
@@ -1817,6 +1831,7 @@ public class EngineRunner {
                                     // Special Cases for Select Responses
                                     // It could be Improved the case
                                     if (resultActions.contains("FAIL")
+                                            || (matchXPath == null && matchScanned == null && webElementFound == null)
                                             || (webElementFound == null && !forceCoordinates)) {
                                         failedMessage = "Failed execution Web Element ";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);

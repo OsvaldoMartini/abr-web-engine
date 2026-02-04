@@ -288,7 +288,7 @@ public class PerformLists {
                     SplitDTO splitDTO = gson.fromJson(body, SplitDTO.class);
                     splitDTO.setType("UPDATE_LIST_ELEMENTS");
 
-                    addElementsFromSplit(splitDTO);
+                    addElementsFromSplit(List.of(splitDTO.getElementDetails()));
 
                     break;
                 case "UPDATE_BLOCKS":
@@ -1419,12 +1419,11 @@ public class PerformLists {
         return new ArrayList<>();
     }
 
-    public void addElementsFromSplit(SplitDTO splitDTO) {
-        if (splitDTO == null || splitDTO.getElementDetails() == null) return;
+    public void addElementsFromSplit(List<ElementDTO> elemestDetails) {
 
         targetElementHelperEngine.initialize(performActions);
-        for (ElementDTO elementDTO : splitDTO.getElementDetails()) {
-            TargetElement targetEach = targetElementHelperEngine.extractPickClone(elementDTO, null);
+        for (ElementDTO elementDTO : elemestDetails) {
+            TargetElement targetEach = targetElementHelperEngine.extractPickClone(elementDTO, false);
 
             listTargetElements.add(targetEach);
         }
