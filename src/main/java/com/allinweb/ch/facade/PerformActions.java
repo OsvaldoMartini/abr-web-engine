@@ -4059,7 +4059,7 @@ public class PerformActions {
             savedReferences.put("coordinates", newCoordinates);
             targetRefs.setCoordinates(newCoordinates);
         } catch (Exception coords) {
-            logOperations.error("Invalid coordinates from WebDriver Selenium");
+            //            logOperations.error("Invalid coordinates from WebDriver Selenium");
         }
 
         String[] parts = targetRefs.getCoordinates().split(",");
@@ -4082,7 +4082,8 @@ public class PerformActions {
             // Computed
             savedReferences.put("cp_coordinates", newCoordinates);
         } catch (NumberFormatException e) {
-            logOperations.error("Invalid coordinates from Javascript code: " + targetRefs.getCoordinates());
+            //            logOperations.error("Invalid coordinates from Javascript code: " +
+            // targetRefs.getCoordinates());
         }
     }
 
