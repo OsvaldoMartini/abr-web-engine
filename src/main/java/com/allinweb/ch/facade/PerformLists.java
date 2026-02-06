@@ -6,7 +6,7 @@ import com.allinweb.ch.model.*;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ComboBoxVars;
-import com.allinweb.ch.util.TargetElementHelperEngine;
+import com.allinweb.ch.util.TargetElementHelper;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -41,7 +41,7 @@ public class PerformLists {
 
     private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
-    private static final TargetElementHelperEngine targetElementHelperEngine = TargetElementHelperEngine.getInstance();
+    private static final TargetElementHelper targetElementHelper = TargetElementHelper.getInstance();
     private PerformActions performActions = PerformActions.getInstance();
     // Static final variable to hold the singleton instance
     protected static volatile PerformLists instance;
@@ -1421,9 +1421,9 @@ public class PerformLists {
 
     public void addElementsFromSplit(List<ElementDTO> elemestDetails) {
 
-        targetElementHelperEngine.initialize(performActions);
+        targetElementHelper.initialize(performActions);
         for (ElementDTO elementDTO : elemestDetails) {
-            TargetElement targetEach = targetElementHelperEngine.extractPickClone(elementDTO, false);
+            TargetElement targetEach = targetElementHelper.extractPickClone(elementDTO, null);
 
             listTargetElements.add(targetEach);
         }
