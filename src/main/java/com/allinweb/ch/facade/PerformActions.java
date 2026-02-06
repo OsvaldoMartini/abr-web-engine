@@ -3962,6 +3962,7 @@ public class PerformActions {
         addAttributeIfNotNull(savedReferences, "attributeName", targetRefs.getAttribName());
         addAttributeIfNotNull(savedReferences, "searchAttribute", targetRefs.getSearchAttributeValue());
         addAttributeIfNotNull(savedReferences, "attribute", targetRefs.getAttributeValue());
+        addAttributeIfNotNull(savedReferences, "someText", targetRefs.getSomeText());
 
         // --- best locator extraction (from attributeData first, then fall back to attribId/attribName) ---
         AttributeData[] attrs = targetRefs.getAttributeData();
