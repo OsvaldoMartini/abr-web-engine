@@ -4,6 +4,7 @@ import com.allinweb.ch.model.AttributeData;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.TargetElement;
 import com.google.common.base.Strings;
+import java.util.ArrayList;
 import java.util.List;
 
 public final class InstructionLoadMatcher {
@@ -62,7 +63,7 @@ public final class InstructionLoadMatcher {
         }
 
         String targetName = normalize(currentInstruction.getName());
-        String tagName = normalize(currentInstruction.getTagName());
+        String instrTagName = normalize(currentInstruction.getTagName());
         String action = normalize(currentInstruction.getActions());
 
         // Nothing meaningful to match
@@ -70,36 +71,45 @@ public final class InstructionLoadMatcher {
             return null;
         }
 
-        // 1) Action-aware primary match (definedName + allowed tagName by action)
+        // 0) Optional: pre-filter by allowed tags for action (reduces noise early)
+        List<TargetElement> candidates = new ArrayList<>();
         for (TargetElement el : currentElements) {
             if (el == null) continue;
-
-            if (!equalsIgnoreIgnoreBlank(targetName, el.getDefinedName())) {
-                continue;
-            }
-
             String elTag = normalize(el.getTagName());
-
-            // Apply tagName rules only for the first match
-            if (isAllowedTagForAction(action, tagName, elTag)) {
-                return el;
+            if (isAllowedTagForAction(action, instrTagName, elTag)) {
+                candidates.add(el);
             }
         }
+        if (candidates.isEmpty()) return null;
 
-        // Only By Defined Name
-        for (TargetElement el : currentElements) {
-            if (el == null) continue;
+        // 1) someText exact match + allowed tagName by action
+        // (attributeData OR el.getSomeText if you have it)
+
+        for (TargetElement el : candidates) {
+
+            if (equalsIgnoreIgnoreBlank(targetName, el.getSomeText())) {
+                return el;
+            }
 
             if (equalsIgnoreIgnoreBlank(targetName, el.getDefinedName())) {
                 return el;
             }
+            if (hasSomeTextAttribute(el, targetName)) {
+                return el;
+            }
+            // If your TargetElement has a direct someText field, also check it:
+            // if (equalsNormalized(el.getSomeText(), targetName)) return el;
         }
 
-        // Searches as Field "someText"
+        // Searches First as "someText" after as "Defined Name"
         for (TargetElement el : currentElements) {
             if (el == null) continue;
 
             if (equalsIgnoreIgnoreBlank(targetName, el.getSomeText())) {
+                return el;
+            }
+
+            if (equalsIgnoreIgnoreBlank(targetName, el.getDefinedName())) {
                 return el;
             }
         }

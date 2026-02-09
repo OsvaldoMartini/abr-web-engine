@@ -367,25 +367,62 @@ public class EngineRunner {
     }
 
     private int handleGreaterThan(String value1, String value2) {
+        double num1 = parseValueGreaterThan(clean(value1), true);
+        double num2 = parseValueGreaterThan(clean(value2), false);
+
+        return num1 > num2 ? 1 : 0;
+    }
+
+    private double parseValueGreaterThan(String value, boolean isValue1) {
+        // Handle EMPTY markers
+        if (value == null || "$EMPTY".equalsIgnoreCase(value) || "#EMPTY".equalsIgnoreCase(value)) {
+            return Double.MIN_VALUE;
+        }
+
         try {
-            double num1 = Double.parseDouble(value1);
-            double num2 = Double.parseDouble(value2);
-            return num1 > num2 ? 1 : 0;
+            return Double.parseDouble(value);
         } catch (NumberFormatException e) {
-            // Handle non-numeric values (e.g., log an error, return false)
-            return -1; // Or throw an exception
+            if (isValue1) {
+                logOperations.warn("Invalid numeric value for value1: " + value);
+                return Double.MIN_VALUE;
+            } else {
+                logOperations.warn("Invalid numeric value for value2: " + value);
+                return Double.MAX_VALUE;
+            }
         }
     }
 
     private int handleLessThan(String value1, String value2) {
-        try {
-            double num1 = Double.parseDouble(value1);
-            double num2 = Double.parseDouble(value2);
-            return num1 < num2 ? 1 : 0;
-        } catch (NumberFormatException e) {
-            // Handle non-numeric values
-            return -1; // Or throw an exception
+        double num1 = parseValueForLessThan(clean(value1), true);
+        double num2 = parseValueForLessThan(clean(value2), false);
+
+        return num1 < num2 ? 1 : 0;
+    }
+
+    private double parseValueForLessThan(String value, boolean isValue1) {
+        // Handle EMPTY markers
+        if (value == null || "$EMPTY".equalsIgnoreCase(value) || "#EMPTY".equalsIgnoreCase(value)) {
+            return Double.MAX_VALUE;
         }
+
+        try {
+            return Double.parseDouble(value);
+        } catch (NumberFormatException e) {
+            if (isValue1) {
+                logOperations.warn("Invalid numeric value for value1: {}", value);
+                return Double.MAX_VALUE;
+            } else {
+                logOperations.warn("Invalid numeric value for value2: {}", value);
+                return Double.MIN_VALUE;
+            }
+        }
+    }
+
+    private String clean(String value) {
+        if (value == null) {
+            return null;
+        }
+        return value.replace(".", "").replace(",", "");
     }
 
     private String finalLogMessage(String failedMessage, String resultActions) {
