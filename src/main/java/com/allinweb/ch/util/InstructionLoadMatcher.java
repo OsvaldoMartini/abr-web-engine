@@ -94,6 +94,17 @@ public final class InstructionLoadMatcher {
             if (equalsIgnoreIgnoreBlank(targetName, el.getDefinedName())) {
                 return el;
             }
+
+            // Contains with someText
+            if (containsIgnoreCase(el.getSomeText(), targetName)) {
+                return el;
+            }
+
+            // Contains with definedName
+            if (containsIgnoreCase(el.getDefinedName(), targetName)) {
+                return el;
+            }
+
             if (hasSomeTextAttribute(el, targetName)) {
                 return el;
             }
@@ -110,6 +121,16 @@ public final class InstructionLoadMatcher {
             }
 
             if (equalsIgnoreIgnoreBlank(targetName, el.getDefinedName())) {
+                return el;
+            }
+
+            // Contains with someText
+            if (containsIgnoreCase(el.getSomeText(), targetName)) {
+                return el;
+            }
+
+            // Contains with definedName
+            if (containsIgnoreCase(el.getDefinedName(), targetName)) {
                 return el;
             }
         }
