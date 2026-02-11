@@ -21,8 +21,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.IntStream;
 import lombok.extern.slf4j.Slf4j;
+import org.openqa.selenium.By;
+import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,6 +60,7 @@ public class EngineRunner {
     private static final PerformActions performActions = PerformActions.getInstance();
     private static final ARWebDriver currentARWebDriver = ARWebDriver.getInstance();
     private static final PerformListElements performListElements = PerformListElements.getInstance();
+    WebDriverWait waitXPath = null;
 
     static final String EXECUTE_JOB = "execute/j";
 
@@ -757,12 +761,13 @@ public class EngineRunner {
         Integer lastBlockOrderPushed = null;
         TargetElement matchScanned = null;
         TargetElement matchXPath = null;
+        WebElement webElementFound = null;
         //        List<InputInfo> inputs = new ArrayList<>();
 
         sessionRowStatus = "engine-perform-bot-job"; // + botJobId;
 
         variablesLoaded = performLists.getListVariable();
-        Map<String, String> mapSavedLocators = new HashMap<>();
+        //        Map<String, String> mapSavedLocators = new HashMap<>();
 
         Set<Integer> parentIdsForLoop = null;
         Set<Integer> allOutPuts = null;
@@ -792,11 +797,24 @@ public class EngineRunner {
             if (!excelDataGoto.isEmpty() && !blocksLoaded.isEmpty()) {
                 Integer parentBlockId =
                         excelDataGoto.get(excelDataGoto.size() - 1).getParentBlockId();
+                excelDataGoto
+                        .get(0)
+                        .setParentBlockId(excelDataGoto.get(0).getBlockId()); // overwrite/fix using block table
+
                 blockExcelGoto = performActions.getBlockOrderNumber(blocksLoaded, parentBlockId) - 1;
+
+                // PREVENTID  LATGER DELETION
+                if (blockExcelGoto < 0) {
+                    blockExcelGoto = (excelDataGoto.get(0).getBlockOrderNumber() == null
+                                    || excelDataGoto.get(0).getBlockOrderNumber() <= 0)
+                            ? 1
+                            : excelDataGoto.get(0).getBlockOrderNumber();
+                }
             }
 
             int xExcelCurrentRow = 0;
             int xExcelDataSize = extractedData.getNumberOfDataRows();
+            mapOperators.clear();
             mapExportRows = new LinkedHashMap<>();
             headersExport.clear();
             columnsCSV.clear();
@@ -1056,32 +1074,6 @@ public class EngineRunner {
                             InstructionLoad currentInstruction =
                                     blockLoad.getInstructionLoad().get(currentIndex);
 
-                            // Fire on FIRST page load OR when the INSTRUCTION changes
-                            // and only for web-element work (INPUT / OUTPUT / CLICK)
-                            if (isWebElementInstruction(currentInstruction)) {
-
-                                Integer currentInstructionId = currentInstruction.getId();
-
-                                if (!firstPageLoadDone
-                                        || lastInstructionIdPushed == null
-                                        || !lastInstructionIdPushed.equals(currentInstructionId)) {
-
-                                    performActions.waitPage();
-                                    firstPageLoadDone = true;
-                                    lastInstructionIdPushed = currentInstructionId;
-
-                                    performLists.resetListElements();
-                                    pushUpdateListElements();
-
-                                    logOperations.info("Total Target Elements: "
-                                            + performLists
-                                                    .getListTargetElements()
-                                                    .size());
-
-                                    // runYourScript(currentInstructionId);
-                                }
-                            }
-
                             byPassFlagLoop = parentIdsForLoop.contains(currentInstruction.getId());
 
                             mainMsg =
@@ -1114,15 +1106,49 @@ public class EngineRunner {
                                 continue;
                             }
 
-                            mapSavedLocators.clear();
+                            // FIRST IMMEDIATE ATTEMPT TO LOCATE
+                            if (isWebElementInstruction(currentInstruction)) {
+                                webElementFound = immediateXPath(currentInstruction.getXpath());
+                            }
 
-                            // Loop through the instructionReferenceLoadDTOList
-                            if (currentInstruction.getReferenceLoadDTOList() != null) {
-                                for (ReferenceLoadDTO reference : currentInstruction.getReferenceLoadDTOList()) {
-                                    // Populate the map with referenceType as the key and value as the value
-                                    mapSavedLocators.put(reference.getReferenceType(), reference.getValue());
+                            // Fire on FIRST page load OR when the INSTRUCTION changes
+                            // and only for web-element work (INPUT / OUTPUT / CLICK / GET / SET)
+                            if (isWebElementInstruction(currentInstruction) && webElementFound == null) {
+
+                                Integer currentInstructionId = currentInstruction.getId();
+
+                                if (!firstPageLoadDone
+                                        || lastInstructionIdPushed == null
+                                        || !lastInstructionIdPushed.equals(currentInstructionId)) {
+
+                                    performActions.waitPage();
+                                    firstPageLoadDone = true;
+                                    lastInstructionIdPushed = currentInstructionId;
+
+                                    performLists.resetListElements();
+                                    pushUpdateListElements();
+
+                                    logOperations.info("Total Target Elements: "
+                                            + performLists
+                                                    .getListTargetElements()
+                                                    .size());
+
+                                    // runYourScript(currentInstructionId);
                                 }
                             }
+
+                            //                            mapSavedLocators.clear();
+                            //
+                            //                            // Loop through the instructionReferenceLoadDTOList
+                            //                            if (currentInstruction.getReferenceLoadDTOList() != null) {
+                            //                                for (ReferenceLoadDTO reference :
+                            // currentInstruction.getReferenceLoadDTOList()) {
+                            //                                    // Populate the map with referenceType as the key and
+                            // value as the value
+                            //                                    mapSavedLocators.put(reference.getReferenceType(),
+                            // reference.getValue());
+                            //                                }
+                            //                            }
 
                             currentIndex++;
 
@@ -1757,44 +1783,54 @@ public class EngineRunner {
                                     FieldData fieldData = performActions.extractFieldData(
                                             dataExcel, actions, defaultValue, currentInstruction.getCodified());
 
-                                    WebElement webElementFound = null;
+                                    //                                    webElementFound = null;
                                     boolean forceCoordinates = currentInstruction.getForceCoordinates() != null
                                             && currentInstruction.getForceCoordinates();
 
                                     if (!isMobileApp) {
-                                        try {
-                                            performActions.waitPage();
 
-                                            matchXPath = InstructionLoadMatcher.findMatchingTargetElementByXPath(
-                                                    performLists.getListTargetElements(), currentInstruction);
-                                            matchScanned = null;
-                                            //                                            InputInfo match =
-                                            // findMatchingInput(inputs, currentInstruction);
+                                        if (isWebElementInstruction(currentInstruction) && webElementFound == null) {
+                                            try {
+                                                performActions.waitPage();
 
-                                            if (matchXPath == null) {
-                                                matchScanned = InstructionLoadMatcher.findMatchingTargetElement(
+                                                matchXPath = InstructionLoadMatcher.findMatchingTargetElementByXPath(
                                                         performLists.getListTargetElements(), currentInstruction);
+                                                matchScanned = null;
+                                                //                                            InputInfo match =
+                                                // findMatchingInput(inputs, currentInstruction);
 
-                                                if (matchScanned != null) {
-                                                    InstructionLoadUpdater.applyMatchToInstruction(
-                                                            currentInstruction, matchScanned);
+                                                if (matchXPath == null) {
+                                                    matchScanned = InstructionLoadMatcher.findMatchingTargetElement(
+                                                            performLists.getListTargetElements(), currentInstruction);
+
+                                                    if (matchScanned != null) {
+                                                        InstructionLoadUpdater.applyMatchToInstruction(
+                                                                currentInstruction, matchScanned);
+
+                                                        // SECOND IMMEDIATE ATTEMPT TO LOCATE
+                                                        webElementFound = immediateXPath(matchScanned.getXPath());
+                                                    }
                                                 }
-                                            }
 
-                                            // VERY IMPORTANT TO VALIDAE IF THE ELEMENT IS ON TEH PAGE FIRST
-                                            //                                            if (matchXPath != null ||
-                                            // matchScanned != null || match != null) {
-                                            webElementFound = performActions.searchElement(
-                                                    currentInstruction,
-                                                    this.currentBotJob.getId(),
-                                                    forceCoordinates,
-                                                    byPassFlagLoop);
-                                            //                                            } else {
-                                            //                                                webElementFound = null;
-                                            //                                                forceCoordinates = false;
-                                            //                                            }
-                                        } catch (Exception ex) {
-                                            success = false;
+                                                // VERY IMPORTANT TO VALIDAE IF THE ELEMENT IS ON TEH PAGE FIRST
+                                                //                                            if (matchXPath != null ||
+                                                // matchScanned != null || match != null) {
+                                                if (webElementFound == null) {
+                                                    webElementFound = performActions.searchElement(
+                                                            currentInstruction,
+                                                            this.currentBotJob.getId(),
+                                                            forceCoordinates,
+                                                            byPassFlagLoop);
+                                                }
+                                                //                                            } else {
+                                                //                                                webElementFound =
+                                                // null;
+                                                //                                                forceCoordinates =
+                                                // false;
+                                                //                                            }
+                                            } catch (Exception ex) {
+                                                success = false;
+                                            }
                                         }
                                     } else {
                                         // Safely extract the first element ID (if present)
@@ -1884,7 +1920,7 @@ public class EngineRunner {
 
                                         success = performActions.performWebActions(
                                                 byPassNotFound,
-                                                mapSavedLocators.get("coordinates"),
+                                                "coordinates",
                                                 fieldData,
                                                 currentInstruction,
                                                 mapOperators,
@@ -1939,7 +1975,7 @@ public class EngineRunner {
                                         success = false;
                                     } else {
 
-                                        WebElement webElementFound = null;
+                                        webElementFound = null;
                                         if (isMobileApp) {
                                             //                                            int index = IntStream.range(0,
                                             // instructionIds.length)
@@ -3032,5 +3068,22 @@ public class EngineRunner {
         // If you also have plain "C" or "SET"/"GET" etc, map them here
         // Based on your UI switch, "C" = click, "SET"/"GET" are web-field operations.
         return upper.equals("C") || upper.equals("SET") || upper.equals("GET");
+    }
+
+    private WebElement immediateXPath(String xPath) {
+        try {
+            if (waitXPath == null && performActions.getCurrentDriver() != null) {
+                waitXPath = new WebDriverWait(performActions.getCurrentDriver(), Duration.ofSeconds(0));
+            }
+            waitXPath.until(ExpectedConditions.presenceOfElementLocated(By.xpath(xPath)));
+            List<WebElement> foundElementList =
+                    performActions.getCurrentDriver().findElements(By.xpath(xPath));
+            if (foundElementList.size() > 0) {
+                return foundElementList.get(0);
+            }
+        } catch (TimeoutException ignored) {
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 }

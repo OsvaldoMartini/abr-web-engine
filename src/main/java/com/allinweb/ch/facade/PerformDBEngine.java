@@ -389,6 +389,15 @@ public class PerformDBEngine {
                     instruction.setOperation(rs.getString("operation"));
                     instruction.setBlockId(rs.getInt("block_id"));
                     instruction.setParentBlockId(rs.getInt("parent_block_id"));
+
+                    instruction.setParentBlockId(rs.getInt("parent_block_id"));
+
+                    if (instruction.getName().equals("EXCEL GOTO")
+                            && ((instruction.getParentBlockId() != null && instruction.getParentBlockId() == 0)
+                                    || instruction.getParentBlockId() == null)) {
+                        instruction.setParentBlockId(instruction.getBlockId());
+                    }
+
                     instruction.setParentId(rs.getInt("parent_id"));
                     instruction.setVariableId(rs.getInt("variable_id"));
 
@@ -525,13 +534,21 @@ public class PerformDBEngine {
     public List<InstructionLoad> loadExcelGotoBlock(int whereId, String tableName) {
         List<InstructionLoad> InstructionLoadList = new ArrayList<>();
 
-        // Build base SQL
+        // Base SQL
         String sql = "SELECT * FROM " + tableName + " WHERE actions = 'EXCEL GOTO'";
+
+        // Decide FK + block table
+        final String fkColumn;
+        final String blockTable;
 
         // Add condition depending on table
         if ("instruction".equalsIgnoreCase(tableName)) {
+            fkColumn = "bot_job_id";
+            blockTable = "block";
             sql += " AND bot_job_id = ?";
         } else if ("component_instruction".equalsIgnoreCase(tableName)) {
+            fkColumn = "home_banking_id";
+            blockTable = "component_block";
             sql += " AND home_banking_id = ?";
         } else {
             throw new IllegalArgumentException("Unsupported table: " + tableName);
@@ -539,48 +556,86 @@ public class PerformDBEngine {
 
         sql += " ORDER BY instruction_order_number";
 
-        try (PreparedStatement stmt = getConnection().prepareStatement(sql)) {
+        // Block lookup SQL (for missing parent_block_id)
+        final String blockSql =
+                "SELECT block_order_number FROM " + blockTable + " WHERE id = ? AND " + fkColumn + " = ?";
+
+        // Cache block_id -> block_order_number (avoid N+1 queries)
+        Map<Integer, Integer> blockOrderCache = new HashMap<>();
+
+        try (Connection conn = getConnection();
+                PreparedStatement stmt = conn.prepareStatement(sql);
+                PreparedStatement blockStmt = conn.prepareStatement(blockSql)) {
+
             stmt.setInt(1, whereId);
+
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    InstructionLoad InstructionLoad = new InstructionLoad();
-                    InstructionLoad.setId(rs.getInt("id"));
-                    InstructionLoad.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
-                    InstructionLoad.setActions(rs.getString("actions"));
-                    InstructionLoad.setInstructionActive(rs.getBoolean("active"));
-                    InstructionLoad.setBlockMarked(rs.getBoolean("block_marked"));
-                    InstructionLoad.setCodified(rs.getBoolean("codified"));
-                    InstructionLoad.setDefaultValue(rs.getString("default_value"));
-                    InstructionLoad.setDescription(rs.getString("description"));
-                    InstructionLoad.setExportToABR(rs.getBoolean("export_to_abr"));
-                    InstructionLoad.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
-                    InstructionLoad.setName(rs.getString("name"));
-                    InstructionLoad.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
-                    InstructionLoad.setOperation(rs.getString("operation"));
-                    InstructionLoad.setOptional(rs.getBoolean("optional"));
-                    InstructionLoad.setXpath(rs.getString("xpath"));
-                    InstructionLoad.setCoordinates(rs.getString("coordinates"));
-                    InstructionLoad.setForceCoordinates(rs.getBoolean("force_coordinates"));
-                    InstructionLoad.setIFrameXPath(rs.getString("iframe_xpath"));
+                    InstructionLoad instructionLoad = new InstructionLoad();
+                    instructionLoad.setId(rs.getInt("id"));
+                    instructionLoad.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
+                    instructionLoad.setActions(rs.getString("actions"));
+                    instructionLoad.setInstructionActive(rs.getBoolean("active"));
+                    instructionLoad.setBlockMarked(rs.getBoolean("block_marked"));
+                    instructionLoad.setCodified(rs.getBoolean("codified"));
+                    instructionLoad.setDefaultValue(rs.getString("default_value"));
+                    instructionLoad.setDescription(rs.getString("description"));
+                    instructionLoad.setExportToABR(rs.getBoolean("export_to_abr"));
+                    instructionLoad.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
+                    instructionLoad.setName(rs.getString("name"));
+                    instructionLoad.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
+                    instructionLoad.setOperation(rs.getString("operation"));
+                    instructionLoad.setOptional(rs.getBoolean("optional"));
+                    instructionLoad.setXpath(rs.getString("xpath"));
+                    instructionLoad.setCoordinates(rs.getString("coordinates"));
+                    instructionLoad.setForceCoordinates(rs.getBoolean("force_coordinates"));
+                    instructionLoad.setIFrameXPath(rs.getString("iframe_xpath"));
 
-                    InstructionLoad.setTagName(rs.getString("tag_name"));
-                    InstructionLoad.setShadowHost(rs.getString("shadow_host"));
-                    InstructionLoad.setShadowRoot(rs.getString("shadow_root"));
-                    InstructionLoad.setCssSelector(rs.getString("css_selector"));
+                    instructionLoad.setTagName(rs.getString("tag_name"));
+                    instructionLoad.setShadowHost(rs.getString("shadow_host"));
+                    instructionLoad.setShadowRoot(rs.getString("shadow_root"));
+                    instructionLoad.setCssSelector(rs.getString("css_selector"));
 
-                    InstructionLoad.setVariableId(rs.getInt("variable_id"));
-                    InstructionLoad.setParentBlockId(rs.getInt("parent_block_id"));
-                    InstructionLoad.setParentId(rs.getInt("parent_id"));
-                    InstructionLoad.setBlockId(rs.getInt("block_id"));
+                    instructionLoad.setVariableId(rs.getInt("variable_id"));
+
+                    // parent_block_id can be NULL -> use getObject
+                    Integer parentBlockId = (Integer) rs.getObject("parent_block_id");
+                    instructionLoad.setParentBlockId(parentBlockId != null ? parentBlockId : 0);
+
+                    instructionLoad.setParentId(rs.getInt("parent_id"));
+
+                    int blockId = rs.getInt("block_id");
+                    instructionLoad.setBlockId(blockId);
 
                     // Conditional mapping for IDs
                     if ("instruction".equalsIgnoreCase(tableName)) {
-                        InstructionLoad.setBotJobId(rs.getInt("bot_job_id"));
+                        instructionLoad.setBotJobId(rs.getInt("bot_job_id"));
                     } else {
-                        InstructionLoad.setHomeBankingId(rs.getInt("home_banking_id"));
+                        instructionLoad.setHomeBankingId(rs.getInt("home_banking_id"));
                     }
 
-                    InstructionLoadList.add(InstructionLoad);
+                    // If parentBlockId is NULL or 0 -> fetch block_order_number from block table using block_id
+                    if (parentBlockId == null || parentBlockId == 0 || instructionLoad.getBlockOrderNumber() == null) {
+                        Integer cached = blockOrderCache.get(blockId);
+
+                        if (cached == null) {
+                            blockStmt.setInt(1, blockId);
+                            blockStmt.setInt(2, whereId);
+
+                            try (ResultSet brs = blockStmt.executeQuery()) {
+                                if (brs.next()) {
+                                    cached = brs.getInt("block_order_number");
+                                    blockOrderCache.put(blockId, cached);
+                                }
+                            }
+                        }
+
+                        if (cached != null) {
+                            instructionLoad.setBlockOrderNumber(cached); // overwrite/fix using block table
+                        }
+                    }
+
+                    InstructionLoadList.add(instructionLoad);
                 }
             }
         } catch (SQLException error) {
@@ -595,5 +650,68 @@ public class PerformDBEngine {
 
     public void callSocketLists(String sessionId) {
         performLists.initialize(sessionId);
+    }
+
+    public ErrorMessage fixExcelGoto(String tableName, int whereId, int instructionId, int newParentBlockId) {
+
+        // Scope key (same logic as your updateUserData)
+        String foreignKeyColumn = "instruction".equalsIgnoreCase(tableName) ? "bot_job_id" : "home_banking_id";
+
+        String updateSQL = "UPDATE " + tableName + " SET "
+                + "parent_block_id = ? "
+                + "WHERE id = ? "
+                + "AND " + foreignKeyColumn + " = ?";
+
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false);
+
+            try (PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
+                pstmt.setInt(1, newParentBlockId);
+                pstmt.setInt(2, instructionId);
+                pstmt.setInt(3, whereId);
+
+                int rowsAffected = pstmt.executeUpdate();
+                conn.commit();
+
+                if (rowsAffected > 0) {
+                    logDB.info(String.format(
+                            "Updated parent_block_id=%d in %s where id=%d and %s=%d",
+                            newParentBlockId, tableName, instructionId, foreignKeyColumn, whereId));
+                    return null; // success
+                } else {
+                    logDB.warn(String.format(
+                            "No matching row found in %s where id=%d and %s=%d (no update)",
+                            tableName, instructionId, foreignKeyColumn, whereId));
+                    return new ErrorMessage(
+                            "Update Warning",
+                            "No matching row found to update parent_block_id in " + tableName,
+                            "No rows affected");
+                }
+
+            } catch (SQLException e) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ignore) {
+                }
+
+                logDB.error(String.format(
+                        "Error updating parent_block_id in %s where id=%d and %s=%d. Error: %s",
+                        tableName, instructionId, foreignKeyColumn, whereId, e.getMessage()));
+
+                return new ErrorMessage(
+                        "Update Error",
+                        "Failed to update parent_block_id in " + tableName
+                                + " where id=" + instructionId
+                                + " and " + foreignKeyColumn + "=" + whereId,
+                        e.getMessage());
+            }
+
+        } catch (SQLException ex) {
+            logDB.error(String.format(
+                    "Connection error while updating parent_block_id in %s where id=%d and %s=%d. Error: %s",
+                    tableName, instructionId, foreignKeyColumn, whereId, ex.getMessage()));
+
+            return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
+        }
     }
 }
