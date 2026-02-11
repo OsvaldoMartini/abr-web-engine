@@ -59,7 +59,7 @@ public class ARPropertyManager {
         } else {
             // Use application directory as default
             String appDir = System.getProperty("user.dir"); // root folder where app is running
-            configurationFileName = appDir + File.separator + "Config-4.2" + File.separator + "TESTS.config";
+            configurationFileName = appDir + File.separator + "Config-4.7" + File.separator + "TESTS.config";
 
             // Ensure directories exist
             File config = new File(configurationFileName);
@@ -163,7 +163,7 @@ public class ARPropertyManager {
 
             missingMandatoryPats();
 
-            setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.2g Beta Test");
+            setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.7g Beta Test");
             setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 29/01/2026");
         } catch (IOException error) {
             log.error("Error creating \"ARWeb.config\": {} -> {}", configurationFileName, error.getMessage());
