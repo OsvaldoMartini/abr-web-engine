@@ -303,6 +303,7 @@ public class ARPropertyManager {
             //            "db_user",
             //            "db_pwd",
             //            "path_appium",
+            "navigation_time",
             "path_excel",
             "path_log",
             "path_db",
@@ -365,9 +366,15 @@ public class ARPropertyManager {
             //                    0);
 
             for (String prop : missingProperties) {
-                if ("path_appium".equals(prop)) {
-                    //                    setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH
-                    // + "\\appium");
+                // appium
+                //                if ("path_appium".equals(prop)) {
+                //                    setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH +
+                // "\\appium");
+                //                }
+
+                // navigation time
+                if ("navigation_time".equals(prop)) {
+                    setProperty(ARPropertyEnum.NAVIGATION_TIME.getValue(), "2");
                 }
             }
 

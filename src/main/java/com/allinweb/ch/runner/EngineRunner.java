@@ -762,6 +762,7 @@ public class EngineRunner {
         TargetElement matchScanned = null;
         TargetElement matchXPath = null;
         WebElement webElementFound = null;
+        int navTime = getNavigationTimeSeconds();
         //        List<InputInfo> inputs = new ArrayList<>();
 
         sessionRowStatus = "engine-perform-bot-job"; // + botJobId;
@@ -862,7 +863,7 @@ public class EngineRunner {
                         // Fire only when the block CHANGES, and only for ACTIVE blocks
                         if (lastBlockOrderPushed == null || !lastBlockOrderPushed.equals(currentBlockOrder)) {
 
-                            // ?? RESET instruction-level first-load flag
+                            // RESET instruction-level first-load flag
                             firstPageLoadDone = false;
 
                             performActions.waitPage();
@@ -1111,6 +1112,15 @@ public class EngineRunner {
                                 webElementFound = immediateXPath(currentInstruction.getXpath());
                             }
 
+                            performActions.waitPage();
+                            try {
+                                if (navTime > 0) {
+                                    performActions.onHoldInSeconds(navTime);
+                                    logOperations.info("Navigation Time : {}", navTime);
+                                }
+                            } catch (Exception ignore) {
+                            }
+
                             // Fire on FIRST page load OR when the INSTRUCTION changes
                             // and only for web-element work (INPUT / OUTPUT / CLICK / GET / SET)
                             if (isWebElementInstruction(currentInstruction) && webElementFound == null) {
@@ -1121,7 +1131,6 @@ public class EngineRunner {
                                         || lastInstructionIdPushed == null
                                         || !lastInstructionIdPushed.equals(currentInstructionId)) {
 
-                                    performActions.waitPage();
                                     firstPageLoadDone = true;
                                     lastInstructionIdPushed = currentInstructionId;
 
@@ -3085,5 +3094,17 @@ public class EngineRunner {
         } catch (Exception ignored) {
         }
         return null;
+    }
+
+    private int getNavigationTimeSeconds() {
+        String v = arPropertyManager.getProperty(ARPropertyEnum.NAVIGATION_TIME);
+        try {
+            int s = Integer.parseInt(v);
+            if (s < 0) return 0;
+            if (s > 10) return 10;
+            return s;
+        } catch (Exception ignore) {
+            return 0;
+        }
     }
 }
