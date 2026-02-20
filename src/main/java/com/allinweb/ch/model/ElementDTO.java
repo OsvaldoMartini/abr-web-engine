@@ -31,6 +31,8 @@ public class ElementDTO {
     private String attributeValue;
     private String attributeType;
     private String searchAttributeValue;
+    private String autoScroll;
+    private String autoEnter;
 
     // >>> MINIMAL ADD: Android-specific nested data <<<
     private AndroidNodeDTO[] androidData;
@@ -61,6 +63,8 @@ public class ElementDTO {
         this.attributeValue = other.attributeValue;
         this.attributeType = other.attributeType;
         this.searchAttributeValue = other.searchAttributeValue;
+        this.autoScroll = other.autoScroll;
+        this.autoEnter = other.autoEnter;
 
         // >>> MINIMAL ADD: copy androidData array <<<
         if (other.androidData != null) {
@@ -96,6 +100,8 @@ public class ElementDTO {
         copy.setAttributeValue(this.attributeValue);
         copy.setAttributeType(this.attributeType);
         copy.setSearchAttributeValue(this.searchAttributeValue);
+        copy.setAutoScroll(this.autoScroll);
+        copy.setAutoEnter(this.autoEnter);
 
         // >>> MINIMAL ADD: deep copy androidData array <<<
         if (this.androidData != null) {

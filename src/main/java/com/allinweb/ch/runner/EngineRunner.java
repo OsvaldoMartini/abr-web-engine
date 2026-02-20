@@ -12,6 +12,8 @@ import com.google.gson.Gson;
 import io.opentelemetry.api.internal.StringUtils;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.*;
@@ -67,8 +69,8 @@ public class EngineRunner {
     private Map<String, String> mapOperators = new HashMap<>();
     private Map<String, String> mapExportRows;
     private Set<String> headersExport = new LinkedHashSet<>();
-    private List<String> columnsCSV = new ArrayList<>();
-    private List<List<String>> rowsCSV = new ArrayList<>();
+    private List<String> currentColumnsCSV = new ArrayList<>(); // set once
+    private Map<String, CsvTable> csvTables = new LinkedHashMap<>();
     private final String END_OF_FILE_MARKER = "END OF FILE";
     static String excelFieldName;
     static String delimiterCSV;
@@ -456,100 +458,6 @@ public class EngineRunner {
         return null;
     }
 
-    /**
-     * Adds a row with values matching the columns.
-     * Missing values are filled with empty strings.
-     * @param values Array of values; may be less than columns.
-     */
-    public void addRow(String... values) {
-        if (columnsCSV.isEmpty()) {
-            throw new IllegalStateException("Columns must be initialized before adding a row using values.");
-        }
-
-        List<String> row = new ArrayList<>();
-        int maxCols = columnsCSV.size();
-
-        for (int i = 0; i < maxCols; i++) {
-            if (i < values.length) {
-                row.add(values[i]);
-            } else {
-                row.add(""); // fill missing with empty string
-            }
-        }
-        rowsCSV.add(row);
-    }
-
-    /**
-     * Adds a row using a Map<String, String>. If this is the first row added,
-     * it sets the column order based on the map's keys.
-     */
-    public void addRowFromMap(Map<String, String> map) {
-        // Initialize column order on first insert
-        if (columnsCSV.isEmpty()) {
-            if (map instanceof LinkedHashMap) {
-                columnsCSV.addAll(map.keySet()); // preserve order
-            } else {
-                // Default to alphabetical if insertion order is unknown
-                List<String> sortedKeys = new ArrayList<>(map.keySet());
-                Collections.sort(sortedKeys);
-                columnsCSV.addAll(sortedKeys);
-            }
-        }
-
-        List<String> row = new ArrayList<>();
-        for (String column : columnsCSV) {
-            row.add(map.getOrDefault(column, ""));
-        }
-        rowsCSV.add(row);
-    }
-
-    public String getCsvContent() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("0: ").append(String.join(",", columnsCSV)).append("\n");
-
-        int rowNumber = 1;
-        for (List<String> row : rowsCSV) {
-            sb.append(rowNumber).append(": ").append(String.join(",", row)).append("\n");
-            rowNumber++;
-        }
-        sb.append(END_OF_FILE_MARKER);
-        return sb.toString();
-    }
-
-    public String getBancaStatoCsvContent(String delimiter) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("KEY")
-                .append(delimiter)
-                .append(String.join(delimiter, columnsCSV))
-                .append("\n");
-
-        int xRow = 1;
-        for (List<String> row : rowsCSV) {
-            sb.append("EXTERNAL_" + xRow)
-                    .append(delimiter)
-                    .append(String.join(delimiter, row))
-                    .append("\n");
-            xRow++;
-        }
-
-        //        sb.append(END_OF_FILE_MARKER);
-        return sb.toString();
-    }
-
-    public void writeToFile(String filename, String content) {
-        try (Writer writer =
-                new BufferedWriter(new OutputStreamWriter(new FileOutputStream(filename), StandardCharsets.UTF_8))) {
-            writer.write(content);
-            log.info("CSV written to file: " + filename);
-        } catch (IOException e) {
-            log.error("Error writing file: " + e.getMessage());
-        }
-    }
-
-    public void printCsv() {
-        log.info(getCsvContent());
-    }
-
     private boolean openWebDriver(boolean firstLoad) {
 
         String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
@@ -763,6 +671,11 @@ public class EngineRunner {
         TargetElement matchXPath = null;
         WebElement webElementFound = null;
         int navTime = getNavigationTimeSeconds();
+        String previousExcelFieldName = "";
+        String newExcelFieldName = "";
+        String currentExcelFileName = "";
+        CsvTable currentTableCSV = null;
+
         //        List<InputInfo> inputs = new ArrayList<>();
 
         sessionRowStatus = "engine-perform-bot-job"; // + botJobId;
@@ -806,20 +719,21 @@ public class EngineRunner {
 
                 // PREVENTID  LATGER DELETION
                 if (blockExcelGoto < 0) {
-                    blockExcelGoto = (excelDataGoto.get(0).getBlockOrderNumber() == null
-                                    || excelDataGoto.get(0).getBlockOrderNumber() <= 0)
-                            ? 1
-                            : excelDataGoto.get(0).getBlockOrderNumber();
+
+                    Integer blockOrder = (excelDataGoto != null && !excelDataGoto.isEmpty())
+                            ? excelDataGoto.get(0).getBlockOrderNumber()
+                            : null;
+
+                    blockExcelGoto = (blockOrder != null && blockOrder > 0) ? blockOrder : 1;
                 }
             }
 
             int xExcelCurrentRow = 0;
             int xExcelDataSize = extractedData.getNumberOfDataRows();
             mapOperators.clear();
-            mapExportRows = new LinkedHashMap<>();
             headersExport.clear();
-            columnsCSV.clear();
-            rowsCSV.clear();
+            currentColumnsCSV.clear();
+            csvTables.clear();
 
             while (xExcelCurrentRow <= xExcelDataSize - 1 && !blocksLoaded.isEmpty() && !stopAll) {
                 // Clear's Up Any Loop as Per New Line
@@ -883,20 +797,42 @@ public class EngineRunner {
                             // DomIntrospectionUtil.listAllRelevantElements(performActions.getCurrentDriver());
                         }
 
-                        excelFieldName = blockLoad.getExportFile();
+                        newExcelFieldName = blockLoad.getExportFile();
+                        // Always loads ExcelWrite columns per block
+                        ErrorMessage errorMessage = performDBEngine.loadAllColumnsExcelWrite(
+                                "instruction", currentBotJob.getId(), blockLoad.getId());
+                        if (errorMessage == null) {
+                            setCurrentColumns(performLists.getExcelColumnNames());
+                        }
 
-                        if (!Strings.isNullOrEmpty(excelFieldName)) {
-                            String[] parts = excelFieldName.split(":");
-                            if (parts.length > 2) {
-                                delimiterCSV = parts[2];
-                                excelFieldName =
-                                        excelFieldName.replace(":,", "").replace(":|", "");
+                        if (newExcelFieldName != null && !newExcelFieldName.equals(previousExcelFieldName)) {
+                            // Sanitize
+                            if (!Strings.isNullOrEmpty(newExcelFieldName)) {
+                                String[] parts = newExcelFieldName.split(":");
+                                if (parts.length > 2) {
+                                    delimiterCSV = parts[2];
+                                    newExcelFieldName =
+                                            newExcelFieldName.replace(":,", "").replace(":|", "");
+                                }
+
+                                // Extract only file name with extension
+                                Path path = Paths.get(newExcelFieldName);
+                                currentExcelFileName = path.getFileName().toString();
                             }
+
+                            String finalNewExcelFieldName = newExcelFieldName;
+                            currentTableCSV = csvTables.computeIfAbsent(finalNewExcelFieldName, f -> {
+                                CsvTable t = new CsvTable(f, finalNewExcelFieldName, delimiterCSV);
+                                t.addColumns(currentColumnsCSV); // addAll per filename
+                                return t;
+                            });
+
+                            previousExcelFieldName = newExcelFieldName;
                         }
                     }
 
                     // It Searches the Block That have finished the Loops to Avoid recursivity
-                    if (loopBlockActive.size() > 0) {
+                    if (!loopBlockActive.isEmpty()) {
                         for (String blocLoopKey : loopBlockActive) {
                             if (mapLoops.containsKey(blocLoopKey)) {
                                 if (mapLoops.get(blocLoopKey) == 0) {
@@ -1050,7 +986,7 @@ public class EngineRunner {
 
                     while (xExcelCurrentRow < extractedData.getNumberOfDataRows() && !stopAll) {
                         failedMessage = "";
-                        //                        mapExportRows.clear();
+                        //                        tableCSV.clear();
 
                         //                    writerReport.insertBlockSeparation(blockLoad.getName());
 
@@ -1169,8 +1105,11 @@ public class EngineRunner {
                             boolean execPDFCheck = false;
                             boolean execCSVCheck = false;
                             boolean execOutPut = false;
-                            boolean excelWriteOperation = false;
+                            boolean execExcellWrite = false;
                             boolean pauseOperation = false;
+                            boolean nextEnter = false;
+                            boolean swipeUp = false;
+                            boolean swipeDown = false;
 
                             String xPathOperation = null;
                             String[] parentActions = null;
@@ -1423,6 +1362,12 @@ public class EngineRunner {
                                         "Continue",
                                         "Stop Run",
                                         0);
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.NEXT_ENTER)) {
+                                nextEnter = true;
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.SWIPE_UP)) {
+                                swipeUp = true;
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.SWIPE_DOWN)) {
+                                swipeDown = true;
                             }
 
                             if (actions[0].equalsIgnoreCase(ARConstantsEngine.LOOP)) {
@@ -1533,7 +1478,7 @@ public class EngineRunner {
                                     variableField = "Not Variable defined";
                                 }
                             } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.EXTRACT_FIELD)) {
-                                excelWriteOperation = true;
+                                execExcellWrite = true;
                                 parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
                                 variableField =
                                         performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
@@ -1775,22 +1720,19 @@ public class EngineRunner {
                                         && !execCheckValue
                                         && !execPDFCheck
                                         && !execCSVCheck
-                                        && !excelWriteOperation
-                                        && !pauseOperation) {
+                                        && !execExcellWrite
+                                        && !pauseOperation
+                                        && !nextEnter
+                                        && !swipeUp
+                                        && !swipeDown) {
 
                                     webElementWork = true;
 
-                                    // Extract dataFieldName and dataFieldValue using a separate method
-                                    // AR Mobile Work Around for Not creating a new DB column
-                                    String defaultValue = currentInstruction.getDefaultValue() != null
-                                                    && !currentInstruction
-                                                            .getDefaultValue()
-                                                            .contains("scroll-active")
-                                            ? currentInstruction.getDefaultValue()
-                                            : null;
-
                                     FieldData fieldData = performActions.extractFieldData(
-                                            dataExcel, actions, defaultValue, currentInstruction.getCodified());
+                                            dataExcel,
+                                            actions,
+                                            currentInstruction.getDefaultValue(),
+                                            currentInstruction.getCodified());
 
                                     //                                    webElementFound = null;
                                     boolean forceCoordinates = currentInstruction.getForceCoordinates() != null
@@ -1866,61 +1808,50 @@ public class EngineRunner {
                                         // 2) Apply only non-empty values into splitDTO and elementDetails[0]
                                         //                                        if (matchingInstruction != null) {
                                         // >>> Add AttrData:* references into elementDetails.attributesData
-                                        //
-                                        // SplitDTO.applyAttrDataFromReferences(splitDTO, currentInstruction);
-                                        //
-                                        //
-                                        // SplitDTO.applyInstructionToSplit(splitDTO, currentInstruction);
-                                        //                                        //
-                                        //    }
-                                        //
-                                        //                                        webElementFound =
-                                        // androidDevice.searchElement(splitDTO);
-                                        //
-                                        //                                        if (webElementFound == null) {
-                                        //                                            appendLog(
-                                        //
-                                        // currentInstruction.getName() + "- Not Found- using coordinates",
-                                        //                                                    "warn");
-                                        //
-                                        // androidDevice.executeAction(webElementFound, splitDTO);
+                                        SplitDTO.applyAttrDataFromReferences(splitDTO, currentInstruction);
+
+                                        SplitDTO.applyInstructionToSplit(splitDTO, currentInstruction);
                                         //                                        }
+
+                                        // Already Maps List<TargetElement>
+                                        //
+                                        // androidHelper.scanElementsWithCanonicalXmlOnly(
+                                        //
+                                        // androidDevice.getCurrentDriver());
+
+                                        //                                        webElementFound =
+                                        // androidDevice.searchElement(
+                                        //                                                splitDTO, actions,
+                                        // performLists.getListTargetElements());
+
+                                        if (webElementFound == null) {
+                                            appendLog(
+                                                    currentInstruction.getName() + "- Not Found- using coordinates",
+                                                    "warn");
+                                            //
+                                            // androidDevice.executeAction(webElementFound, splitDTO, actions);
+                                        }
                                     }
 
-                                    // VERY IMPORTANT FORCE COORDINATES
-                                    // FORCE COORDINATES COMMENTED
-                                    //                                    if (webElementFound == null &&
-                                    // forceCoordinates && !isMobileApp) {
-                                    //
-                                    //                                        Boolean pressEnterAfter = false;
-                                    //                                        if
-                                    // (actions[0].equals(ARConstantsEngine.INSERT)
-                                    //                                                &&
-                                    // actions[1].equals(ARConstantsEngine.ENTER)) {
-                                    //                                            pressEnterAfter = true;
-                                    //                                        }
-                                    //                                        if
-                                    // (actions[0].equalsIgnoreCase(ARConstantsEngine.VISUALIZE)
-                                    //                                                ||
-                                    // actions[0].equalsIgnoreCase(ARConstantsEngine.CLICK)
-                                    //                                                ||
-                                    // actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT)) {
-                                    //
-                                    //                                            List<WebElement> smartSearch =
-                                    // performActions.findBySmartLocator(
-                                    //
-                                    // currentInstruction.getCssSelector());
-                                    //                                            if (!smartSearch.isEmpty()) {
-                                    //                                                success =
-                                    // performActions.executeActionsAtCoordinates(
-                                    //
-                                    // mapSavedLocators.get("coordinates"),
-                                    //                                                        fieldData,
-                                    //                                                        actions[0],
-                                    //                                                        pressEnterAfter);
-                                    //                                            }
-                                    //                                        }
-                                    //                                    }
+                                    if (webElementFound == null && forceCoordinates && !isMobileApp) {
+
+                                        Boolean pressEnterAfter = false;
+                                        if (actions[0].equals(ARConstantsEngine.INSERT)
+                                                && actions[1].equals(ARConstantsEngine.ENTER)) {
+                                            pressEnterAfter = true;
+                                        }
+                                        if (actions[0].equalsIgnoreCase(ARConstantsEngine.VISUALIZE)
+                                                || actions[0].equalsIgnoreCase(ARConstantsEngine.CLICK)
+                                                || actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT)) {
+
+                                            List<WebElement> smartSearch = performActions.findBySmartLocator(
+                                                    currentInstruction.getCssSelector());
+                                            if (!smartSearch.isEmpty()) {
+                                                success = performActions.executeActionsAtCoordinates(
+                                                        "coordinates", fieldData, actions[0], pressEnterAfter);
+                                            }
+                                        }
+                                    }
 
                                     byPassNotFound = byPassFlagLoop
                                             || !currentCondition.equals(ARExecution.ConditionStatus.NONE);
@@ -1949,6 +1880,9 @@ public class EngineRunner {
                                     // Special Cases for Select Responses
                                     // It could be Improved the case
                                     if (resultActions.contains("FAIL")
+                                            || performLists
+                                                    .getListTargetElements()
+                                                    .isEmpty()
                                             || (matchXPath == null && matchScanned == null && webElementFound == null)
                                             || (webElementFound == null && !forceCoordinates)) {
                                         failedMessage = "Failed execution Web Element ";
@@ -1957,6 +1891,13 @@ public class EngineRunner {
                                             resultActions = resultActions.replaceAll("PASSED", "FAIL");
                                         }
                                         success = false;
+
+                                        if (performLists.getListTargetElements().isEmpty()) {
+                                            String reason = performActions.buildMessageResult(
+                                                    success, blockName, "TIME OUT", "Device timeout", "TIME OUT");
+                                            appendLog("[TEST]" + reason, "error");
+                                            stopAll = true;
+                                        }
                                     } else if (resultActions != null && success) {
                                         failedMessage = "";
                                         currentInstruction.setExecuted(true);
@@ -1986,25 +1927,22 @@ public class EngineRunner {
 
                                         webElementFound = null;
                                         if (isMobileApp) {
-                                            //                                            int index = IntStream.range(0,
-                                            // instructionIds.length)
-                                            //                                                    .filter(i ->
-                                            // instructionIds[i] == parentId)
-                                            //                                                    .findFirst()
-                                            //                                                    .orElse(-1);
-                                            //
-                                            //                                            InstructionLoad refInstruction
-                                            // = blockLoad
-                                            //                                                    .getInstructionLoad()
-                                            //                                                    .get(index);
-                                            //
-                                            //
-                                            // SplitDTO.applyAttrDataFromReferences(splitDTO, refInstruction);
-                                            //
-                                            // SplitDTO.applyInstructionToSplit(splitDTO, refInstruction);
-                                            //
+                                            int index = IntStream.range(0, instructionIds.length)
+                                                    .filter(i -> instructionIds[i] == parentId)
+                                                    .findFirst()
+                                                    .orElse(-1);
+
+                                            InstructionLoad refInstruction = blockLoad
+                                                    .getInstructionLoad()
+                                                    .get(index);
+
+                                            SplitDTO.applyAttrDataFromReferences(splitDTO, refInstruction);
+                                            SplitDTO.applyInstructionToSplit(splitDTO, refInstruction);
+
                                             //                                            webElementFound =
-                                            // androidDevice.searchElement(splitDTO);
+                                            // androidDevice.searchElement(
+                                            //                                                    splitDTO, actions,
+                                            // performLists.getListTargetElements());
                                         }
 
                                         resultActions = performActions.performOperatorActions(
@@ -2180,133 +2118,17 @@ public class EngineRunner {
                                         }
                                     }
 
-                                } else if (execPDFCheck) {
-                                    // Check Validation Operator
-
-                                    if (!mapOperators.containsKey(variableField)) {
-                                        failedMessage = "Get Value Is Not Defined ";
-                                        msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-                                        //                                        resultActions =
-                                        // performActions.getValueIsNotDefined(
-                                        //                                                actions[0],
-                                        //                                                currentInstruction,
-                                        //                                                resultActions,
-                                        //                                                ARExecution.ConditionStatus
-                                        //                                                        .NONE, // NOT
-                                        // currentCondition to Force Message,
-                                        //                                                parentField,
-                                        //                                                variableField);
-
-                                        String reason = performActions.buildGetVariableReason(
-                                                actions[0],
-                                                currentInstruction,
-                                                resultActions,
-                                                currentCondition,
-                                                parentField,
-                                                variableField,
-                                                byPassNotFound, // or your bypass flag
-                                                blockName,
-                                                currentInstruction.getId(),
-                                                false);
-
-                                        appendLog("[TEST]" + reason, "error");
-                                        alreadyLogged = true;
-
-                                        logOperations.error("{}", reason);
-
-                                        success = false;
-                                    } else {
-                                        //                                    fieldName = parentField;
-
-                                        resultActions = "PDF Check Value for " + String.join(" ", operations);
-                                        boolean isOperationValid = false;
-                                        String invalidValues = null;
-
-                                        if (operations[1].equalsIgnoreCase("=")) {
-                                            isOperationValid = mapOperators
-                                                    .get(variableField)
-                                                    .trim()
-                                                    .equalsIgnoreCase(operations[2].trim());
-
-                                        } else if (operations[1].equalsIgnoreCase(">")) {
-                                            int resp = handleGreaterThan(
-                                                    mapOperators
-                                                            .get(variableField)
-                                                            .trim(),
-                                                    operations[2].trim());
-                                            if (resp == 1) {
-                                                isOperationValid = true;
-                                            } else if (resp == 0) {
-                                                isOperationValid = false;
-                                            } else {
-                                                isOperationValid = false;
-                                                invalidValues = "Invalid Numbers";
-                                            }
-                                        } else if (operations[1].equalsIgnoreCase("!=")) {
-                                            isOperationValid = !mapOperators
-                                                    .get(variableField)
-                                                    .trim()
-                                                    .equalsIgnoreCase(operations[2].trim());
-                                        } else if (operations[1].equalsIgnoreCase("<")) {
-                                            int resp = handleLessThan(
-                                                    mapOperators
-                                                            .get(variableField)
-                                                            .trim(),
-                                                    operations[2].trim());
-                                            if (resp == 1) {
-                                                isOperationValid = true;
-                                            } else if (resp == 0) {
-                                                isOperationValid = false;
-                                            } else {
-                                                isOperationValid = false;
-                                                invalidValues = "Invalid Numbers";
-                                            }
-                                        }
-
-                                        if (isOperationValid) {
-                                            currentInstruction.setExecuted(true);
-                                            failedMessage = "";
-                                            success = true;
-                                        } else {
-                                            failedMessage = "Failed: Check Validation ";
-                                            msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-                                            //                                            resultActions =
-                                            // performActions.checkValidationFailed(
-                                            //                                                    invalidValues,
-                                            //                                                    parentField,
-                                            //
-                                            // mapOperators.get(variableField),
-                                            //                                                    resultActions,
-                                            //                                                    operations,
-                                            //                                                    currentCondition,
-                                            //                                                    byPassNotFound);
-
-                                            resultActions = performActions.buildValidationReason(
-                                                    invalidValues,
-                                                    parentField,
-                                                    mapOperators.get(variableField), // actual/current web value
-                                                    "expectedValue",
-                                                    resultActions, // lastInstructionExecuted
-                                                    operations,
-                                                    currentCondition,
-                                                    byPassNotFound,
-                                                    true,
-                                                    blockName,
-                                                    currentInstruction.getId(),
-                                                    false);
-
-                                            logOperations.error("Validation failed: {}", resultActions);
-
-                                            success = false;
-                                        }
+                                } else if (execCSVCheck || execPDFCheck) {
+                                    String msgCSVPrefix = "CSV ";
+                                    if (execPDFCheck) {
+                                        msgCSVPrefix = "PDF ";
                                     }
-
-                                } else if (execCSVCheck) {
 
                                     // If fieldsToValidate is null/empty => ignore (no log)
                                     Map<String, FieldsToValidate> fMap = splitDTO.getFieldsToValidate();
                                     if (fMap == null || fMap.isEmpty()) {
                                         // ignore
+                                        resultActions = resultActions.replaceAll("PASSED", "IGNORED");
                                     } else {
 
                                         for (Map.Entry<String, FieldsToValidate> entry : fMap.entrySet()) {
@@ -2391,7 +2213,8 @@ public class EngineRunner {
                                                         // operator comes from your parsed operations array
                                                         String operator = operations[1];
 
-                                                        resultActions = "CSV Check Value for " + parentFieldCSV;
+                                                        String msgCSV = msgCSVPrefix + parentFieldCSV;
+                                                        resultActions = "Check Value for " + parentFieldCSV;
                                                         ValidationResult vr =
                                                                 evaluateOperation(actualValue, operator, expectedValue);
 
@@ -2402,7 +2225,7 @@ public class EngineRunner {
 
                                                             resultActions = performActions.buildValidationReason(
                                                                     vr.invalidReason,
-                                                                    parentFieldCSV,
+                                                                    msgCSV,
                                                                     actualValue, // actual/current web value
                                                                     expectedValue,
                                                                     resultActions,
@@ -2418,7 +2241,8 @@ public class EngineRunner {
                                                             alreadyLogged = true;
 
                                                             logOperations.info(
-                                                                    "Validation SUCCESS for field '{}': actual='{}' {} expected='{}'",
+                                                                    msgCSVPrefix
+                                                                            + " Validation SUCCESS for field '{}': actual='{}' {} expected='{}'",
                                                                     parentFieldCSV,
                                                                     actualValue,
                                                                     operator,
@@ -2431,7 +2255,7 @@ public class EngineRunner {
 
                                                             resultActions = performActions.buildValidationReason(
                                                                     vr.invalidReason,
-                                                                    parentFieldCSV,
+                                                                    msgCSV,
                                                                     actualValue, // actual/current web value
                                                                     expectedValue,
                                                                     resultActions,
@@ -2447,8 +2271,9 @@ public class EngineRunner {
                                                             alreadyLogged = true;
 
                                                             logOperations.error(
-                                                                    "CSV Values Validation FAILED for field '{}': actual='{}' {} expected='{}'. Reason: {}",
-                                                                    parentFieldCSV,
+                                                                    msgCSVPrefix
+                                                                            + " Values Validation FAILED for field '{}': actual='{}' {} expected='{}'. Reason: {}",
+                                                                    msgCSV,
                                                                     actualValue,
                                                                     operator,
                                                                     expectedValue,
@@ -2461,7 +2286,7 @@ public class EngineRunner {
                                             }
                                         }
                                     }
-                                } else if (excelWriteOperation) {
+                                } else if (execExcellWrite) {
                                     // Excel Write Operator
 
                                     if (parentField == null) {
@@ -2497,7 +2322,7 @@ public class EngineRunner {
                                                 blockName,
                                                 currentInstruction.getId(),
                                                 false);
-
+                                        updateRowStatusAndNotify("red"); // #FF3131 deep carmine red
                                         appendLog("[TEST]" + reason, "error");
                                         alreadyLogged = true;
 
@@ -2512,10 +2337,21 @@ public class EngineRunner {
                                             excelExportOnceCreation = false;
                                         }
 
-                                        if (!Strings.isNullOrEmpty(excelFieldName)) {
+                                        if (!Strings.isNullOrEmpty(newExcelFieldName)) {
                                             writerExport = new ExcelWriter(
-                                                            excelFieldName, performActions.getCurrentDriver(), true)
+                                                            newExcelFieldName, performActions.getCurrentDriver(), true)
                                                     .withPurpose("export");
+
+                                            // Only create Columns if Have a file to write
+                                            String webData = mapOperators
+                                                    .get(variableField)
+                                                    .trim();
+                                            webData = performActions.sanitizeValue(webData);
+
+                                            currentTableCSV.put(
+                                                    xExcelCurrentRow,
+                                                    parentField.trim(),
+                                                    webData); // may add new columns later too
                                         }
 
                                         resultActions = performActions.messageExcel(
@@ -2528,17 +2364,9 @@ public class EngineRunner {
                                                 currentInstruction.getId(),
                                                 (writerExport != null));
 
-                                        performActions.messageExcel(
-                                                actions[0],
-                                                currentInstruction,
-                                                parentField,
-                                                variableField,
-                                                mapOperators.get(variableField),
-                                                blockName,
-                                                currentInstruction.getId(),
-                                                false);
-
-                                        if (mapExportRows.size() == 0) {
+                                        if (currentTableCSV != null
+                                                || currentTableCSV.getRows() == null
+                                                || currentTableCSV.getRows().isEmpty()) {
                                             //
                                             // writerExport.insertBlockSeparation(blockLoad.getName());
                                             //                                            exportIndex *= 2;
@@ -2547,47 +2375,18 @@ public class EngineRunner {
                                         // Insert the updated mapExport into the Excel after each instruction
                                         if (writerExport != null) {
                                             headersExport.add(parentField.trim());
-                                            mapExportRows.put(
-                                                    parentField.trim(),
-                                                    mapOperators
-                                                            .get(variableField)
-                                                            .trim());
-
-                                            //
-                                            // addRowFromMap(mapExportRows);
-                                            if (excelFieldName != null
-                                                    && excelFieldName
-                                                            .toLowerCase()
-                                                            .endsWith(".csv")) {
-                                                if (Strings.isNullOrEmpty(delimiterCSV)) {
-                                                    delimiterCSV = ",";
-                                                }
-
-                                                //
-                                                //                                                String csvContent
-                                                // =
-                                                // getBancaStatoCsvContent(delimiterCSV);
-                                                //
-                                                // writeToFile(excelFieldName, csvContent);
-
-                                                // writerExport.writeMapToCSV(mapExport, excelFieldName,
-                                                // delimiterCSV);
-                                            } else {
-                                                //
-                                                // writerExport.insertFieldNameAndValueLastColumn(
-                                                //                                                        mapExport,
-                                                // exportIndex - 1);
-                                            }
                                         }
+
                                         performActions.onHoldForSeconds(null);
 
-                                        if (resultActions != null) {
+                                        if (resultActions != null && resultActions.contains("PASSED")) {
                                             currentInstruction.setExecuted(true);
                                             failedMessage = "";
                                             success = true;
                                         } else {
                                             failedMessage = "Failed: Generate File -> Excel/CSV ";
                                             msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
+                                            updateRowStatusAndNotify("red"); // #FF3131 deep carmine red
                                             success = false;
                                         }
                                     }
@@ -2621,7 +2420,11 @@ public class EngineRunner {
                             }
 
                             if (success && !alreadyLogged) {
-                                appendLog("[TEST]" + resultActions, "info");
+                                if (resultActions.contains("IGNORED")) {
+                                    appendLog("[TEST]" + resultActions, "warn");
+                                } else {
+                                    appendLog("[TEST]" + resultActions, "info");
+                                }
                             } else if (!alreadyLogged) {
                                 appendLog("[TEST]" + resultActions, "error");
                                 anyFailure = true;
@@ -2686,6 +2489,122 @@ public class EngineRunner {
                                 respModal = ARExecution.DialogModal.NONE;
                                 stopAll = true;
                                 break;
+                            }
+
+                            if (nextEnter) {
+
+                                String nameInstruc =
+                                        "(" + currentInstruction.getId() + ") " + currentInstruction.getName();
+
+                                resultActions = String.format("Device : \"%s\"", nameInstruc);
+
+                                FieldData msgBlock = new FieldData(resultActions, ARConstantsEngine.NEXT_ENTER);
+
+                                // Excel Report and Log
+                                performActions.logAndReport(
+                                        currentCondition,
+                                        true,
+                                        true,
+                                        blockStartTime,
+                                        blockReportName,
+                                        success,
+                                        new String[] {ARConstantsEngine.NEXT_ENTER},
+                                        msgBlock,
+                                        dataExcel,
+                                        writerReport,
+                                        "DEVICE -> NEXT/ENTER",
+                                        String.format("NEXT/ENTER CALLED AT: \"%s\" : ", nameInstruc));
+
+                                respModal = ARExecution.DialogModal.NONE;
+                                continue;
+                            } else if (swipeUp) {
+
+                                String nameInstruc =
+                                        "(" + currentInstruction.getId() + ") " + currentInstruction.getName();
+
+                                resultActions = String.format("Device : \"%s\"", nameInstruc);
+
+                                FieldData msgBlock = new FieldData(resultActions, ARConstantsEngine.SWIPE_UP);
+
+                                int timesSwipe = 1;
+
+                                String operation = currentInstruction.getOperation();
+                                if (operation != null && !operation.trim().isEmpty()) {
+                                    try {
+                                        timesSwipe = Integer.parseInt(operation.trim());
+                                    } catch (NumberFormatException ignored) {
+                                        appendLog("Invalid swipe count: " + operation + ". Defaulting to 1.", "warn");
+                                    }
+                                }
+
+                                for (int i = 0; i < timesSwipe; i++) {
+                                    //                                    androidDevice.swipeUp();
+                                    // androidDevice.swipeVertical(true); // false = down
+                                    //                                    androidDevice.swipeADB(splitDTO.getDeviceId(),
+                                    // true);
+                                }
+
+                                // Excel Report and Log
+                                performActions.logAndReport(
+                                        currentCondition,
+                                        true,
+                                        true,
+                                        blockStartTime,
+                                        blockReportName,
+                                        success,
+                                        new String[] {ARConstantsEngine.SWIPE_UP},
+                                        msgBlock,
+                                        dataExcel,
+                                        writerReport,
+                                        "DEVICE -> SWIPE UP",
+                                        String.format("SWIPE UP CALLED AT: \"%s\" : ", nameInstruc));
+
+                                respModal = ARExecution.DialogModal.NONE;
+                                continue;
+                            } else if (swipeDown) {
+
+                                String nameInstruc =
+                                        "(" + currentInstruction.getId() + ") " + currentInstruction.getName();
+
+                                resultActions = String.format("Device : \"%s\"", nameInstruc);
+
+                                FieldData msgBlock = new FieldData(resultActions, ARConstantsEngine.SWIPE_DOWN);
+
+                                int timesSwipe = 1;
+
+                                String operation = currentInstruction.getOperation();
+                                if (operation != null && !operation.trim().isEmpty()) {
+                                    try {
+                                        timesSwipe = Integer.parseInt(operation.trim());
+                                    } catch (NumberFormatException ignored) {
+                                        appendLog("Invalid swipe count: " + operation + ". Defaulting to 1.", "warn");
+                                    }
+                                }
+
+                                for (int i = 0; i < timesSwipe; i++) {
+                                    //                                    androidDevice.swipeDown();
+                                    //                                    androidDevice.swipeVertical(false); // false =
+                                    // down
+                                    //                                    androidDevice.swipeADB(splitDTO.getDeviceId(),
+                                    // false);
+                                }
+                                // Excel Report and Log
+                                performActions.logAndReport(
+                                        currentCondition,
+                                        true,
+                                        true,
+                                        blockStartTime,
+                                        blockReportName,
+                                        success,
+                                        new String[] {ARConstantsEngine.SWIPE_DOWN},
+                                        msgBlock,
+                                        dataExcel,
+                                        writerReport,
+                                        "DEVICE -> SWIPE DOWN",
+                                        String.format("SWIPE DOWN CALLED AT: \"%s\" : ", nameInstruc));
+
+                                respModal = ARExecution.DialogModal.NONE;
+                                continue;
                             }
 
                             // It decides Here if ByPass as per Loop or Per IF-ELSEIF-ELSE-ENDIF blocks
@@ -2798,31 +2717,38 @@ public class EngineRunner {
                         break;
                     }
                     currentBlockOrder++;
+
+                    currentTableCSV = csvTables.get(newExcelFieldName);
+
+                    if (currentTableCSV != null
+                            && currentTableCSV.getRows() != null
+                            && !currentTableCSV.getRows().isEmpty()) {
+                        saveExcelWrite(newExcelFieldName, currentTableCSV, writerExport, exportIndex);
+                    }
                 }
 
                 currentBlockOrder = blockExcelGoto; // BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
                 xExcelCurrentRow++;
-                addRowFromMap(mapExportRows);
-                if (excelFieldName != null && excelFieldName.toLowerCase().endsWith(".csv")) {
-                    if (Strings.isNullOrEmpty(delimiterCSV)) {
-                        delimiterCSV = ",";
-                    }
-
-                    String csvContent = getBancaStatoCsvContent(delimiterCSV);
-                    writeToFile(excelFieldName, csvContent);
-                    if (xExcelDataSize > 1) {
-                        mapExportRows = new LinkedHashMap<>();
-                    }
-                    excelFieldName = "";
-                } else if (excelFieldName != null
-                        && excelFieldName.toLowerCase().endsWith(".xlsx")) {
-                    //
-                    //                    writerExport.insertFieldNameAndValueLastColumn(mapExportRows, exportIndex -
-                    // 1);
-                    if (writerExport != null) {
-                        writerExport.insertCSVContentIntoExcel(columnsCSV, rowsCSV, exportIndex - 1);
-                    }
+                currentTableCSV = csvTables.get(newExcelFieldName);
+                if (currentTableCSV != null
+                        && currentTableCSV.getRows() != null
+                        && !currentTableCSV.getRows().isEmpty()) {
+                    saveExcelWrite(newExcelFieldName, currentTableCSV, writerExport, exportIndex);
                 }
+            }
+        }
+
+        // Last Recall For to avoid Multirow Cycles
+        // Iterate over all stored CsvTables
+        for (Map.Entry<String, CsvTable> entry : csvTables.entrySet()) {
+
+            currentTableCSV = entry.getValue();
+
+            if (currentTableCSV != null
+                    && currentTableCSV.getRows() != null
+                    && !currentTableCSV.getRows().isEmpty()) {
+
+                saveExcelWrite(currentTableCSV.getFullPath(), currentTableCSV, writerExport, exportIndex);
             }
         }
 
@@ -3106,5 +3032,112 @@ public class EngineRunner {
         } catch (Exception ignore) {
             return 0;
         }
+    }
+
+    public void writeToFileCSV(String filename, String content) {
+        try (Writer writer =
+                new BufferedWriter(new OutputStreamWriter(new FileOutputStream(filename), StandardCharsets.UTF_8))) {
+
+            writer.write(content);
+            logOperations.info("CSV written to file: {}", filename);
+
+        } catch (IOException e) {
+            logOperations.error("Error writing file: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Generates the CSV content formatted according to the BancaStato specification.
+     *
+     * Format rules:
+     * - The first line is the header and always starts with "KEY"
+     *   followed by the configured delimiter and the ordered column names.
+     *
+     * - Each data row starts with:
+     *     • "EXTERNAL"       if there is only one row
+     *     • "EXTERNAL_n"     if multiple rows exist (1-based index)
+     *
+     * - Column values are written in the exact order defined by {@code tableCSV.columnsCSV}.
+     *   Missing values are rendered as empty strings.
+     *
+     * - The configured end-of-file marker is appended at the end.
+     *
+     * Example (single row):
+     *   KEY|User number
+     *   EXTERNAL|434234
+     *
+     * Example (multiple rows):
+     *   KEY|User number
+     *   EXTERNAL_1|434234
+     *   EXTERNAL_2|353534
+     *
+     * @param delimiter the column delimiter (e.g. "|")
+     * @return the formatted CSV content as a String
+     */
+    public String getBancaStatoCsvContent(CsvTable tableCSV, String delimiter) {
+        StringBuilder sb = new StringBuilder();
+
+        // Header
+        sb.append("KEY")
+                .append(delimiter)
+                .append(String.join(delimiter, tableCSV.getColumns()))
+                .append("\n");
+
+        int totalRows = (tableCSV == null || tableCSV.getRows() == null)
+                ? 0
+                : tableCSV.getRows().size();
+
+        // Data rows
+        for (int i = 0; i < totalRows; i++) {
+            CsvRow row = tableCSV.getRows().get(i);
+
+            String externalKey = (totalRows == 1) ? "EXTERNAL" : "EXTERNAL_" + (i + 1);
+
+            sb.append(externalKey).append(delimiter);
+
+            // values in the same order as columnsCSV
+            for (int c = 0; c < tableCSV.getColumns().size(); c++) {
+                String col = tableCSV.getColumns().get(c);
+                sb.append(row != null ? row.get(col) : "");
+                if (c < tableCSV.getColumns().size() - 1) {
+                    sb.append(delimiter);
+                }
+            }
+
+            sb.append("\n");
+        }
+
+        //        sb.append(END_OF_FILE_MARKER);
+        return sb.toString();
+    }
+
+    private void saveExcelWrite(
+            String newExcelFieldName, CsvTable tableCSV, ExcelWriter.ExcelChain writerExport, int exportIndex) {
+        if (newExcelFieldName != null && newExcelFieldName.toLowerCase().endsWith(".csv")) {
+            String delimiter = tableCSV.getDelimiter();
+            if (Strings.isNullOrEmpty(tableCSV.getDelimiter())) {
+                delimiter = ",";
+            }
+
+            String csvContent = getBancaStatoCsvContent(tableCSV, delimiter);
+            logOperations.info(csvContent);
+            if (csvContent != null) {
+                writeToFileCSV(newExcelFieldName, csvContent);
+            }
+        } else if (newExcelFieldName != null && newExcelFieldName.toLowerCase().endsWith(".xlsx")) {
+            //
+            //                    writerExport.insertFieldNameAndValueLastColumn(mapExportRows, exportIndex -
+            // 1);
+            if (writerExport != null) {
+                if (tableCSV != null) {
+                    writerExport.insertCSVContentIntoExcel(tableCSV.getColumns(), tableCSV, exportIndex - 1);
+                }
+            }
+        }
+    }
+
+    public void setCurrentColumns(List<String> columns) {
+        currentColumnsCSV.clear();
+        currentColumnsCSV.addAll(columns);
     }
 }

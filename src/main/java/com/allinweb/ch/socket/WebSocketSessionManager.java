@@ -1,10 +1,15 @@
 package com.allinweb.ch.socket;
 
+import com.allinweb.ch.model.ElementDTO;
+import com.allinweb.ch.model.SplitDTO;
 import com.google.common.base.Strings;
+import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
 import javax.websocket.Session;
 import lombok.extern.slf4j.Slf4j;
 
@@ -26,6 +31,16 @@ public class WebSocketSessionManager {
             }
         }
         return instance;
+    }
+
+    private BiConsumer<String, String> logFn;
+
+    public void setLogger(BiConsumer<String, String> logger) {
+        this.logFn = logger;
+    }
+
+    private void appendLog(String msg, String level) {
+        if (logFn != null) logFn.accept(msg, level);
     }
 
     public static void addSession(String sessionId, Session session) {
@@ -185,6 +200,34 @@ public class WebSocketSessionManager {
             } catch (IOException e) {
                 log.error("Error sending message to session " + session.getId() + ": " + e.getMessage());
             }
+        }
+    }
+
+    public void sendChunks(
+            List<ElementDTO> elements, int chunkSize, SplitDTO splitDTO, String server, String routingKey) {
+        if (elements == null || elements.isEmpty()) {
+            appendLog("No elements to send.", "warn");
+            return;
+        }
+
+        appendLog("Sending " + elements.size() + " elements in chunks of " + chunkSize, "info");
+
+        for (int i = 0; i < elements.size(); i += chunkSize) {
+
+            int end = Math.min(i + chunkSize, elements.size());
+            List<ElementDTO> chunk = elements.subList(i, end);
+
+            // update DTO
+            splitDTO.setElementDetails(chunk.toArray(new ElementDTO[0]));
+
+            // serialize
+            String jsonData = new Gson().toJson(splitDTO);
+
+            // log
+            appendLog("Sending chunk " + (i / chunkSize + 1) + " containing " + chunk.size() + " elements", "info");
+
+            // send
+            sendMessageJson(0, server, jsonData, routingKey);
         }
     }
 }

@@ -714,4 +714,68 @@ public class PerformDBEngine {
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
     }
+
+    public ErrorMessage loadAllColumnsExcelWrite(String tableName, int whereId, int blockId) {
+
+        performLists.getListExcelColumns().clear();
+
+        String whereColumn = tableName.equals("instruction") ? "bot_job_id" : "home_banking_id";
+
+        StringBuilder selectSQL = new StringBuilder("SELECT " + "    parent.id   AS parent_id, "
+                + "    parent.name AS parent_name, "
+                + "    child.actions, "
+                + "    child.operation, "
+                + "    child.tag_name, "
+                + "    child.id     AS child_id, "
+                + "    b.block_order_number "
+                + "FROM "
+                + tableName + " AS child " + "JOIN "
+                + tableName + " AS parent " + "       ON child.parent_id = parent.id "
+                + "      AND parent.active = 1 "
+                + "LEFT JOIN block AS b ON child.block_id = b.id "
+                + "WHERE child.name = ? "
+                + "  AND child.active = 1 "
+                + "  AND child."
+                + whereColumn + " = ? ");
+
+        if (blockId > 0) {
+            selectSQL.append(" AND child.block_id = ? ");
+        }
+
+        selectSQL.append(" ORDER BY b.block_order_number, child.id;");
+        try (PreparedStatement stmt = getConnection().prepareStatement(selectSQL.toString())) {
+
+            stmt.setString(1, "ExcelWrite");
+            stmt.setInt(2, whereId);
+
+            if (blockId > 0) {
+                stmt.setInt(3, blockId);
+            }
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    ParentOperations parentOper = new ParentOperations();
+                    parentOper.setId(rs.getInt("child_id"));
+                    parentOper.setName("ExcelWrite");
+                    parentOper.setParentName(rs.getString("parent_name")); // CSV column name
+                    parentOper.setActions(rs.getString("actions"));
+                    parentOper.setOperations(rs.getString("operation"));
+                    parentOper.setTagName(rs.getString("tag_name")); // if available in class
+
+                    performLists.getListExcelColumns().add(parentOper);
+                }
+            }
+
+            return null;
+
+        } catch (SQLException e) {
+            logDB.error(String.format(
+                    "Error loading ExcelWrite columns for %s=%d. Error: %s", whereColumn, whereId, e.getMessage()));
+
+            return new ErrorMessage(
+                    "Load ExcelWrite Columns Error",
+                    String.format("Failed to load ExcelWrite columns for %s=%d", whereColumn, whereId),
+                    e.getMessage());
+        }
+    }
 }

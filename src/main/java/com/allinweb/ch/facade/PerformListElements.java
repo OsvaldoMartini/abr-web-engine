@@ -88,7 +88,7 @@ const __done=arguments[arguments.length-1];!function(t,e,n,a,o,i,r,l){let s=!1;f
 
             // Replace current list and load new one
             performLists.resetListElements();
-            performLists.addElementsFromSplit(dto.getElements());
+            performLists.addMapElementsTarget(dto.getElements());
 
             return null;
         } catch (Exception error) {
