@@ -41,6 +41,8 @@ public class TargetElement {
     Boolean isElementHidden;
     Boolean cloned;
     String searchAttributeValue;
+    String autoScroll;
+    String autoEnter;
     Boolean forceCoordinates = true;
     Map<String, String> savedReferences = new HashMap<>();
     Integer instructionId;

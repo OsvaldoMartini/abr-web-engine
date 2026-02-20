@@ -69,6 +69,7 @@ public class PerformLists {
     private List<VariableUserDTO> listVariablesUser = new ArrayList<>();
     private List<ComboBoxVars> listWebPageItems = new ArrayList<>();
     private List<ParentOperations> listParentOperations = new ArrayList<>();
+    private List<ParentOperations> listExcelColumns = new ArrayList<>();
     private final List<TargetElement> listTargetElements = new ArrayList<>();
 
     // Private constructor to prevent instantiation
@@ -288,7 +289,7 @@ public class PerformLists {
                     SplitDTO splitDTO = gson.fromJson(body, SplitDTO.class);
                     splitDTO.setType("UPDATE_LIST_ELEMENTS");
 
-                    addElementsFromSplit(List.of(splitDTO.getElementDetails()));
+                    addMapElementsTarget(List.of(splitDTO.getElementDetails()));
 
                     break;
                 case "UPDATE_BLOCKS":
@@ -297,8 +298,7 @@ public class PerformLists {
 
                     String jsonData = gson.toJson(blockMoveDTO);
                     // Just a Signal to update the combos
-                    webSocketSessionManager.sendMessageJson(
-                            homeBankingId, "new-command-scene", jsonData, "UPDATE_BLOCKS");
+                    webSocketSessionManager.sendMessageJson(homeBankingId, "bot-job-scene", jsonData, "UPDATE_BLOCKS");
 
                     webSocketSessionManager.sendMessageJson(
                             homeBankingId, "scanner-element-pane", jsonData, "UPDATE_BLOCKS");
@@ -311,7 +311,7 @@ public class PerformLists {
                     jsonData = gson.toJson(blockMoveDTO);
                     // Just a Signal to update the combos
                     webSocketSessionManager.sendMessageJson(
-                            homeBankingId, "new-command-scene", jsonData, "UPDATE_BLOCKS_COMP");
+                            homeBankingId, "bot-job-scene", jsonData, "UPDATE_BLOCKS_COMP");
 
                     break;
                 case "UPDATE_BOT_JOBS":
@@ -408,17 +408,24 @@ public class PerformLists {
     // Get BlockLoadDTO by homeBankingId and id
     // Get BlockLoadDTO by homeBankingId and id
     public BlockLoadDTO getBlockLoadByBankId(String blockTable, Integer whereId, Integer blockId) {
+        // IT ALLOWS TO FIND ANY BLOCK FOR THE BOTJOB
+        if (blockId < 0) {
+            blockId = null;
+        }
+        Integer finalBlockId = blockId;
+
         if ("block".equalsIgnoreCase(blockTable)) {
+
             return getListBlock().stream()
                     .filter(block -> Objects.equals(block.getBotJobId(), whereId))
-                    .filter(block -> blockId == null || Objects.equals(block.getId(), blockId))
+                    .filter(block -> finalBlockId == null || Objects.equals(block.getId(), finalBlockId))
                     .findFirst()
                     .orElse(null);
 
         } else if ("component_block".equalsIgnoreCase(blockTable)) {
             return getListBlockComp().stream()
                     .filter(block -> Objects.equals(block.getHomeBankingId(), whereId))
-                    .filter(block -> blockId == null || Objects.equals(block.getId(), blockId))
+                    .filter(block -> finalBlockId == null || Objects.equals(block.getId(), finalBlockId))
                     .findFirst()
                     .orElse(null);
         }
@@ -748,6 +755,76 @@ public class PerformLists {
                                     for (InstructionLoad instr : block.getInstructionLoad()) {
                                         if (Objects.equals(instr.getId(), instructionId)) {
                                             instr.setInstructionActive(status);
+                                            break; // only one instruction matches
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+            } else {
+                throw new IllegalArgumentException("Invalid tableName: " + tableName);
+            }
+
+        } catch (Exception error) {
+
+            log.error("Error: Memory Update failed for 'updateMemoryInstructionStatusUpdate': " + error.getMessage());
+        }
+    }
+
+    public void updateMemoryInstructionActionsUpdate(
+            String tableName, Integer whereId, Integer instructionId, String actions) {
+        try {
+            if ("instruction".equalsIgnoreCase(tableName)) {
+
+                // Update global instruction list
+                for (InstructionLoad instr : getListInstruction()) {
+                    if (Objects.equals(instr.getId(), instructionId) && Objects.equals(instr.getBotJobId(), whereId)) {
+                        instr.setActions(actions);
+                        break; // only one instruction matches
+                    }
+                }
+
+                // Update inside BotJob -> Block -> Instruction
+                for (BotJobLoadDTO botJob : getListBotJob()) {
+                    if (Objects.equals(botJob.getId(), whereId)) {
+                        if (botJob.getBlockLoadDTOList() != null) {
+                            for (BlockLoadDTO block : botJob.getBlockLoadDTOList()) {
+                                if (block.getInstructionLoad() != null) {
+                                    for (InstructionLoad instr : block.getInstructionLoad()) {
+                                        if (Objects.equals(instr.getId(), instructionId)) {
+                                            instr.setActions(actions);
+                                            break; // only one instruction matches
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+            } else if ("component_instruction".equalsIgnoreCase(tableName)) {
+
+                // Update global component instruction list
+                for (InstructionLoad instr : getListInstructionComp()) {
+                    if (Objects.equals(instr.getId(), instructionId)
+                            && Objects.equals(instr.getHomeBankingId(), whereId)) {
+                        instr.setActions(actions);
+                        break; // only one instruction matches
+                    }
+                }
+
+                // Update inside BotJobComp -> Block -> Instruction
+                for (BotJobLoadDTO botJob : getListBotJobComp()) {
+                    if (Objects.equals(botJob.getHomeBankingId(), whereId)) {
+                        if (botJob.getBlockLoadDTOList() != null) {
+                            for (BlockLoadDTO block : botJob.getBlockLoadDTOList()) {
+                                if (block.getInstructionLoad() != null) {
+                                    for (InstructionLoad instr : block.getInstructionLoad()) {
+                                        if (Objects.equals(instr.getId(), instructionId)) {
+                                            instr.setActions(actions);
                                             break; // only one instruction matches
                                         }
                                     }
@@ -1329,6 +1406,8 @@ public class PerformLists {
         listVariablesUser.clear();
         listWebPageItems.clear();
         listParentOperations.clear();
+        listExcelColumns.clear();
+        listTargetElements.clear();
     }
 
     /**
@@ -1419,7 +1498,7 @@ public class PerformLists {
         return new ArrayList<>();
     }
 
-    public void addElementsFromSplit(List<ElementDTO> elemestDetails) {
+    public void addMapElementsTarget(List<ElementDTO> elemestDetails) {
 
         targetElementHelper.initialize(performActions);
         for (ElementDTO elementDTO : elemestDetails) {
@@ -1431,5 +1510,13 @@ public class PerformLists {
 
     public void resetListElements() {
         listTargetElements.clear();
+    }
+
+    public List<String> getExcelColumnNames() {
+        return listExcelColumns.stream()
+                .map(ParentOperations::getParentName)
+                .filter(Objects::nonNull)
+                .distinct() // optional (remove if duplicates are allowed)
+                .collect(Collectors.toList());
     }
 }

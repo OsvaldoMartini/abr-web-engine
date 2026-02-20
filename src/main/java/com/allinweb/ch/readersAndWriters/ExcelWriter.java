@@ -1,5 +1,6 @@
 package com.allinweb.ch.readersAndWriters;
 
+import com.allinweb.ch.model.CsvTable;
 import com.allinweb.ch.model.FieldData;
 import com.allinweb.ch.util.ARConstantsEngine;
 import com.allinweb.ch.util.ARExecution;
@@ -121,10 +122,10 @@ public class ExcelWriter {
             }
         }
 
-        public void insertCSVContentIntoExcel(List<String> columnsCSV, List<List<String>> rowsCSV, int exportIndex) {
+        public void insertCSVContentIntoExcel(List<String> columnsCSV, CsvTable tableCSV, int exportIndex) {
             try {
 
-                managedExcel.onSheet(0).insertCSVContentIntoExcel(columnsCSV, rowsCSV, exportIndex);
+                managedExcel.onSheet(0).insertCSVContentIntoExcel(columnsCSV, tableCSV, exportIndex);
                 //                        .insertColumValueOnLastRow(value);
                 managedExcel.save();
             } catch (Exception ex) {
@@ -210,6 +211,9 @@ public class ExcelWriter {
                             case ARConstantsEngine.ENDIF -> "ENDIF";
                             case ARConstantsEngine.SCREEN -> "SCREENSHOT";
                             case ARConstantsEngine.PAUSE -> "PAUSE";
+                            case ARConstantsEngine.NEXT_ENTER -> "NEXT_ENTER";
+                            case ARConstantsEngine.SWIPE_UP -> "SWIPE_UP";
+                            case ARConstantsEngine.SWIPE_DOWN -> "SWIPE_DOWN";
                             case ARConstantsEngine.IGNORE -> "IGNORE";
                             case ARConstantsEngine.EXIT -> "EXIT";
                             case ARConstantsEngine.BY_PASS -> "BY_PASS";
@@ -565,28 +569,40 @@ public class ExcelWriter {
             }
         }
 
-        public void insertCSVContentIntoExcel(List<String> columnsCSV, List<List<String>> rowsCSV, int exportIndex) {
+        public void insertCSVContentIntoExcel(List<String> columnsCSV, CsvTable tableCSV, int exportIndex) {
             try {
-                // Create header row: KEY | column1 | column2 | ...
-                Row headerRow = getOrCreateRow(exportIndex);
+                // Header row: KEY | col1 | col2 | ...
+                getOrCreateRow(exportIndex);
                 insertValueAtCoordinates("KEY", exportIndex, 0);
+
                 for (int i = 0; i < columnsCSV.size(); i++) {
                     insertValueAtCoordinates(columnsCSV.get(i), exportIndex, i + 1);
                 }
 
-                // Write each row: EXTERNAL_1 | val1 | val2 | ...
-                for (int i = 0; i < rowsCSV.size(); i++) {
-                    Row row = getOrCreateRow(exportIndex + 1 + i);
-                    insertValueAtCoordinates("EXTERNAL_" + (i + 1), exportIndex + 1 + i, 0);
-                    List<String> rowData = rowsCSV.get(i);
-                    for (int j = 0; j < rowData.size(); j++) {
-                        insertValueAtCoordinates(rowData.get(j), exportIndex + 1 + i, j + 1);
+                int rowCount = tableCSV.getRows().size();
+
+                // Data rows: EXTERNAL or EXTERNAL_1..N | values...
+                for (int i = 0; i < rowCount; i++) {
+                    int excelRowIndex = exportIndex + 1 + i;
+                    getOrCreateRow(excelRowIndex);
+
+                    // EXACT output rule:
+                    // - if only 1 row: EXTERNAL
+                    // - if more than 1 row: EXTERNAL_1, EXTERNAL_2, ...
+                    String key = (rowCount == 1) ? "EXTERNAL" : "EXTERNAL_" + (i + 1);
+
+                    insertValueAtCoordinates(key, excelRowIndex, 0);
+
+                    // Write values in header order
+                    for (int j = 0; j < columnsCSV.size(); j++) {
+                        String colName = columnsCSV.get(j);
+                        String value = tableCSV.get(i, colName); // "" if missing
+                        insertValueAtCoordinates(value, excelRowIndex, j + 1);
                     }
                 }
 
             } catch (Exception ex) {
-
-                log.error(String.format("Excel Writer insertCSVContentIntoExcel: \nError - %s", ex.getMessage()));
+                log.error("Excel Writer insertCSVContentIntoExcel error", ex);
             }
         }
 

@@ -5,6 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ARConstantsEngine {
 
+    private static final String WEB_APP = "Web App";
+    private static final String ANDROID = "Android";
+    private static final String IOS = "iOS";
+
     // Labels & Properties
     public static final String LABELS_FILE_NAME_COMMON = "lang/labels.";
     public static final String PROPERTIES_FILE_EXTENSION = ".properties";
@@ -56,6 +60,9 @@ public class ARConstantsEngine {
     public static final String QUIT = "Q";
     public static final String SCREEN = "P";
     public static final String PAUSE = "PAUSE";
+    public static final String NEXT_ENTER = "NEXT_ENTER";
+    public static final String SWIPE_UP = "SWIPE_UP";
+    public static final String SWIPE_DOWN = "SWIPE_DOWN";
     public static final String EXTRACT_FIELD = "E";
     public static final String SET_VALUE = "SET";
     public static final String GET_VALUE = "GET";

@@ -26,7 +26,10 @@ public enum ARPropertyEnum {
     EXPIRATION("expiration"),
     WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC("page_update_timeout_sec"),
     WEBDRIVER_INTERACTION_TIMEOUT_SEC("interaction_timeout_sec"),
-    INSTRUCTION_STOP_SECONDS("default_instruction_stop_seconds");
+    INSTRUCTION_STOP_SECONDS("default_instruction_stop_seconds"),
+    WEB_APP("Web App"),
+    ANDROID("Android"),
+    IOS("iOS");
 
     private String value; // this must not be final even if suggested doing so
 

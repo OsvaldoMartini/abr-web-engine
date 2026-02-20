@@ -78,6 +78,9 @@ public class ARConstants {
     public static final String ICON_VARIABLES = "/variables.png";
     public static final String ICON_GET_VALUE_BTN = "/getValueBtn2.png";
     public static final String ICON_CHECK = "/check3.png";
+    public static final String ICON_NEXT_ENTER = "/next_enter.png";
+    public static final String ICON_SWIPE_UP = "/swipe_up.png";
+    public static final String ICON_SWIPE_DOWN = "/swipe_down.png";
     public static final String ICON_IF_ELSE = "/ifElse.png";
     public static final String ICON_GOTO = "/goto8.png";
     public static final String ICON_STEP = "/step.png";
@@ -130,6 +133,9 @@ public class ARConstants {
     public static final String QUIT = "Q";
     public static final String SCREEN = "P";
     public static final String PAUSE = "PAUSE";
+    public static final String NEXT_ENTER = "NEXT_ENTER";
+    public static final String SWIPE_UP = "SWIPE_UP";
+    public static final String SWIPE_DOWN = "SWIPE_DOWN";
     public static final String EXTRACT_FIELD = "E";
     public static final String SET_VALUE = "SET";
     public static final String GET_VALUE = "GET";

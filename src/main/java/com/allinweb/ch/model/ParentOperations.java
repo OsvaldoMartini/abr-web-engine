@@ -11,4 +11,5 @@ public class ParentOperations {
     private Integer instructionId;
     private Integer parentId;
     private String parentName;
+    private String tagName;
 }

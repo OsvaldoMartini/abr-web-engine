@@ -261,10 +261,21 @@ public class SplitDTO {
         if (hasText(src.getShadowRoot())) el.setShadowRoot(src.getShadowRoot());
         if (hasText(src.getCssSelector())) el.setCssSelector(src.getCssSelector());
 
-        // AR Mobile Work Around for Not creating a new DB column
-        if (hasText(src.getDefaultValue()) && src.getDefaultValue().equals("scroll-active")) {
-            el.setSearchAttributeValue(src.getDefaultValue());
-            src.setDefaultValue(null);
+        // Auto Scroll & Auto Enter
+        if (hasText(src.getActions())) {
+
+            String[] actions = src.getActions().split(":");
+
+            for (String action : actions) {
+                switch (action.trim()) {
+                    case "A":
+                        el.setAutoScroll("A");
+                        break;
+                    case "E":
+                        el.setAutoEnter("E");
+                        break;
+                }
+            }
         }
 
         // Fields without a clear mapping from InstructionLoad are left untouched:
