@@ -366,7 +366,7 @@ public class ARPropertyManager {
             //                    0);
 
             for (String prop : missingProperties) {
-                //appium
+                // appium
                 if ("path_appium".equals(prop)) {
                     setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH + "\\appium");
                 }
