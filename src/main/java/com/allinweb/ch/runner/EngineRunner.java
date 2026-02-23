@@ -21,6 +21,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.By;
@@ -422,13 +423,6 @@ public class EngineRunner {
                 return Double.MIN_VALUE;
             }
         }
-    }
-
-    private String clean(String value) {
-        if (value == null) {
-            return null;
-        }
-        return value.replace(".", "").replace(",", "");
     }
 
     private String finalLogMessage(String failedMessage, String resultActions) {
@@ -2938,6 +2932,23 @@ public class EngineRunner {
         return s == null ? "" : s.trim();
     }
 
+    private WebElement immediateXPath(String xPath) {
+        try {
+            if (waitXPath == null && performActions.getCurrentDriver() != null) {
+                waitXPath = new WebDriverWait(performActions.getCurrentDriver(), Duration.ofSeconds(0));
+            }
+            waitXPath.until(ExpectedConditions.presenceOfElementLocated(By.xpath(xPath)));
+            List<WebElement> foundElementList =
+                    performActions.getCurrentDriver().findElements(By.xpath(xPath));
+            if (foundElementList.size() > 0) {
+                return foundElementList.get(0);
+            }
+        } catch (TimeoutException ignored) {
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
     private void pushUpdateListElements() {
         if (performActions == null || performActions.getCurrentDriver() == null) return;
 
@@ -2988,38 +2999,35 @@ public class EngineRunner {
     }
 
     private static boolean isWebElementInstruction(InstructionLoad instr) {
-        if (instr == null || instr.getActions() == null) return false;
+        if (instr == null) return false;
 
-        String raw = instr.getActions().trim();
+        String actions = instr.getActions();
+        if (actions == null) return false;
+
+        String raw = actions.trim();
         if (raw.isEmpty()) return false;
 
-        // If actions are split by your splitter, check the first token (most important)
-        String first = raw.split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER)[0].trim();
+        // split() takes a regex, so quote the splitter to treat it literally
+        String[] parts = raw.split(Pattern.quote(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER), 2);
+        String first = parts[0].trim();
+        if (first.isEmpty()) return false;
 
-        // Prefix-based forms like "C:..." or "I:..."
-        String upper = first.toUpperCase();
-        if (upper.startsWith("C:") || upper.startsWith("I:")) return true;
+        String upper = first.toUpperCase(Locale.ROOT);
 
-        // If you also have plain "C" or "SET"/"GET" etc, map them here
-        // Based on your UI switch, "C" = click, "SET"/"GET" are web-field operations.
-        return upper.equals("C") || upper.equals("SET") || upper.equals("GET");
+        // Required prefixes: "C" (including "C:"), "I:", "O:"
+        if (upper.startsWith("C") || upper.startsWith("I") || upper.startsWith("O")) {
+            return true;
+        }
+
+        // Optional: support plain operation tokens
+        return upper.equals("SET") || upper.equals("GET");
     }
 
-    private WebElement immediateXPath(String xPath) {
-        try {
-            if (waitXPath == null && performActions.getCurrentDriver() != null) {
-                waitXPath = new WebDriverWait(performActions.getCurrentDriver(), Duration.ofSeconds(0));
-            }
-            waitXPath.until(ExpectedConditions.presenceOfElementLocated(By.xpath(xPath)));
-            List<WebElement> foundElementList =
-                    performActions.getCurrentDriver().findElements(By.xpath(xPath));
-            if (foundElementList.size() > 0) {
-                return foundElementList.get(0);
-            }
-        } catch (TimeoutException ignored) {
-        } catch (Exception ignored) {
+    private String clean(String value) {
+        if (value == null) {
+            return null;
         }
-        return null;
+        return value.replace(".", "").replace(",", "");
     }
 
     private int getNavigationTimeSeconds() {
