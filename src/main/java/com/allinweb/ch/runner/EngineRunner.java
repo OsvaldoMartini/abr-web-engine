@@ -2764,7 +2764,7 @@ public class EngineRunner {
 
             if (isInterceptBotJob()) {
                 updateRowStatusAndNotify("yellow"); // #fcba03 deep carmine yellow
-                performMessage.showCustomModalDialogDragWin11Timer(
+                performMessage.showCustomModalDialogDragWin11TimerAuto(
                         "Bot-Job Interrupted successfully",
                         currentBotJobName,
                         "Last Execution:",
@@ -2777,7 +2777,7 @@ public class EngineRunner {
                         5);
             } else {
                 updateRowStatusAndNotify("green"); // #1d9c06 deep carmine green
-                respModal = performMessage.showCustomModalDialogDragWin11Timer(
+                respModal = performMessage.showCustomModalDialogDragWin11TimerAuto(
                         "Bot-Job Finished - successfully",
                         currentBotJobName,
                         "Last Execution:",
@@ -2805,7 +2805,7 @@ public class EngineRunner {
 
             if (isInterceptBotJob()) {
                 updateRowStatusAndNotify("yellow"); // #fcba03 deep carmine yellow
-                performMessage.showCustomModalDialogDragWin11Timer(
+                performMessage.showCustomModalDialogDragWin11TimerAuto(
                         "Bot-Job Interrupted successfully",
                         currentBotJobName,
                         "Last Execution:",
@@ -2820,7 +2820,7 @@ public class EngineRunner {
             } else {
                 updateRowStatusAndNotify("red"); // #FF3131 deep carmine red
                 if (webElementWork) {
-                    respModal = performMessage.showCustomModalDialogDragWin11Timer(
+                    respModal = performMessage.showCustomModalDialogDragWin11TimerAuto(
                             "Bot-Job Finished - successfully",
                             currentBotJobName,
                             "Last Execution:",
@@ -2832,7 +2832,7 @@ public class EngineRunner {
                             300,
                             5);
                 } else {
-                    respModal = performMessage.showCustomModalDialogDragWin11Timer(
+                    respModal = performMessage.showCustomModalDialogDragWin11TimerAuto(
                             "Process Execution Terminated",
                             !Strings.isNullOrEmpty(failedMessage) ? failedMessage : "Failed:",
                             "Last Execution:",
