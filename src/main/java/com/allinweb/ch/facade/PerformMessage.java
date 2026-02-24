@@ -741,7 +741,7 @@ public class PerformMessage {
         if (message3 != null && message4 == null) {
             concatenateMsg +=
                     "<br>------------------------------<br><span style='color: blue;'>" + message3 + "</span></html>";
-        } else if (message3 != null && message4 != null && !message4.contains("to close")) {
+        } else if (message3 != null && !message4.contains("to close")) {
             concatenateMsg += "<br>------------------------------<br><span style='color: blue;'>"
                     + message3 + "</span><br>------------------------------<br><span style='color: blue;'>"
                     + message4 + "</span><br><br></html>";
@@ -758,8 +758,8 @@ public class PerformMessage {
         if (seconds > 0) {
             concatenateMsg = concatenateMsg.replace(
                     "</html>",
-                    "<br>------------------------------<br><span style='color: green; font-weight:bold;'>" + message4
-                            + " " + seconds + " seconds!</span></html>");
+                    "<br>------------------------------<br><span style='color: green; font-weight:bold;'>"
+                            + (message4 != null ? message4 : "") + " " + seconds + " seconds!</span></html>");
         }
 
         concatenateMsg = titleMessage + concatenateMsg;
