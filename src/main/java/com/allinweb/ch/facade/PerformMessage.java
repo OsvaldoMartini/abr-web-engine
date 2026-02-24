@@ -824,7 +824,10 @@ public class PerformMessage {
     }
 
     /**
-     * Creates a styled button with Windows 11 theme
+     * Windows 11 style modal dialog with optional live countdown & auto-close.
+     *
+     * message1..message3: optional blue lines
+     * message4: timer prefix shown in green (e.g. "Browser will close in")
      */
     public ARExecution.DialogModal showCustomModalDialogDragWin11TimerAuto(
             String title,
@@ -838,11 +841,9 @@ public class PerformMessage {
             int height,
             int seconds) {
 
-        // Create a JDialog as a custom modal message dialog
-        JDialog dialog = new JDialog((Frame) null, title, true); // Modal dialog
-        dialog.setUndecorated(true); // Remove the default border
+        JDialog dialog = new JDialog((Frame) null, title, true);
+        dialog.setUndecorated(true);
 
-        // Set dialog size dynamically
         if (height > 0) {
             dialog.setSize(600, height);
         } else if (message2 != null && message3 == null && message4 == null) {
@@ -855,64 +856,76 @@ public class PerformMessage {
             dialog.setSize(600, 210);
         }
 
-        dialog.setLocationRelativeTo(null); // Center on screen
+        dialog.setLocationRelativeTo(null);
 
-        // Main panel
-        JPanel panel = new JPanel();
-        panel.setBackground(new Color(243, 243, 243)); // Windows 11 Light Gray
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(new Color(243, 243, 243));
         panel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(200, 200, 200)), // Border color
-                BorderFactory.createEmptyBorder(20, 20, 20, 20))); // Padding
-        panel.setLayout(new BorderLayout());
+                BorderFactory.createLineBorder(new Color(200, 200, 200)),
+                BorderFactory.createEmptyBorder(20, 20, 20, 20)));
 
-        // Build the message
-        String titleMessage = "<html><br><span style='color: blue;'>"
-                + "<span  style='font-size: 14px; font-weight: bold;'>" + title
-                + "</span><br>------------------------------<br>";
+        final String baseColor = redMsg ? "#D32F2F" : "blue";
 
-        String concatenateMsg = "<span style='color: blue;'>" + message1;
-        if (message2 != null) {
-            concatenateMsg +=
-                    "</span><br>------------------------------<br><span style='color: blue;'>" + message2 + "</span>";
-        } else {
-            concatenateMsg += "</span><br>------------------------------<br><br>                            <br>";
-        }
+        // --- Build base HTML deterministically (NO timer line here) ---
+        java.util.function.Supplier<String> baseHtmlBuilder = () -> {
+            StringBuilder sb = new StringBuilder(512);
 
-        if (message3 != null && message4 == null) {
-            concatenateMsg +=
-                    "<br>------------------------------<br><span style='color: blue;'>" + message3 + "</span></html>";
-        } else if (message3 != null && message4 != null) {
-            concatenateMsg += "<br>------------------------------<br><span style='color: blue;'>"
-                    + message3 + "</span><br>------------------------------<br><span style='color: blue;'>"
-                    + message4 + "</span><br><br></html>";
-        } else {
-            concatenateMsg += "</html>";
-        }
+            sb.append("<html><br>")
+                    .append("<span style='color:")
+                    .append(baseColor)
+                    .append(";'>")
+                    .append("<span style='font-size:14px; font-weight:bold;'>")
+                    .append(title)
+                    .append("</span>")
+                    .append("<br>------------------------------<br>");
 
-        // Apply red color if redMsg is true
-        if (redMsg) {
-            concatenateMsg = concatenateMsg.replaceAll("blue", "#D32F2F");
-        }
+            // message1 (assume required)
+            sb.append("<span style='color:")
+                    .append(baseColor)
+                    .append(";'>")
+                    .append(message1 != null ? message1 : "")
+                    .append("</span>");
 
-        // At this point concatenateMsg already ends with </html>
-        // We keep a base HTML version WITHOUT the timer text
-        String baseHtml = titleMessage + concatenateMsg;
+            // message2
+            sb.append("<br>------------------------------<br>");
+            if (message2 != null) {
+                sb.append("<span style='color:")
+                        .append(baseColor)
+                        .append(";'>")
+                        .append(message2)
+                        .append("</span>");
+            } else {
+                sb.append("<br>&nbsp;<br>");
+            }
 
-        // Create a JLabel to display the formatted message
+            // message3
+            if (message3 != null) {
+                sb.append("<br>------------------------------<br>")
+                        .append("<span style='color:")
+                        .append(baseColor)
+                        .append(";'>")
+                        .append(message3)
+                        .append("</span>");
+            }
+
+            sb.append("</html>");
+            return sb.toString();
+        };
+
+        final String baseHtml = baseHtmlBuilder.get();
+
         JLabel messageLabel = new JLabel(baseHtml, SwingConstants.CENTER);
         messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
         panel.add(messageLabel, BorderLayout.CENTER);
 
         final ARExecution.DialogModal[] status = {ARExecution.DialogModal.NONE};
 
-        // Create button panel if second button exists
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 0));
-        buttonPanel.setBackground(new Color(243, 243, 243)); // Windows 11 Light Gray
+        buttonPanel.setBackground(new Color(243, 243, 243));
         buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         Dimension buttonSize = new Dimension(150, 20);
 
-        // OK button
         JButton okButton = createStyledButtonWin11(firstButton);
         okButton.setPreferredSize(buttonSize);
         okButton.addActionListener(e -> {
@@ -921,8 +934,7 @@ public class PerformMessage {
         });
         buttonPanel.add(okButton);
 
-        // Stop button if provided
-        JButton stopButton;
+        JButton stopButton = null;
         if (!Strings.isNullOrEmpty(secondButton)) {
             stopButton = createStyledButtonWin11(secondButton);
             stopButton.setPreferredSize(buttonSize);
@@ -932,38 +944,42 @@ public class PerformMessage {
                 status[0] = ARExecution.DialogModal.STOP;
             });
             buttonPanel.add(stopButton);
-        } else {
-            stopButton = null;
         }
 
         panel.add(buttonPanel, BorderLayout.SOUTH);
+
+        // --- Countdown line builder (uses message4 as prefix) ---
+        final JButton finalStopButton = stopButton;
+        java.util.function.IntFunction<String> htmlWithTimer = (sec) -> {
+            String prefix =
+                    (message4 != null && !message4.trim().isEmpty()) ? message4.trim() : "This window will close in";
+
+            String timerLine =
+                    "<br>------------------------------<br>" + "<span style='color: green; font-weight:bold;'>"
+                            + prefix
+                            + " " + sec + " second" + (sec == 1 ? "" : "s") + "!" + "</span>";
+
+            // Append the timer line right before </html> reliably
+            int idx = baseHtml.lastIndexOf("</html>");
+            if (idx < 0) {
+                // extremely defensive fallback
+                return baseHtml + timerLine + "</html>";
+            }
+            return baseHtml.substring(0, idx) + timerLine + "</html>";
+        };
 
         // ---- Timer with live countdown & auto-close ----
         if (seconds > 0) {
             final int[] remaining = {seconds};
 
-            // Helper lambda to rebuild the label HTML with countdown
-            java.util.function.IntFunction<String> htmlWithTimer = (sec) -> {
-                String timerLine = "<br>------------------------------<br>"
-                        + "<span style='color: green; font-weight:bold;'>This window will close in "
-                        + sec + " second" + (sec == 1 ? "" : "s") + "!</span></html>";
-                // Remove the final </html> from baseHtml and append the timer line
-                return baseHtml.replace("</html>", timerLine);
-            };
-
-            // Initialize label with first countdown value
             messageLabel.setText(htmlWithTimer.apply(remaining[0]));
 
             Timer timer = new Timer(1000, e -> {
                 remaining[0]--;
                 if (remaining[0] <= 0) {
                     ((Timer) e.getSource()).stop();
-                    // Auto-click Stop if present, otherwise OK
-                    if (stopButton != null) {
-                        stopButton.doClick();
-                    } else {
-                        okButton.doClick();
-                    }
+                    if (finalStopButton != null) finalStopButton.doClick();
+                    else okButton.doClick();
                 } else {
                     messageLabel.setText(htmlWithTimer.apply(remaining[0]));
                 }
@@ -972,13 +988,11 @@ public class PerformMessage {
             timer.start();
         }
 
-        // Add drag support
         addDragSupport(dialog, panel);
 
-        // Add panel to dialog
         dialog.getContentPane().add(panel);
         dialog.setAlwaysOnTop(true);
-        dialog.setVisible(true); // This blocks other input until the dialog is closed
+        dialog.setVisible(true);
 
         return status[0];
     }
