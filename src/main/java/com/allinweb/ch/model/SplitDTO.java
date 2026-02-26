@@ -41,6 +41,7 @@ public class SplitDTO {
     private List<String> packagesFound;
     private String appMainActivity;
     private Integer scrollTimes;
+    private String deviceId;
 
     private String projectType;
 
