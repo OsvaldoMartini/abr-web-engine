@@ -84,6 +84,12 @@ public class PerformLists {
                 }
             }
         }
+
+        log.info(
+                "PerformLists instance={} cl={}",
+                System.identityHashCode(instance),
+                instance.getClass().getClassLoader());
+
         return instance;
     }
 
@@ -205,7 +211,7 @@ public class PerformLists {
             String serverUri = "ws://localhost:" + portSocket + "/websocket?sessionId=" + sessionId;
             try {
                 WebSocketContainer container = ContainerProvider.getWebSocketContainer();
-                container.connectToServer(this, new URI(serverUri));
+                container.connectToServer(PerformLists.getInstance(), new URI(serverUri));
                 startKeepAlivePings();
                 isConnectWebSocket = true;
             } catch (Exception e) {
