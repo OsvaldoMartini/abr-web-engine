@@ -186,7 +186,13 @@ public class PerformLists {
 
     @OnError
     public void onError(Session session, Throwable throwable) {
-        log.info("WebSocket Error: {}", throwable.getMessage(), throwable);
+        // Not an error when ARWeb is simply not running — Engine can work standalone
+        if (throwable instanceof java.net.ConnectException
+                || (throwable.getMessage() != null && throwable.getMessage().contains("Connection refused"))) {
+            log.info("ARWeb is not running — Engine will continue without real-time updates.");
+        } else {
+            log.warn("WebSocket error: {}", throwable.getMessage());
+        }
         stopKeepAlivePings();
         isConnectWebSocket = false;
 
@@ -216,7 +222,12 @@ public class PerformLists {
                 isConnectWebSocket = true;
             } catch (Exception e) {
                 isConnectWebSocket = false;
-                log.warn("WebSocket connection failed sessionId: " + sessionId + " error: " + e.getMessage());
+                if (e.getCause() instanceof java.net.ConnectException
+                        || (e.getMessage() != null && e.getMessage().contains("Connection refused"))) {
+                    log.info("ARWeb is not running — real-time status updates are disabled. Engine will execute normally.");
+                } else {
+                    log.warn("WebSocket connection failed sessionId: {} — {}", sessionId, e.getMessage());
+                }
             }
         });
     }
