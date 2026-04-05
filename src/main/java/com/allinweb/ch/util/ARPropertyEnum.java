@@ -3,6 +3,7 @@ package com.allinweb.ch.util;
 public enum ARPropertyEnum {
     NAVIGATION_TIME("navigation_time"),
     PATH_APPIUM("path_appium"),
+    PATH_PLUGINS("path_plugins"),
     PATH_LICENSE("path_license"),
     DATABASE_TYPE("data_base"),
     PORT_SOCKET("port_socket"),
