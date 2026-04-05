@@ -57,6 +57,19 @@ public class Engine {
         // --- configuration file setup
         configureProperties(args);
 
+        // Per-bot-job lock — prevents the same bot job from running twice
+        String botJobLockId = extractBotJobId(args);
+        if (botJobLockId != null) {
+            String logPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
+            if (!Strings.isNullOrEmpty(logPath)) {
+                if (!SingleInstance.acquire("ARWebEngine-botJob" + botJobLockId, logPath)) {
+                    log.warn("Bot Job {} is already running. Exiting.", botJobLockId);
+                    System.exit(0);
+                }
+                Runtime.getRuntime().addShutdownHook(new Thread(SingleInstance::release));
+            }
+        }
+
         Labels.initializeLabelsInSpecLang(language);
 
         List<String> missingProperties = checkProperties(arPropertyManager.getProperties());
@@ -220,5 +233,19 @@ public class Engine {
         System.setProperty(
                 "ARWebChosenPort", String.valueOf(arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET)));
         performDBEngine.callSocketLists("engine-perform-bot-job");
+    }
+
+    /**
+     * Extract the bot job ID from args: execute/j {homeBankId} {botJobId} ...
+     */
+    private static String extractBotJobId(String[] args) {
+        try {
+            List<String> list = Arrays.asList(args);
+            int idx = list.indexOf("execute/j");
+            if (idx >= 0 && idx + 2 < list.size()) {
+                return list.get(idx + 2); // botJobId is the second param after execute/j
+            }
+        } catch (Exception ignored) {}
+        return null;
     }
 }
