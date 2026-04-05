@@ -130,11 +130,11 @@ public class WebSocketSessionManager {
             try {
                 session.getBasicRemote().sendText(message);
             } catch (IOException e) {
-                log.error("Error sending message to session " + sessionId + ": " + e.getMessage());
+                log.debug("Cannot send to session {}: {}", sessionId, e.getMessage());
             }
         } else {
-            removeSession(sessionId);
-            log.error("Session " + sessionId + " not found or closed.");
+            // ARWeb may not be running — silently skip
+            log.debug("Session {} not available — ARWeb may be offline.", sessionId);
         }
     }
 
@@ -154,10 +154,11 @@ public class WebSocketSessionManager {
                 session.getBasicRemote().sendText(jsonMessage.toString());
                 return session;
             } catch (IOException e) {
-                log.error("Error sending message to session " + sessionId + ": " + e.getMessage());
+                log.debug("Cannot send to session {}: {}", sessionId, e.getMessage());
             }
         } else {
-            log.error("Session " + sessionId + " not found or closed.");
+            // ARWeb may not be running — silently skip
+            log.debug("Session {} not available — ARWeb may be offline.", sessionId);
         }
         return null;
     }
