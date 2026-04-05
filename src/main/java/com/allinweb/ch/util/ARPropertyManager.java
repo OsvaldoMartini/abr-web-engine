@@ -403,7 +403,9 @@ public class ARPropertyManager {
             if (Files.isDirectory(configuredPath)) {
                 return configured;
             }
-            log.warn("resolvePluginsDir — configured path_plugins does not exist: {}. Falling back to ARWeb/plugins.", configured);
+            log.warn(
+                    "resolvePluginsDir — configured path_plugins does not exist: {}. Falling back to ARWeb/plugins.",
+                    configured);
         } else {
             log.warn("resolvePluginsDir — path_plugins is not configured. Falling back to ARWeb/plugins.");
         }
@@ -438,7 +440,8 @@ public class ARPropertyManager {
             log.error("loadPluginScript — path_plugins folder does not exist: {}", configured);
             throw new PluginLoadException(
                     "Plugins folder does not exist",
-                    "<span style='color: #E65100; font-weight: bold;'>The folder was not found on disk:</span>  " + configured,
+                    "<span style='color: #E65100; font-weight: bold;'>The folder was not found on disk:</span>  "
+                            + configured,
                     "<span style='font-style: italic;'>Please verify that the folder exists and contains the plugin sub-folders.</span>",
                     "<span style='color: #455A64;'>You can change it in Settings > path_plugins.</span>");
         }
@@ -446,16 +449,20 @@ public class ARPropertyManager {
         Path scriptPath = pluginsPath.resolve(relativePath);
 
         if (!Files.exists(scriptPath)) {
-            String pluginName = relativePath.contains("/")
-                    ? relativePath.substring(0, relativePath.indexOf('/'))
-                    : relativePath;
+            String pluginName =
+                    relativePath.contains("/") ? relativePath.substring(0, relativePath.indexOf('/')) : relativePath;
 
-            log.error("loadPluginScript — Plugin script not found: {}: expected at {}", pluginName, scriptPath.toAbsolutePath());
+            log.error(
+                    "loadPluginScript — Plugin script not found: {}: expected at {}",
+                    pluginName,
+                    scriptPath.toAbsolutePath());
             throw new PluginLoadException(
                     "Plugin script not found: " + pluginName,
-                    "<span style='color: #E65100; font-weight: bold;'>File not found:</span>  " + scriptPath.toAbsolutePath(),
+                    "<span style='color: #E65100; font-weight: bold;'>File not found:</span>  "
+                            + scriptPath.toAbsolutePath(),
                     "<span style='font-style: italic;'>The 'path_plugins' is set to:</span>  <b>" + configured + "</b>",
-                    "<span style='color: #455A64;'>Make sure the '" + pluginName + "' plugin is installed in that folder and its build output exists.</span>");
+                    "<span style='color: #455A64;'>Make sure the '" + pluginName
+                            + "' plugin is installed in that folder and its build output exists.</span>");
         }
 
         try {
@@ -464,9 +471,11 @@ public class ARPropertyManager {
             log.error("loadPluginScript — Failed to read plugin script: {}", e.getMessage(), e);
             throw new PluginLoadException(
                     "Failed to read plugin script",
-                    "<span style='color: #E65100; font-weight: bold;'>The file exists but could not be read:</span>  " + scriptPath.toAbsolutePath(),
+                    "<span style='color: #E65100; font-weight: bold;'>The file exists but could not be read:</span>  "
+                            + scriptPath.toAbsolutePath(),
                     "<span style='font-style: italic;'>Check file permissions and ensure it is not locked by another process.</span>",
-                    null, e);
+                    null,
+                    e);
         }
     }
 
@@ -495,9 +504,20 @@ public class ARPropertyManager {
             this.msg3 = msg3;
         }
 
-        public String getUserTitle() { return userTitle; }
-        public String getMsg1() { return msg1; }
-        public String getMsg2() { return msg2; }
-        public String getMsg3() { return msg3; }
+        public String getUserTitle() {
+            return userTitle;
+        }
+
+        public String getMsg1() {
+            return msg1;
+        }
+
+        public String getMsg2() {
+            return msg2;
+        }
+
+        public String getMsg3() {
+            return msg3;
+        }
     }
 }

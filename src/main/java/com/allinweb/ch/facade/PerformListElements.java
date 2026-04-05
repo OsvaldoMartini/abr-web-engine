@@ -104,14 +104,14 @@ public class PerformListElements {
 
             Object result = executor.executeAsyncScript(
                     getJsSearchListAsync(),
-                    dataList,           // arguments[0] — searchTerms
+                    dataList, // arguments[0] — searchTerms
                     searchHiddenFields, // arguments[1] — hiddenFields
-                    port,               // arguments[2] — socketPort (unused)
-                    sessionId,          // arguments[3] — sessionId
-                    destination,        // arguments[4] — destination
-                    operationId,        // arguments[5] — operationId
-                    homeBankingId,      // arguments[6] — homeBankingId
-                    botJobId);          // arguments[7] — botJobId
+                    port, // arguments[2] — socketPort (unused)
+                    sessionId, // arguments[3] — sessionId
+                    destination, // arguments[4] — destination
+                    operationId, // arguments[5] — operationId
+                    homeBankingId, // arguments[6] — homeBankingId
+                    botJobId); // arguments[7] — botJobId
 
             if (result == null || !(result instanceof String)) {
                 logOperations.warn("Cannot return any elements from the page");
@@ -134,8 +134,11 @@ public class PerformListElements {
             return null;
         } catch (ARPropertyManager.PluginLoadException ple) {
             log.error("PerformListElements — plugin load failed: {}", ple.getUserTitle(), ple);
-            return new ErrorMessage(ple.getUserTitle(), "Search List Async Plugin",
-                    ple.getMsg1() + "\n" + (ple.getMsg2() != null ? ple.getMsg2() : "") + "\n" + (ple.getMsg3() != null ? ple.getMsg3() : ""));
+            return new ErrorMessage(
+                    ple.getUserTitle(),
+                    "Search List Async Plugin",
+                    ple.getMsg1() + "\n" + (ple.getMsg2() != null ? ple.getMsg2() : "") + "\n"
+                            + (ple.getMsg3() != null ? ple.getMsg3() : ""));
         } catch (Exception error) {
             return new ErrorMessage("Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage());
         }
