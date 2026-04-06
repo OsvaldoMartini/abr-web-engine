@@ -39,10 +39,19 @@ public final class SingleInstance {
     }
 
     public static void release() {
-        try { if (lock != null) lock.release(); } catch (IOException ignored) {}
-        try { if (channel != null) channel.close(); } catch (IOException ignored) {}
+        try {
+            if (lock != null) lock.release();
+        } catch (IOException ignored) {
+        }
+        try {
+            if (channel != null) channel.close();
+        } catch (IOException ignored) {
+        }
         if (currentLockFile != null) {
-            try { Files.deleteIfExists(currentLockFile); } catch (IOException ignored) {}
+            try {
+                Files.deleteIfExists(currentLockFile);
+            } catch (IOException ignored) {
+            }
         }
         lock = null;
         channel = null;

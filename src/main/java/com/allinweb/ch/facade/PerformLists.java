@@ -224,7 +224,8 @@ public class PerformLists {
                 isConnectWebSocket = false;
                 if (e.getCause() instanceof java.net.ConnectException
                         || (e.getMessage() != null && e.getMessage().contains("Connection refused"))) {
-                    log.info("ARWeb is not running — real-time status updates are disabled. Engine will execute normally.");
+                    log.info(
+                            "ARWeb is not running — real-time status updates are disabled. Engine will execute normally.");
                 } else {
                     log.warn("WebSocket connection failed sessionId: {} — {}", sessionId, e.getMessage());
                 }

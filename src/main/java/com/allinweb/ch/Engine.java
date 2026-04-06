@@ -245,7 +245,8 @@ public class Engine {
             if (idx >= 0 && idx + 2 < list.size()) {
                 return list.get(idx + 2); // botJobId is the second param after execute/j
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         return null;
     }
 }
