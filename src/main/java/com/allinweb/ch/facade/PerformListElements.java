@@ -35,25 +35,34 @@ public class PerformListElements {
     }
 
     /**
-     * Cached searchListAsync bundle. Loaded lazily from:
-     *   {path_plugins}/searchListAsync/build/searchListAsync.min.js
-     *
-     * To rebuild:
-     *   cd {path_plugins}/searchListAsync
-     *   npx esbuild index.js --bundle --minify --outfile=build/searchListAsync.min.js
+     * Cached searchListAsync bundle. Loaded lazily from encrypted plugin:
+     *   {path_plugins}/searchListAsync/searchListAsync.min.enc
+     * Falls back to plain .min.js if .enc not found (backward compatibility).
      */
     private static volatile String jsSearchListAsync = null;
 
-    private static final String SEARCH_LIST_ASYNC_RELATIVE_PATH = "searchListAsync/build/searchListAsync.min.js";
+    private static final String SEARCH_LIST_ASYNC_ENC_PATH = "searchListAsync/searchListAsync.min.enc";
 
     private static String getJsSearchListAsync() {
         if (jsSearchListAsync == null) {
             synchronized (PerformListElements.class) {
                 if (jsSearchListAsync == null) {
-                    jsSearchListAsync = ARPropertyManager.loadPluginScript(SEARCH_LIST_ASYNC_RELATIVE_PATH);
-                    log.info(
-                            "PerformListElements — searchListAsync script loaded from plugins folder ({} chars)",
-                            jsSearchListAsync.length());
+                    try {
+                        jsSearchListAsync = EncryptedPluginLoader.getInstance().loadPlugin(SEARCH_LIST_ASYNC_ENC_PATH);
+                        log.info(
+                                "PerformListElements — searchListAsync loaded (encrypted, {} chars)",
+                                jsSearchListAsync.length());
+                    } catch (Exception e) {
+                        // Fallback to plain .min.js
+                        log.warn(
+                                "PerformListElements — encrypted load failed, trying plain .min.js: {}",
+                                e.getMessage());
+                        jsSearchListAsync =
+                                ARPropertyManager.loadPluginScript("searchListAsync/build/searchListAsync.min.js");
+                        log.info(
+                                "PerformListElements — searchListAsync loaded (plain, {} chars)",
+                                jsSearchListAsync.length());
+                    }
                 }
             }
         }
