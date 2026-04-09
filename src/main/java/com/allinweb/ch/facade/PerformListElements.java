@@ -1,6 +1,5 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ErrorMessage;
 import com.allinweb.ch.util.JsScanResultDTO;
 import com.google.gson.Gson;
@@ -35,38 +34,48 @@ public class PerformListElements {
     }
 
     /**
-     * Cached searchListAsync bundle. Loaded lazily from encrypted plugin:
-     *   {path_plugins}/searchListAsync/searchListAsync.min.enc
-     * Falls back to plain .min.js if .enc not found (backward compatibility).
+     * Cached searchListAsync bundle. Null until the first call to dynamicLoadElementsDTO().
+     * Loaded lazily so a missing file does NOT crash the JVM at startup —
+     * the error surfaces only when a scan is actually triggered.
+     *
+     * Loaded from the filesystem path defined by PATH_PLUGINS in ARWeb.config:
+     *   {path_plugins}/searchListAsync/build/searchListAsync.min.js
+     *
+     * To rebuild the bundle:
+     *   cd {path_plugins}/searchListAsync
+     *   npx esbuild index.js --bundle --minify --outfile=build/searchListAsync.min.js
      */
     private static volatile String jsSearchListAsync = null;
 
-    private static final String SEARCH_LIST_ASYNC_ENC_PATH = "searchListAsync/searchListAsync.min.enc";
+    /** Relative path within the plugins folder */
+    private static final String SEARCH_LIST_ASYNC_RELATIVE_PATH = "searchListAsync/searchListAsync.min.enc";
 
+    /**
+     * Loads (and caches) the minified searchListAsync bundle from the PATH_PLUGINS folder.
+     * Thread-safe via double-checked locking on jsSearchListAsync.
+     *
+     * @throws PerformPreLoad.PluginLoadException if the config property or file is missing.
+     */
     private static String getJsSearchListAsync() {
         if (jsSearchListAsync == null) {
             synchronized (PerformListElements.class) {
                 if (jsSearchListAsync == null) {
-                    try {
-                        jsSearchListAsync = EncryptedPluginLoader.getInstance().loadPlugin(SEARCH_LIST_ASYNC_ENC_PATH);
-                        log.info(
-                                "PerformListElements — searchListAsync loaded (encrypted, {} chars)",
-                                jsSearchListAsync.length());
-                    } catch (Exception e) {
-                        // Fallback to plain .min.js
-                        log.warn(
-                                "PerformListElements — encrypted load failed, trying plain .min.js: {}",
-                                e.getMessage());
-                        jsSearchListAsync =
-                                ARPropertyManager.loadPluginScript("searchListAsync/build/searchListAsync.min.js");
-                        log.info(
-                                "PerformListElements — searchListAsync loaded (plain, {} chars)",
-                                jsSearchListAsync.length());
-                    }
+                    jsSearchListAsync = EncryptedPluginLoader.getInstance().loadPlugin(SEARCH_LIST_ASYNC_RELATIVE_PATH);
+                    log.info(
+                            "PerformListElements — searchListAsync script loaded from plugins folder ({} chars)",
+                            jsSearchListAsync.length());
                 }
             }
         }
         return jsSearchListAsync;
+    }
+
+    /** Clear cache so the script reloads from disk on next injection. */
+    public static void reloadScript() {
+        synchronized (PerformListElements.class) {
+            jsSearchListAsync = null;
+            log.info("PerformListElements — searchListAsync cache cleared");
+        }
     }
 
     // Private constructor to prevent instantiation
@@ -86,6 +95,16 @@ public class PerformListElements {
     /**
      * Injects the searchListAsync bundle into the current browser page via
      * Selenium's executeAsyncScript.
+     *
+     * Argument mapping (matches index.js IIFE parameter order):
+     *   arguments[0]  searchTerms        — String[] filter tags
+     *   arguments[1]  searchHiddenFields — boolean
+     *   arguments[2]  port               — WebSocket server port (unused, kept for alignment)
+     *   arguments[3]  sessionId          — UUID string
+     *   arguments[4]  destination        — target session ID for routing
+     *   arguments[5]  operationId        — operation label string
+     *   arguments[6]  homeBankingId      — int
+     *   arguments[7]  botJobId           — int
      *
      * @return null on success, or an ErrorMessage on failure.
      */
@@ -141,7 +160,7 @@ public class PerformListElements {
             performLists.addMapElementsTarget(dto.getElements());
 
             return null;
-        } catch (ARPropertyManager.PluginLoadException ple) {
+        } catch (PerformPreLoad.PluginLoadException ple) {
             log.error("PerformListElements — plugin load failed: {}", ple.getUserTitle(), ple);
             return new ErrorMessage(
                     ple.getUserTitle(),

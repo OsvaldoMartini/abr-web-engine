@@ -57,7 +57,7 @@ public class ExcelWriter {
             managedExcelMap.put("report", new ManagedExcel(botJobName + " (" + now + ")", "report", true, isFullPath));
         } catch (Exception ex) {
 
-            log.error(String.format("Excel Folder maybe not configured. %s\nError", botJobName, ex.getMessage()));
+            log.warn(String.format("Excel Folder maybe not configured. %s\nError", botJobName, ex.getMessage()));
         }
     }
 

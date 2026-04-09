@@ -3,10 +3,6 @@ package com.allinweb.ch.util;
 import com.allinweb.ch.facade.PerformMessage;
 import com.google.common.base.Strings;
 import java.io.*;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -195,6 +191,38 @@ public class ARPropertyManager {
         return this.properties.getProperty(property.getValue());
     }
 
+    /**
+     * Resolves the effective plugins directory.
+     * <ol>
+     *   <li>If {@code path_plugins} is configured and the directory exists, returns it.</li>
+     *   <li>If the configured directory does not exist, falls back to
+     *       {@code {project parent}/ARWeb/plugins} (consistent with other ARWeb paths).</li>
+     *   <li>If {@code path_plugins} is not configured at all, falls back to
+     *       {@code {project parent}/ARWeb/plugins}.</li>
+     * </ol>
+     *
+     * @return the resolved plugins directory path (never null)
+     */
+    public String resolvePluginsDir() {
+        String configured = getProperty(ARPropertyEnum.PATH_PLUGINS);
+        if (configured != null && !configured.isBlank()) {
+            java.nio.file.Path configuredPath = java.nio.file.Paths.get(configured);
+            if (java.nio.file.Files.isDirectory(configuredPath)) {
+                return configured;
+            }
+            log.warn(
+                    "resolvePluginsDir — configured path_plugins does not exist: {}. Falling back to ARWeb/plugins.",
+                    configured);
+        } else {
+            log.warn("resolvePluginsDir — path_plugins is not configured. Falling back to ARWeb/plugins.");
+        }
+
+        String parentPath = new File(ARConstantsEngine.USER_PATH).getParent();
+        String fallback = parentPath + "\\ARWeb\\plugins";
+        log.info("resolvePluginsDir — using fallback plugins path: {}", fallback);
+        return fallback;
+    }
+
     public void setProperty(String propertyName, String value) {
         this.properties.setProperty(propertyName, value);
         try (FileOutputStream output = new FileOutputStream(configurationFileName)) {
@@ -279,6 +307,7 @@ public class ARPropertyManager {
             setProperty(ARPropertyEnum.PATH_WEBDRIVER.getValue(), ARConstantsEngine.USER_PATH + "\\driver");
             setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH + "\\appium");
             setProperty(ARPropertyEnum.PATH_PLUGINS.getValue(), ARConstantsEngine.USER_PATH + "\\plugins");
+            setProperty(ARPropertyEnum.URL_PLUGINS.getValue(), "");
             setProperty(ARPropertyEnum.LOG_LEVEL.getValue(), Level.INFO.getName());
             setProperty(ARPropertyEnum.BROWSER.getValue(), ARConstantsEngine.EDGE);
             setProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC.getValue(), "60");
@@ -308,6 +337,7 @@ public class ARPropertyManager {
             //            "db_user",
             //            "db_pwd",
             "path_appium",
+            "path_plugins",
             "navigation_time",
             "path_excel",
             "path_log",
@@ -390,134 +420,5 @@ public class ARPropertyManager {
             return true;
         }
         return false;
-    }
-
-    /**
-     * Resolves the plugins directory from the path_plugins property.
-     * Falls back to {parent}/ARWeb/plugins if not configured or missing.
-     */
-    public String resolvePluginsDir() {
-        String configured = getProperty(ARPropertyEnum.PATH_PLUGINS);
-        if (configured != null && !configured.isBlank()) {
-            Path configuredPath = Paths.get(configured);
-            if (Files.isDirectory(configuredPath)) {
-                return configured;
-            }
-            log.warn(
-                    "resolvePluginsDir — configured path_plugins does not exist: {}. Falling back to ARWeb/plugins.",
-                    configured);
-        } else {
-            log.warn("resolvePluginsDir — path_plugins is not configured. Falling back to ARWeb/plugins.");
-        }
-
-        String parentPath = new File(ARConstantsEngine.USER_PATH).getParent();
-        String fallback = parentPath + "\\ARWeb\\plugins";
-        log.info("resolvePluginsDir — using fallback plugins path: {}", fallback);
-        return fallback;
-    }
-
-    /**
-     * Reads a plugin script from the filesystem using path_plugins as base directory.
-     * Throws PluginLoadException with user-friendly messages on failure.
-     */
-    public static String loadPluginScript(String relativePath) {
-        ARPropertyManager mgr = getInstance();
-        String configured = mgr.getProperty(ARPropertyEnum.PATH_PLUGINS);
-        boolean isConfigured = configured != null && !configured.isBlank();
-
-        if (!isConfigured) {
-            log.error("loadPluginScript — path_plugins is not set in ARWeb.config");
-            throw new PluginLoadException(
-                    "Plugins folder is not configured",
-                    "<span style='color: #E65100; font-weight: bold;'>The property 'path_plugins' is not set in ARWeb.config.</span>",
-                    "<span style='font-style: italic;'>Please set the path_plugins property pointing to your plugins folder.</span>",
-                    "<span style='color: #455A64;'>Example:  path_plugins = C:\\ARWeb\\plugins</span>");
-        }
-
-        Path pluginsPath = Paths.get(configured);
-
-        if (!Files.isDirectory(pluginsPath)) {
-            log.error("loadPluginScript — path_plugins folder does not exist: {}", configured);
-            throw new PluginLoadException(
-                    "Plugins folder does not exist",
-                    "<span style='color: #E65100; font-weight: bold;'>The folder was not found on disk:</span>  "
-                            + configured,
-                    "<span style='font-style: italic;'>Please verify that the folder exists and contains the plugin sub-folders.</span>",
-                    "<span style='color: #455A64;'>You can change it in Settings > path_plugins.</span>");
-        }
-
-        Path scriptPath = pluginsPath.resolve(relativePath);
-
-        if (!Files.exists(scriptPath)) {
-            String pluginName =
-                    relativePath.contains("/") ? relativePath.substring(0, relativePath.indexOf('/')) : relativePath;
-
-            log.error(
-                    "loadPluginScript — Plugin script not found: {}: expected at {}",
-                    pluginName,
-                    scriptPath.toAbsolutePath());
-            throw new PluginLoadException(
-                    "Plugin script not found: " + pluginName,
-                    "<span style='color: #E65100; font-weight: bold;'>File not found:</span>  "
-                            + scriptPath.toAbsolutePath(),
-                    "<span style='font-style: italic;'>The 'path_plugins' is set to:</span>  <b>" + configured + "</b>",
-                    "<span style='color: #455A64;'>Make sure the '" + pluginName
-                            + "' plugin is installed in that folder and its build output exists.</span>");
-        }
-
-        try {
-            return Files.readString(scriptPath, StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            log.error("loadPluginScript — Failed to read plugin script: {}", e.getMessage(), e);
-            throw new PluginLoadException(
-                    "Failed to read plugin script",
-                    "<span style='color: #E65100; font-weight: bold;'>The file exists but could not be read:</span>  "
-                            + scriptPath.toAbsolutePath(),
-                    "<span style='font-style: italic;'>Check file permissions and ensure it is not locked by another process.</span>",
-                    null,
-                    e);
-        }
-    }
-
-    /**
-     * Exception thrown when a plugin script cannot be loaded.
-     */
-    public static class PluginLoadException extends RuntimeException {
-        private final String userTitle;
-        private final String msg1;
-        private final String msg2;
-        private final String msg3;
-
-        public PluginLoadException(String userTitle, String msg1, String msg2, String msg3) {
-            super(userTitle + " — " + msg1);
-            this.userTitle = userTitle;
-            this.msg1 = msg1;
-            this.msg2 = msg2;
-            this.msg3 = msg3;
-        }
-
-        public PluginLoadException(String userTitle, String msg1, String msg2, String msg3, Throwable cause) {
-            super(userTitle + " — " + msg1, cause);
-            this.userTitle = userTitle;
-            this.msg1 = msg1;
-            this.msg2 = msg2;
-            this.msg3 = msg3;
-        }
-
-        public String getUserTitle() {
-            return userTitle;
-        }
-
-        public String getMsg1() {
-            return msg1;
-        }
-
-        public String getMsg2() {
-            return msg2;
-        }
-
-        public String getMsg3() {
-            return msg3;
-        }
     }
 }

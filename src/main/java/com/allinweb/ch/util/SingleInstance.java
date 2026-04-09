@@ -18,6 +18,14 @@ public final class SingleInstance {
     private static FileLock lock;
     private static Path currentLockFile;
 
+    /**
+     * Acquire the lock in the specified directory.
+     * If no directory given, uses user.dir.
+     */
+    public static boolean acquire(String appId) {
+        return acquire(appId, System.getProperty("user.dir"));
+    }
+
     public static boolean acquire(String appId, String directory) {
         try {
             Path dir = Paths.get(directory);
@@ -36,6 +44,10 @@ public final class SingleInstance {
         } catch (OverlappingFileLockException | IOException e) {
             return false;
         }
+    }
+
+    public static Path getLockFilePath() {
+        return currentLockFile;
     }
 
     public static void release() {

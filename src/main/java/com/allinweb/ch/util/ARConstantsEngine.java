@@ -8,6 +8,7 @@ public class ARConstantsEngine {
     private static final String WEB_APP = "Web App";
     private static final String ANDROID = "Android";
     private static final String IOS = "iOS";
+    private static final String REST_API = "Rest Api";
 
     // Labels & Properties
     public static final String LABELS_FILE_NAME_COMMON = "lang/labels.";

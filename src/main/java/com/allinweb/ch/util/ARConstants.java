@@ -36,6 +36,7 @@ public class ARConstants {
     // ICON FILE NAMES
     public static final String ICON_APPLICATION = "/AR_icon.png";
     public static final String ICON_DIRECTORY = "/directory.png";
+    public static final String ICON_DOWNLOAD = "/download-3.png";
     public static final String ICON_BURN = "/burn.png";
     public static final String ICON_REFRESH = "/refresh.png";
     public static final String ICON_REFRESH_ONLY = "/refresh-only.png";
