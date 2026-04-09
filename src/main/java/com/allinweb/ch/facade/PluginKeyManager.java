@@ -342,6 +342,39 @@ public class PluginKeyManager {
         }
     }
 
+    // ── Extract org key from ARWeb.lic ────────────────────────────────────────
+
+    /**
+     * Decrypt ARWeb.lic and extract the org key from part[4].
+     * Format: pcName|domainName|userName|expiryDate|orgKey
+     * Returns null if no org key embedded (legacy 4-part format).
+     */
+    private String extractOrgKeyFromLicense() {
+        try {
+            String licensePath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PATH_LICENSE);
+            if (licensePath == null) licensePath = System.getProperty("user.dir");
+
+            Path licFile = Paths.get(licensePath, "ARWeb.lic");
+            if (!Files.exists(licFile)) return null;
+
+            String content = Files.readString(licFile, StandardCharsets.UTF_8).trim();
+            SecretKeySpec keySpec = new SecretKeySpec(LIC_KEY.getBytes(StandardCharsets.UTF_8), "AES");
+            Cipher cipher = Cipher.getInstance(LIC_ALGORITHM);
+            cipher.init(Cipher.DECRYPT_MODE, keySpec);
+            byte[] decrypted = cipher.doFinal(Base64.getDecoder().decode(content));
+            String plain = new String(decrypted, StandardCharsets.UTF_8);
+            String[] parts = plain.split("\\|");
+            if (parts.length >= 5) {
+                log.info("PluginKeyManager — org key found in ARWeb.lic");
+                return parts[4];
+            }
+            return null;
+        } catch (Exception e) {
+            log.debug("PluginKeyManager — no org key in ARWeb.lic: {}", e.getMessage());
+            return null;
+        }
+    }
+
     // ── Utilities ───────────────────────────────────────────────────────────
 
     private static String extractJsonString(String json, String key) {
