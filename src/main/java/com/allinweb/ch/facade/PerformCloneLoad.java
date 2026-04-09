@@ -12,7 +12,7 @@ public class PerformCloneLoad {
 
     /**
      * Cached hoverPick bundle. Null until the first call to dynamicPickOneCloneElementsDTO().
-     * Loaded lazily so a missing file does NOT crash the JVM at startup —
+     * Loaded lazily so a missing file does NOT crash the JVM at startup -
      * the error surfaces only when a pick is actually triggered.
      *
      * Loaded from the filesystem path defined by PATH_PLUGINS in ARWeb.config:
@@ -40,7 +40,7 @@ public class PerformCloneLoad {
                 if (jsHoverPick == null) {
                     jsHoverPick = EncryptedPluginLoader.getInstance().loadPlugin(HOVER_PICK_RELATIVE_PATH);
                     log.info(
-                            "PerformCloneLoad — hoverPick script loaded from plugins folder ({} chars)",
+                            "PerformCloneLoad - hoverPick script loaded from plugins folder ({} chars)",
                             jsHoverPick.length());
                 }
             }
@@ -56,11 +56,11 @@ public class PerformCloneLoad {
     public static void reloadScript() {
         synchronized (PerformCloneLoad.class) {
             jsHoverPick = null;
-            log.info("PerformCloneLoad — hoverPick cache cleared, will reload on next injection");
+            log.info("PerformCloneLoad - hoverPick cache cleared, will reload on next injection");
         }
     }
 
-    // Private constructor — use getInstance()
+    // Private constructor - use getInstance()
     private PerformCloneLoad() {}
 
     public static PerformCloneLoad getInstance() {
@@ -79,15 +79,15 @@ public class PerformCloneLoad {
      * Selenium's JavascriptExecutor.
      *
      * Argument mapping (matches index.js IIFE parameter order):
-     *   arguments[0]  hiddenFields    — boolean
-     *   arguments[1]  port            — WebSocket server port
-     *   arguments[2]  sessionId       — UUID string
-     *   arguments[3]  destination     — target session ID for WS routing
-     *   arguments[4]  operationId     — operation label string
-     *   arguments[5]  homeBankingId   — int
-     *   arguments[6]  botJobId        — int
-     *   arguments[7]  targetOriginURL — origin for postMessage
-     *   arguments[8]  trustedOriginURL — trusted origin for message validation
+     *   arguments[0]  hiddenFields    - boolean
+     *   arguments[1]  port            - WebSocket server port
+     *   arguments[2]  sessionId       - UUID string
+     *   arguments[3]  destination     - target session ID for WS routing
+     *   arguments[4]  operationId     - operation label string
+     *   arguments[5]  homeBankingId   - int
+     *   arguments[6]  botJobId        - int
+     *   arguments[7]  targetOriginURL - origin for postMessage
+     *   arguments[8]  trustedOriginURL - trusted origin for message validation
      *
      * @return null on success, or an ErrorMessage on failure.
      */
@@ -102,29 +102,29 @@ public class PerformCloneLoad {
             int botJobId,
             String currentUrl) {
         try {
-            log.info(">> Injecting plugin [hoverPick] — session={}, botJob={}", sessionId, botJobId);
+            log.info(">> Injecting plugin [hoverPick] - session={}, botJob={}", sessionId, botJobId);
             JavascriptExecutor executor = (JavascriptExecutor) driver;
             executor.executeScript(
                     getJsHoverPick(),
-                    searchHiddenFields, // arguments[0] — hiddenFields
-                    port, // arguments[1] — socketPort
-                    sessionId, // arguments[2] — sessionId
-                    destination, // arguments[3] — destination
-                    operationId, // arguments[4] — operationId
-                    homeBankingId, // arguments[5] — homeBankingId
-                    botJobId, // arguments[6] — botJobId
-                    currentUrl, // arguments[7] — targetOriginURL
-                    currentUrl); // arguments[8] — trustedOriginURL
+                    searchHiddenFields, // arguments[0] - hiddenFields
+                    port, // arguments[1] - socketPort
+                    sessionId, // arguments[2] - sessionId
+                    destination, // arguments[3] - destination
+                    operationId, // arguments[4] - operationId
+                    homeBankingId, // arguments[5] - homeBankingId
+                    botJobId, // arguments[6] - botJobId
+                    currentUrl, // arguments[7] - targetOriginURL
+                    currentUrl); // arguments[8] - trustedOriginURL
             return null;
         } catch (PerformPreLoad.PluginLoadException ple) {
-            log.error("PerformCloneLoad — plugin load failed: {}", ple.getUserTitle(), ple);
+            log.error("PerformCloneLoad - plugin load failed: {}", ple.getUserTitle(), ple);
             return new ErrorMessage(
                     ple.getUserTitle(),
                     "Hover Pick Plugin",
                     ple.getMsg1() + "\n" + (ple.getMsg2() != null ? ple.getMsg2() : "") + "\n"
                             + (ple.getMsg3() != null ? ple.getMsg3() : ""));
         } catch (Exception error) {
-            log.error("PerformCloneLoad — hoverPick injection failed: {}", error.getMessage(), error);
+            log.error("PerformCloneLoad - hoverPick injection failed: {}", error.getMessage(), error);
             return new ErrorMessage("Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage());
         }
     }

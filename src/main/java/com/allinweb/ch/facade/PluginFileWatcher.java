@@ -15,7 +15,7 @@ import lombok.extern.slf4j.Slf4j;
  * When a change is detected, all plugin caches are cleared so the next
  * injection reads the fresh file from disk.
  *
- * <p>Runs as a daemon thread — starts once via {@link #start()} and stops
+ * <p>Runs as a daemon thread - starts once via {@link #start()} and stops
  * automatically when the JVM exits, or explicitly via {@link #stop()}.</p>
  *
  * <p>Hot reload loop:
@@ -50,26 +50,26 @@ public class PluginFileWatcher {
     }
 
     /**
-     * Start watching the plugins directory. Safe to call multiple times —
+     * Start watching the plugins directory. Safe to call multiple times -
      * only the first call starts the thread.
      */
     public void start() {
         if (running.getAndSet(true)) {
-            log.info("PluginFileWatcher — already running");
+            log.info("PluginFileWatcher - already running");
             return;
         }
 
         String pluginsDir = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PATH_PLUGINS);
 
         if (pluginsDir == null || pluginsDir.isBlank()) {
-            log.warn("PluginFileWatcher — path_plugins not configured, file watcher disabled");
+            log.warn("PluginFileWatcher - path_plugins not configured, file watcher disabled");
             running.set(false);
             return;
         }
 
         Path pluginsPath = Paths.get(pluginsDir);
         if (!Files.isDirectory(pluginsPath)) {
-            log.warn("PluginFileWatcher — plugins directory does not exist: {}", pluginsDir);
+            log.warn("PluginFileWatcher - plugins directory does not exist: {}", pluginsDir);
             running.set(false);
             return;
         }
@@ -78,7 +78,7 @@ public class PluginFileWatcher {
         watcherThread.setDaemon(true);
         watcherThread.start();
 
-        log.info("PluginFileWatcher — watching {} for .min.js changes", pluginsPath);
+        log.info("PluginFileWatcher - watching {} for .min.js changes", pluginsPath);
     }
 
     /**
@@ -91,7 +91,7 @@ public class PluginFileWatcher {
         } catch (IOException ignored) {
         }
         if (watcherThread != null) watcherThread.interrupt();
-        log.info("PluginFileWatcher — stopped");
+        log.info("PluginFileWatcher - stopped");
     }
 
     public boolean isRunning() {
@@ -126,12 +126,12 @@ public class PluginFileWatcher {
                     Path changed = (Path) event.context();
                     if (changed != null && changed.toString().endsWith(".min.js")) {
                         Path fullPath = dir != null ? dir.resolve(changed) : changed;
-                        log.info("PluginFileWatcher — detected change: {} ({})", fullPath, kind.name());
+                        log.info("PluginFileWatcher - detected change: {} ({})", fullPath, kind.name());
 
                         if (!cacheCleared) {
                             PerformPreLoad.reloadAllPlugins();
                             cacheCleared = true;
-                            log.info("PluginFileWatcher — plugin caches cleared, "
+                            log.info("PluginFileWatcher - plugin caches cleared, "
                                     + "next injection will use updated scripts");
                         }
                     }
@@ -141,13 +141,13 @@ public class PluginFileWatcher {
                 if (!valid) {
                     keyPathMap.remove(key);
                     if (keyPathMap.isEmpty()) {
-                        log.warn("PluginFileWatcher — all watched directories became invalid, stopping");
+                        log.warn("PluginFileWatcher - all watched directories became invalid, stopping");
                         break;
                     }
                 }
             }
         } catch (IOException e) {
-            log.error("PluginFileWatcher — error: {}", e.getMessage(), e);
+            log.error("PluginFileWatcher - error: {}", e.getMessage(), e);
         } finally {
             running.set(false);
             try {
@@ -169,11 +169,11 @@ public class PluginFileWatcher {
                     WatchKey key = dir.register(
                             watchService, StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_MODIFY);
                     keyPathMap.put(key, dir);
-                    log.debug("PluginFileWatcher — watching: {}", dir);
+                    log.debug("PluginFileWatcher - watching: {}", dir);
                 }
                 return FileVisitResult.CONTINUE;
             }
         });
-        log.info("PluginFileWatcher — registered {} directories", keyPathMap.size());
+        log.info("PluginFileWatcher - registered {} directories", keyPathMap.size());
     }
 }

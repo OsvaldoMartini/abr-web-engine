@@ -56,10 +56,10 @@ public class ActionExecutorClient {
         // Cancel any pending futures from the previous session (page was reloaded)
         if (!pendingResults.isEmpty()) {
             log.info(
-                    "ActionExecutorClient — clearing {} stale pending results from previous session",
+                    "ActionExecutorClient - clearing {} stale pending results from previous session",
                     pendingResults.size());
             pendingResults.forEach(
-                    (id, future) -> future.complete(new ActionResult(false, "session reset — page reloaded")));
+                    (id, future) -> future.complete(new ActionResult(false, "session reset - page reloaded")));
             pendingResults.clear();
         }
         this.homeBankingId = homeBankingId;
@@ -88,7 +88,7 @@ public class ActionExecutorClient {
 
                 // Log before/after state for debugging
                 if (result.has("before") && result.has("after")) {
-                    log.info("ActionExecutorClient — commandId={}, verified={}", commandId, verified);
+                    log.info("ActionExecutorClient - commandId={}, verified={}", commandId, verified);
                     log.info("  BEFORE: {}", result.get("before"));
                     log.info("  AFTER:  {}", result.get("after"));
                 }
@@ -97,11 +97,11 @@ public class ActionExecutorClient {
                 if (future != null) {
                     future.complete(new ActionResult(success, verified, message));
                 } else {
-                    log.warn("ActionExecutorClient — no pending future for commandId={}", commandId);
+                    log.warn("ActionExecutorClient - no pending future for commandId={}", commandId);
                 }
             }
         } catch (Exception e) {
-            log.error("ActionExecutorClient — error processing result: {}", e.getMessage(), e);
+            log.error("ActionExecutorClient - error processing result: {}", e.getMessage(), e);
         }
     }
 
@@ -144,7 +144,7 @@ public class ActionExecutorClient {
     }
 
     /**
-     * Generic action sender — used by performWebActions fallback.
+     * Generic action sender - used by performWebActions fallback.
      */
     public ActionResult sendAction(
             String action, String xPath, String cssSelector, String coordinates, String attribId, String value) {
@@ -174,14 +174,14 @@ public class ActionExecutorClient {
 
             String body = gson.toJson(command);
 
-            log.info("ActionExecutorClient — sending {} to session={}, commandId={}", action, sessionId, commandId);
+            log.info("ActionExecutorClient - sending {} to session={}, commandId={}", action, sessionId, commandId);
 
             wsManager.sendMessageJson(homeBankingId, sessionId, body, "actionExecutor");
 
             // Wait for the result with timeout
             ActionResult result = future.get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             log.info(
-                    "ActionExecutorClient — {} result: success={}, message={}",
+                    "ActionExecutorClient - {} result: success={}, message={}",
                     action,
                     result.isSuccess(),
                     result.getMessage());
@@ -189,11 +189,11 @@ public class ActionExecutorClient {
 
         } catch (TimeoutException e) {
             pendingResults.remove(commandId);
-            log.error("ActionExecutorClient — {} timed out after {}s", action, DEFAULT_TIMEOUT_SECONDS);
+            log.error("ActionExecutorClient - {} timed out after {}s", action, DEFAULT_TIMEOUT_SECONDS);
             return new ActionResult(false, action + " timed out after " + DEFAULT_TIMEOUT_SECONDS + "s");
         } catch (Exception e) {
             pendingResults.remove(commandId);
-            log.error("ActionExecutorClient — {} failed: {}", action, e.getMessage(), e);
+            log.error("ActionExecutorClient - {} failed: {}", action, e.getMessage(), e);
             return new ActionResult(false, action + " failed: " + e.getMessage());
         }
     }

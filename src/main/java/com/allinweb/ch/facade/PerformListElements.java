@@ -35,7 +35,7 @@ public class PerformListElements {
 
     /**
      * Cached searchListAsync bundle. Null until the first call to dynamicLoadElementsDTO().
-     * Loaded lazily so a missing file does NOT crash the JVM at startup —
+     * Loaded lazily so a missing file does NOT crash the JVM at startup -
      * the error surfaces only when a scan is actually triggered.
      *
      * Loaded from the filesystem path defined by PATH_PLUGINS in ARWeb.config:
@@ -62,7 +62,7 @@ public class PerformListElements {
                 if (jsSearchListAsync == null) {
                     jsSearchListAsync = EncryptedPluginLoader.getInstance().loadPlugin(SEARCH_LIST_ASYNC_RELATIVE_PATH);
                     log.info(
-                            "PerformListElements — searchListAsync script loaded from plugins folder ({} chars)",
+                            "PerformListElements - searchListAsync script loaded from plugins folder ({} chars)",
                             jsSearchListAsync.length());
                 }
             }
@@ -74,7 +74,7 @@ public class PerformListElements {
     public static void reloadScript() {
         synchronized (PerformListElements.class) {
             jsSearchListAsync = null;
-            log.info("PerformListElements — searchListAsync cache cleared");
+            log.info("PerformListElements - searchListAsync cache cleared");
         }
     }
 
@@ -97,14 +97,14 @@ public class PerformListElements {
      * Selenium's executeAsyncScript.
      *
      * Argument mapping (matches index.js IIFE parameter order):
-     *   arguments[0]  searchTerms        — String[] filter tags
-     *   arguments[1]  searchHiddenFields — boolean
-     *   arguments[2]  port               — WebSocket server port (unused, kept for alignment)
-     *   arguments[3]  sessionId          — UUID string
-     *   arguments[4]  destination        — target session ID for routing
-     *   arguments[5]  operationId        — operation label string
-     *   arguments[6]  homeBankingId      — int
-     *   arguments[7]  botJobId           — int
+     *   arguments[0]  searchTerms        - String[] filter tags
+     *   arguments[1]  searchHiddenFields - boolean
+     *   arguments[2]  port               - WebSocket server port (unused, kept for alignment)
+     *   arguments[3]  sessionId          - UUID string
+     *   arguments[4]  destination        - target session ID for routing
+     *   arguments[5]  operationId        - operation label string
+     *   arguments[6]  homeBankingId      - int
+     *   arguments[7]  botJobId           - int
      *
      * @return null on success, or an ErrorMessage on failure.
      */
@@ -122,7 +122,7 @@ public class PerformListElements {
         List<String> dataList = Arrays.asList(dataArray);
         try {
             if (!loggedFirstCall) {
-                log.info(">> Injecting plugin [searchListAsync] — session={}, botJob={}", sessionId, botJobId);
+                log.info(">> Injecting plugin [searchListAsync] - session={}, botJob={}", sessionId, botJobId);
                 loggedFirstCall = true;
             }
 
@@ -132,14 +132,14 @@ public class PerformListElements {
 
             Object result = executor.executeAsyncScript(
                     getJsSearchListAsync(),
-                    dataList, // arguments[0] — searchTerms
-                    searchHiddenFields, // arguments[1] — hiddenFields
-                    port, // arguments[2] — socketPort (unused)
-                    sessionId, // arguments[3] — sessionId
-                    destination, // arguments[4] — destination
-                    operationId, // arguments[5] — operationId
-                    homeBankingId, // arguments[6] — homeBankingId
-                    botJobId); // arguments[7] — botJobId
+                    dataList, // arguments[0] - searchTerms
+                    searchHiddenFields, // arguments[1] - hiddenFields
+                    port, // arguments[2] - socketPort (unused)
+                    sessionId, // arguments[3] - sessionId
+                    destination, // arguments[4] - destination
+                    operationId, // arguments[5] - operationId
+                    homeBankingId, // arguments[6] - homeBankingId
+                    botJobId); // arguments[7] - botJobId
 
             if (result == null || !(result instanceof String)) {
                 logOperations.warn("Cannot return any elements from the page");
@@ -161,7 +161,7 @@ public class PerformListElements {
 
             return null;
         } catch (PerformPreLoad.PluginLoadException ple) {
-            log.error("PerformListElements — plugin load failed: {}", ple.getUserTitle(), ple);
+            log.error("PerformListElements - plugin load failed: {}", ple.getUserTitle(), ple);
             return new ErrorMessage(
                     ple.getUserTitle(),
                     "Search List Async Plugin",

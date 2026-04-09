@@ -9,7 +9,7 @@ import org.openqa.selenium.WebDriver;
  * Injects the actionExecutor plugin into the browser.
  *
  * The plugin stays alive as a WebSocket listener and executes
- * DOM actions (click, type, select, ...) sent from Java — bypassing
+ * DOM actions (click, type, select, ...) sent from Java - bypassing
  * all Selenium visibility / pointer-events restrictions.
  *
  * Loaded from:
@@ -23,7 +23,7 @@ import org.openqa.selenium.WebDriver;
 public class PerformActionExecutorLoad {
     private static volatile PerformActionExecutorLoad instance;
 
-    /** Cached bundle — null until first injection. */
+    /** Cached bundle - null until first injection. */
     private static volatile String jsActionExecutor = null;
 
     private static final String RELATIVE_PATH = "actionExecutor/actionExecutor.min.enc";
@@ -46,7 +46,7 @@ public class PerformActionExecutorLoad {
             synchronized (PerformActionExecutorLoad.class) {
                 if (jsActionExecutor == null) {
                     jsActionExecutor = EncryptedPluginLoader.getInstance().loadPlugin(RELATIVE_PATH);
-                    log.info("PerformActionExecutorLoad — script loaded ({} chars)", jsActionExecutor.length());
+                    log.info("PerformActionExecutorLoad - script loaded ({} chars)", jsActionExecutor.length());
                 }
             }
         }
@@ -57,7 +57,7 @@ public class PerformActionExecutorLoad {
     public static void reloadScript() {
         synchronized (PerformActionExecutorLoad.class) {
             jsActionExecutor = null;
-            log.info("PerformActionExecutorLoad — cache cleared");
+            log.info("PerformActionExecutorLoad - cache cleared");
         }
     }
 
@@ -66,17 +66,17 @@ public class PerformActionExecutorLoad {
      * Should be called once after navigation, before bot-job actions.
      *
      * Arguments match the IIFE parameter order in index.js:
-     *   [0] port           — WebSocket server port
-     *   [1] sessionId      — UUID string
-     *   [2] destination    — target session for WS routing
-     *   [3] operationId    — fixed "actionExecutor"
-     *   [4] homeBankingId  — int
-     *   [5] botJobId       — int
+     *   [0] port           - WebSocket server port
+     *   [1] sessionId      - UUID string
+     *   [2] destination    - target session for WS routing
+     *   [3] operationId    - fixed "actionExecutor"
+     *   [4] homeBankingId  - int
+     *   [5] botJobId       - int
      */
     public ErrorMessage injectActionExecutor(
             WebDriver driver, int port, String sessionId, String destination, int homeBankingId, int botJobId) {
         try {
-            log.info(">> Injecting plugin [actionExecutor] — session={}, botJob={}", sessionId, botJobId);
+            log.info(">> Injecting plugin [actionExecutor] - session={}, botJob={}", sessionId, botJobId);
             JavascriptExecutor executor = (JavascriptExecutor) driver;
             executor.executeScript(
                     getScript(),
@@ -88,14 +88,14 @@ public class PerformActionExecutorLoad {
                     botJobId); // arguments[5]
             return null;
         } catch (PerformPreLoad.PluginLoadException ple) {
-            log.error("PerformActionExecutorLoad — plugin load failed: {}", ple.getUserTitle(), ple);
+            log.error("PerformActionExecutorLoad - plugin load failed: {}", ple.getUserTitle(), ple);
             return new ErrorMessage(
                     ple.getUserTitle(),
                     "Action Executor Plugin",
                     ple.getMsg1() + "\n" + (ple.getMsg2() != null ? ple.getMsg2() : "") + "\n"
                             + (ple.getMsg3() != null ? ple.getMsg3() : ""));
         } catch (Exception error) {
-            log.error("PerformActionExecutorLoad — injection failed: {}", error.getMessage(), error);
+            log.error("PerformActionExecutorLoad - injection failed: {}", error.getMessage(), error);
             return new ErrorMessage("Error injecting Action Executor", "Action Executor error", error.getMessage());
         }
     }

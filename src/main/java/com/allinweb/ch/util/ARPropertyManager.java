@@ -211,15 +211,15 @@ public class ARPropertyManager {
                 return configured;
             }
             log.warn(
-                    "resolvePluginsDir — configured path_plugins does not exist: {}. Falling back to ARWeb/plugins.",
+                    "resolvePluginsDir - configured path_plugins does not exist: {}. Falling back to ARWeb/plugins.",
                     configured);
         } else {
-            log.warn("resolvePluginsDir — path_plugins is not configured. Falling back to ARWeb/plugins.");
+            log.warn("resolvePluginsDir - path_plugins is not configured. Falling back to ARWeb/plugins.");
         }
 
         String parentPath = new File(ARConstantsEngine.USER_PATH).getParent();
         String fallback = parentPath + "\\ARWeb\\plugins";
-        log.info("resolvePluginsDir — using fallback plugins path: {}", fallback);
+        log.info("resolvePluginsDir - using fallback plugins path: {}", fallback);
         return fallback;
     }
 

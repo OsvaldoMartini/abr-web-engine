@@ -24,7 +24,7 @@ public class PerformPreLoad {
 
     /**
      * Cached scanner bundle. Null until the first call to dynamicLoadElementsDTO().
-     * Loaded lazily so a missing file does NOT crash the JVM at startup —
+     * Loaded lazily so a missing file does NOT crash the JVM at startup -
      * the error surfaces only when a scan is actually triggered.
      *
      * Loaded from the filesystem path defined by PATH_PLUGINS in ARWeb.config:
@@ -52,7 +52,7 @@ public class PerformPreLoad {
                 if (jsScanner == null) {
                     jsScanner = EncryptedPluginLoader.getInstance().loadPlugin(SCANNER_RELATIVE_PATH);
                     log.info(
-                            "PerformPreLoad — scanner script loaded from plugins folder ({} chars)",
+                            "PerformPreLoad - scanner script loaded from plugins folder ({} chars)",
                             jsScanner.length());
                 }
             }
@@ -68,7 +68,7 @@ public class PerformPreLoad {
     public static void reloadScript() {
         synchronized (PerformPreLoad.class) {
             jsScanner = null;
-            log.info("PerformPreLoad — pageScanner cache cleared, will reload on next injection");
+            log.info("PerformPreLoad - pageScanner cache cleared, will reload on next injection");
         }
     }
 
@@ -82,7 +82,7 @@ public class PerformPreLoad {
         PerformActionExecutorLoad.reloadScript();
         PerformListElements.reloadScript();
         EncryptedPluginLoader.getInstance().reloadAll();
-        log.info("All plugin caches cleared — scripts will reload on next injection");
+        log.info("All plugin caches cleared - scripts will reload on next injection");
     }
 
     /**
@@ -104,7 +104,7 @@ public class PerformPreLoad {
 
         // ── 2. If path_plugins is not set at all → tell the user to set it ─
         if (!isConfigured) {
-            log.error("loadPluginScript — path_plugins is not set in ARWeb.config");
+            log.error("loadPluginScript - path_plugins is not set in ARWeb.config");
             throw new PluginLoadException(
                     "Plugins folder is not configured",
                     "<span style='color: #E65100; font-weight: bold;'>The property 'path_plugins' is not set in ARWeb.config.</span>",
@@ -112,11 +112,11 @@ public class PerformPreLoad {
                     "<span style='color: #455A64;'>Example:  path_plugins = C:\\ARWeb\\plugins</span>");
         }
 
-        // ── 3. path_plugins is set — check the folder exists ────────────────
+        // ── 3. path_plugins is set - check the folder exists ────────────────
         Path pluginsPath = Paths.get(configured);
 
         if (!Files.isDirectory(pluginsPath)) {
-            log.error("loadPluginScript — path_plugins folder does not exist: {}", configured);
+            log.error("loadPluginScript - path_plugins folder does not exist: {}", configured);
             throw new PluginLoadException(
                     "Plugins folder does not exist",
                     "<span style='color: #E65100; font-weight: bold;'>The folder was not found on disk:</span>  "
@@ -133,7 +133,7 @@ public class PerformPreLoad {
                     relativePath.contains("/") ? relativePath.substring(0, relativePath.indexOf('/')) : relativePath;
 
             log.error(
-                    "loadPluginScript — Plugin script not found: {}: expected at {}",
+                    "loadPluginScript - Plugin script not found: {}: expected at {}",
                     pluginName,
                     scriptPath.toAbsolutePath());
             throw new PluginLoadException(
@@ -149,7 +149,7 @@ public class PerformPreLoad {
         try {
             return Files.readString(scriptPath, StandardCharsets.UTF_8);
         } catch (IOException e) {
-            log.error("loadPluginScript — Failed to read plugin script: {}", e.getMessage(), e);
+            log.error("loadPluginScript - Failed to read plugin script: {}", e.getMessage(), e);
             throw new PluginLoadException(
                     "Failed to read plugin script",
                     "<span style='color: #E65100; font-weight: bold;'>The file exists but could not be read:</span>  "
@@ -175,7 +175,7 @@ public class PerformPreLoad {
         private final String msg3;
 
         PluginLoadException(String userTitle, String msg1, String msg2, String msg3) {
-            super(userTitle + " — " + msg1);
+            super(userTitle + " - " + msg1);
             this.userTitle = userTitle;
             this.msg1 = msg1;
             this.msg2 = msg2;
@@ -183,7 +183,7 @@ public class PerformPreLoad {
         }
 
         PluginLoadException(String userTitle, String msg1, String msg2, String msg3, Throwable cause) {
-            super(userTitle + " — " + msg1, cause);
+            super(userTitle + " - " + msg1, cause);
             this.userTitle = userTitle;
             this.msg1 = msg1;
             this.msg2 = msg2;
@@ -195,23 +195,23 @@ public class PerformPreLoad {
             return userTitle;
         }
 
-        /** Dialog message line 2 — what went wrong */
+        /** Dialog message line 2 - what went wrong */
         public String getMsg1() {
             return msg1;
         }
 
-        /** Dialog message line 3 — where to look / what is configured */
+        /** Dialog message line 3 - where to look / what is configured */
         public String getMsg2() {
             return msg2;
         }
 
-        /** Dialog message line 4 — how to fix it */
+        /** Dialog message line 4 - how to fix it */
         public String getMsg3() {
             return msg3;
         }
     }
 
-    // Private constructor — use getInstance()
+    // Private constructor - use getInstance()
     private PerformPreLoad() {}
 
     public static PerformPreLoad getInstance() {
@@ -230,14 +230,14 @@ public class PerformPreLoad {
      * Selenium's JavascriptExecutor.
      *
      * Argument mapping (matches index.js IIFE parameter order):
-     *   arguments[0]  searchTerms        — String[] filter tags
-     *   arguments[1]  searchHiddenFields — boolean
-     *   arguments[2]  port               — WebSocket server port
-     *   arguments[3]  sessionId          — UUID string
-     *   arguments[4]  destination        — target session ID for WS routing
-     *   arguments[5]  operationId        — operation label string
-     *   arguments[6]  homeBankingId      — int
-     *   arguments[7]  botJobId           — int
+     *   arguments[0]  searchTerms        - String[] filter tags
+     *   arguments[1]  searchHiddenFields - boolean
+     *   arguments[2]  port               - WebSocket server port
+     *   arguments[3]  sessionId          - UUID string
+     *   arguments[4]  destination        - target session ID for WS routing
+     *   arguments[5]  operationId        - operation label string
+     *   arguments[6]  homeBankingId      - int
+     *   arguments[7]  botJobId           - int
      *
      * @return null on success, or an ErrorMessage on failure.
      */
@@ -254,28 +254,28 @@ public class PerformPreLoad {
 
         List<String> dataList = Arrays.asList(dataArray);
         try {
-            log.info(">> Injecting plugin [pageScanner] — session={}, botJob={}", sessionId, botJobId);
+            log.info(">> Injecting plugin [pageScanner] - session={}, botJob={}", sessionId, botJobId);
             JavascriptExecutor executor = (JavascriptExecutor) driver;
             executor.executeScript(
                     getJsScanner(),
-                    dataList, // arguments[0] — searchTerms
-                    searchHiddenFields, // arguments[1] — searchHiddenFields
-                    port, // arguments[2] — WS port
-                    sessionId, // arguments[3] — sessionId
-                    destination, // arguments[4] — destination
-                    operationId, // arguments[5] — operationId
-                    homeBankingId, // arguments[6] — homeBankingId
-                    botJobId); // arguments[7] — botJobId
+                    dataList, // arguments[0] - searchTerms
+                    searchHiddenFields, // arguments[1] - searchHiddenFields
+                    port, // arguments[2] - WS port
+                    sessionId, // arguments[3] - sessionId
+                    destination, // arguments[4] - destination
+                    operationId, // arguments[5] - operationId
+                    homeBankingId, // arguments[6] - homeBankingId
+                    botJobId); // arguments[7] - botJobId
             return null;
         } catch (PluginLoadException ple) {
-            log.error("PerformPreLoad — plugin load failed: {}", ple.getUserTitle(), ple);
+            log.error("PerformPreLoad - plugin load failed: {}", ple.getUserTitle(), ple);
             return new ErrorMessage(
                     ple.getUserTitle(),
                     "Page Scanner Plugin",
                     ple.getMsg1() + "\n" + (ple.getMsg2() != null ? ple.getMsg2() : "") + "\n"
                             + (ple.getMsg3() != null ? ple.getMsg3() : ""));
         } catch (Exception error) {
-            log.error("PerformPreLoad — scanner injection failed: {}", error.getMessage(), error);
+            log.error("PerformPreLoad - scanner injection failed: {}", error.getMessage(), error);
             return new ErrorMessage("Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage());
         }
     }

@@ -57,7 +57,7 @@ public class Engine {
         // --- configuration file setup
         configureProperties(args);
 
-        // Per-bot-job lock — prevents the same bot job from running twice
+        // Per-bot-job lock - prevents the same bot job from running twice
         String botJobLockId = extractBotJobId(args);
         if (botJobLockId != null) {
             String logPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);

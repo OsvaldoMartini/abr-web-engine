@@ -164,7 +164,7 @@ public class PerformMessage {
                 criteria,
                 "Attention Required!",
                 "This element may require multiple actions.",
-                "It likely needs a click action first — then open the options to type in it.",
+                "It likely needs a click action first - then open the options to type in it.",
                 "For testing, always consider using \"TEST ACTIONS\" first to verify the element.",
                 true,
                 "OK",

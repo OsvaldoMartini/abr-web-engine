@@ -28,7 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * Manages the plugin encryption key with online activation via Supabase.
- * Adapted for ar-web-engine (no JavaFX — headless/engine mode).
+ * Adapted for ar-web-engine (no JavaFX - headless/engine mode).
  */
 @Slf4j
 public class PluginKeyManager {
@@ -44,6 +44,8 @@ public class PluginKeyManager {
 
     private static final String ACTIVATED_PREFIX = "ACTIVATED:";
     private static final String PROTECTED_PREFIX = "PROTECTED:";
+    private static final String LIC_KEY = "0123456789abcdef";
+    private static final String LIC_ALGORITHM = "AES/ECB/PKCS5Padding";
 
     private static final String SUPABASE_URL =
             System.getProperty("arweb.supabase.url", "https://tlqjpxitggzetgsgvxmp.supabase.co");
@@ -80,7 +82,7 @@ public class PluginKeyManager {
             try {
                 String pluginsDir = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PATH_PLUGINS);
                 if (pluginsDir == null) {
-                    log.error("PluginKeyManager — path_plugins not configured");
+                    log.error("PluginKeyManager - path_plugins not configured");
                     return null;
                 }
 
@@ -89,31 +91,40 @@ public class PluginKeyManager {
                 String machId = getMachineId();
 
                 if (licenseFingerprint == null) {
-                    log.error("PluginKeyManager — could not read license fingerprint");
+                    log.error("PluginKeyManager - could not read license fingerprint");
                     return null;
                 }
 
-                if (!Files.exists(keyFile)) {
+                // Priority 1: Extract org key embedded in ARWeb.lic
+                String orgKeyHex = extractOrgKeyFromLicense();
+                if (orgKeyHex != null && !orgKeyHex.isEmpty()) {
+                    pluginKey = hexToBytes(orgKeyHex);
+                    log.info("PluginKeyManager — org key found in ARWeb.lic ({}-bit)", pluginKey.length * 8);
+                    scheduleValidation(licenseFingerprint, machId);
+                }
+
+                // Priority 2: plugins.key file or online activation
+                if (pluginKey == null && !Files.exists(keyFile)) {
                     pluginKey = activateOnline(keyFile, licenseFingerprint, machId);
-                } else {
+                } else if (pluginKey == null) {
                     String content =
                             Files.readString(keyFile, StandardCharsets.UTF_8).trim();
 
                     if (content.startsWith(ACTIVATED_PREFIX)) {
                         String encoded = content.substring(ACTIVATED_PREFIX.length());
                         pluginKey = unwrapKey(encoded, machId, licenseFingerprint);
-                        log.info("PluginKeyManager — key unlocked (machine-bound)");
+                        log.info("PluginKeyManager - key unlocked (machine-bound)");
                         scheduleValidation(licenseFingerprint, machId);
                     } else if (content.startsWith(PROTECTED_PREFIX)) {
-                        log.info("PluginKeyManager — legacy PROTECTED key, re-activating online");
+                        log.info("PluginKeyManager - legacy PROTECTED key, re-activating online");
                         pluginKey = activateOnline(keyFile, licenseFingerprint, machId);
                     } else {
                         pluginKey = hexToBytes(content);
-                        log.info("PluginKeyManager — loaded plain key");
+                        log.info("PluginKeyManager - loaded plain key");
                     }
                 }
             } catch (Exception e) {
-                log.error("PluginKeyManager — failed: {}", e.getMessage(), e);
+                log.error("PluginKeyManager - failed: {}", e.getMessage(), e);
                 pluginKey = null;
             }
         }
@@ -129,7 +140,7 @@ public class PluginKeyManager {
     // ── Online activation ───────────────────────────────────────────────────
 
     private byte[] activateOnline(Path keyFile, String licenseFingerprint, String machId) throws Exception {
-        log.info("PluginKeyManager — activating online...");
+        log.info("PluginKeyManager - activating online...");
 
         String hostname = getHostname();
         String osInfo = System.getProperty("os.name") + " " + System.getProperty("os.version");
@@ -156,7 +167,7 @@ public class PluginKeyManager {
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
         if (response.statusCode() != 200) {
-            log.error("PluginKeyManager — activation HTTP error: {} {}", response.statusCode(), response.body());
+            log.error("PluginKeyManager - activation HTTP error: {} {}", response.statusCode(), response.body());
             return null;
         }
 
@@ -164,13 +175,13 @@ public class PluginKeyManager {
         boolean ok = body.contains("\"ok\":true") || body.contains("\"ok\": true");
         if (!ok) {
             String error = extractJsonString(body, "error");
-            log.error("PluginKeyManager — activation rejected: {}", error);
+            log.error("PluginKeyManager - activation rejected: {}", error);
             return null;
         }
 
         String pluginKeyHex = extractJsonString(body, "plugin_key");
         if (pluginKeyHex == null || pluginKeyHex.isEmpty() || pluginKeyHex.equals("YOUR_HEX_KEY_HERE")) {
-            log.error("PluginKeyManager — server returned empty plugin key");
+            log.error("PluginKeyManager - server returned empty plugin key");
             return null;
         }
 
@@ -179,7 +190,7 @@ public class PluginKeyManager {
         Files.writeString(keyFile, wrapped, StandardCharsets.UTF_8);
 
         String clientName = extractJsonString(body, "client_name");
-        log.info("PluginKeyManager — activated for client: {}", clientName);
+        log.info("PluginKeyManager - activated for client: {}", clientName);
         return key;
     }
 
@@ -206,17 +217,17 @@ public class PluginKeyManager {
                                         String.valueOf(System.currentTimeMillis()),
                                         StandardCharsets.UTF_8);
                             } else {
-                                log.warn("PluginKeyManager — validation failed, clearing key");
+                                log.warn("PluginKeyManager - validation failed, clearing key");
                                 clearKey();
                                 Files.deleteIfExists(Paths.get(pluginsDir, "plugins.key"));
                             }
                         } catch (Exception e) {
-                            log.warn("PluginKeyManager — validation network error: {}", e.getMessage());
+                            log.warn("PluginKeyManager - validation network error: {}", e.getMessage());
                         }
                     })
                     .start();
         } catch (Exception e) {
-            log.warn("PluginKeyManager — could not schedule validation: {}", e.getMessage());
+            log.warn("PluginKeyManager - could not schedule validation: {}", e.getMessage());
         }
     }
 
@@ -321,12 +332,12 @@ public class PluginKeyManager {
             if (licensePath == null) licensePath = System.getProperty("user.dir");
             Path licFile = Paths.get(licensePath, "ARWeb.lic");
             if (!Files.exists(licFile)) {
-                log.error("PluginKeyManager — license not found: {}", licFile);
+                log.error("PluginKeyManager - license not found: {}", licFile);
                 return null;
             }
             return bytesToHex(sha256(Files.readAllBytes(licFile)));
         } catch (Exception e) {
-            log.error("PluginKeyManager — failed to read license: {}", e.getMessage());
+            log.error("PluginKeyManager - failed to read license: {}", e.getMessage());
             return null;
         }
     }

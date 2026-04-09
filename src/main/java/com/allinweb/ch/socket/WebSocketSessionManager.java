@@ -133,8 +133,8 @@ public class WebSocketSessionManager {
                 log.debug("Cannot send to session {}: {}", sessionId, e.getMessage());
             }
         } else {
-            // ARWeb may not be running — silently skip
-            log.debug("Session {} not available — ARWeb may be offline.", sessionId);
+            // ARWeb may not be running - silently skip
+            log.debug("Session {} not available - ARWeb may be offline.", sessionId);
         }
     }
 
@@ -157,8 +157,8 @@ public class WebSocketSessionManager {
                 log.debug("Cannot send to session {}: {}", sessionId, e.getMessage());
             }
         } else {
-            // ARWeb may not be running — silently skip
-            log.debug("Session {} not available — ARWeb may be offline.", sessionId);
+            // ARWeb may not be running - silently skip
+            log.debug("Session {} not available - ARWeb may be offline.", sessionId);
         }
         return null;
     }

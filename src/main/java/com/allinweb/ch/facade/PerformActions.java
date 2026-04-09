@@ -493,7 +493,7 @@ public class PerformActions {
                                 passed = clickElement(byPassNotFound, instructionElement);
                             } catch (Exception clickEx) {
                                 logOperations.warn(
-                                        "clickElement threw: {} — trying actionExecutor", clickEx.getMessage());
+                                        "clickElement threw: {} - trying actionExecutor", clickEx.getMessage());
                                 passed = false;
                             }
                             if (!passed) {
@@ -517,7 +517,7 @@ public class PerformActions {
                                             pressEnterAfter);
                                 } catch (Exception selectEx) {
                                     logOperations.warn(
-                                            "Selenium select threw: {} — trying fallbacks", selectEx.getMessage());
+                                            "Selenium select threw: {} - trying fallbacks", selectEx.getMessage());
                                     passed = false;
                                 }
 
@@ -552,7 +552,7 @@ public class PerformActions {
                                             pressEnterAfter);
                                 } catch (Exception insertEx) {
                                     logOperations.warn(
-                                            "Selenium insert threw: {} — trying fallbacks", insertEx.getMessage());
+                                            "Selenium insert threw: {} - trying fallbacks", insertEx.getMessage());
                                     passed = false;
                                 }
 
@@ -595,10 +595,10 @@ public class PerformActions {
             Object alive = js.executeScript("return window.__actionExecutorActive === true;");
             if (Boolean.TRUE.equals(alive)) return;
 
-            logOperations.info("actionExecutor not alive in browser — re-injecting");
+            logOperations.info("actionExecutor not alive in browser - re-injecting");
             actionExecutorInjector.run();
         } catch (Exception e) {
-            logOperations.warn("ensureActionExecutor check failed: {} — re-injecting", e.getMessage());
+            logOperations.warn("ensureActionExecutor check failed: {} - re-injecting", e.getMessage());
             try {
                 actionExecutorInjector.run();
             } catch (Exception re) {
@@ -609,7 +609,7 @@ public class PerformActions {
 
     /**
      * Fallback: send an action command to the injected actionExecutor JS plugin
-     * via WebSocket.  The browser executes it directly in DOM context —
+     * via WebSocket.  The browser executes it directly in DOM context -
      * no Selenium visibility / pointer-events checks.
      *
      * @param action      "click", "type", "select", "clear", etc.
@@ -633,21 +633,21 @@ public class PerformActions {
 
             if (result.isSuccess()) {
                 logOperations.info(
-                        "actionExecutor fallback succeeded: {} — {} (verified={})",
+                        "actionExecutor fallback succeeded: {} - {} (verified={})",
                         action,
                         result.getMessage(),
                         result.isVerified());
                 return true;
             } else {
                 logOperations.warn(
-                        "actionExecutor fallback failed: {} — {} (verified={})",
+                        "actionExecutor fallback failed: {} - {} (verified={})",
                         action,
                         result.getMessage(),
                         result.isVerified());
                 return false;
             }
         } catch (Exception e) {
-            logOperations.warn("actionExecutor fallback error: {} — {}", action, e.getMessage());
+            logOperations.warn("actionExecutor fallback error: {} - {}", action, e.getMessage());
             return false;
         }
     }
@@ -767,7 +767,7 @@ public class PerformActions {
                 switch (action) {
                     case "SET":
                         msgReturn = String.format(
-                                "SET failed — unable to set value \"%s\". Verify that the target element is correct, visible, and editable.",
+                                "SET failed - unable to set value \"%s\". Verify that the target element is correct, visible, and editable.",
                                 "\"" + operations[1] + "\"");
                         break;
                 }
@@ -1995,7 +1995,7 @@ public class PerformActions {
             boolean success) {
 
         if (operations == null || operations.length < 2) {
-            return withConditionalPrefix(conditionStatus, "Validation failed — malformed operation definition");
+            return withConditionalPrefix(conditionStatus, "Validation failed - malformed operation definition");
         }
 
         if (byPassFlagLoop) {
@@ -2114,17 +2114,17 @@ public class PerformActions {
     //        String summary;
     //        if (ARConstantsEngine.EXTRACT_FIELD.equals(action) || ARConstantsEngine.CHECK_VALUE.equals(action)) {
     //            summary = String.format(
-    //                    "Get Value Is Not Defined — variable \"%s\" has not been assigned (instruction \"%s\")",
+    //                    "Get Value Is Not Defined - variable \"%s\" has not been assigned (instruction \"%s\")",
     //                    var, instrName);
     //        } else {
     //            if (parentField != null) {
     //                summary = String.format(
-    //                        "Get Value Is Not Defined — no GET value defined for instruction \"%s\" (parent field
+    //                        "Get Value Is Not Defined - no GET value defined for instruction \"%s\" (parent field
     // \"%s\")",
     //                        instrName, parent);
     //            } else {
     //                summary = String.format(
-    //                        "Get Value Is Not Defined — no GET value defined for instruction \"%s\" (parent field not
+    //                        "Get Value Is Not Defined - no GET value defined for instruction \"%s\" (parent field not
     // defined)",
     //                        instrName);
     //            }
@@ -2323,16 +2323,16 @@ public class PerformActions {
         String conditionText;
         if (ARConstantsEngine.EXTRACT_FIELD.equals(action) || ARConstantsEngine.CHECK_VALUE.equals(action)) {
             conditionText = String.format(
-                    "Get Value Is Not Defined — variable \"%s\" has not been assigned (instruction \"%s\")",
+                    "Get Value Is Not Defined - variable \"%s\" has not been assigned (instruction \"%s\")",
                     var, instrName);
         } else {
             if (parentField != null) {
                 conditionText = String.format(
-                        "Get Value Is Not Defined — no GET value defined for instruction \"%s\" (parent field \"%s\")",
+                        "Get Value Is Not Defined - no GET value defined for instruction \"%s\" (parent field \"%s\")",
                         instrName, parent);
             } else {
                 conditionText = String.format(
-                        "Get Value Is Not Defined — no GET value defined for instruction \"%s\" (parent field not defined)",
+                        "Get Value Is Not Defined - no GET value defined for instruction \"%s\" (parent field not defined)",
                         instrName);
             }
         }

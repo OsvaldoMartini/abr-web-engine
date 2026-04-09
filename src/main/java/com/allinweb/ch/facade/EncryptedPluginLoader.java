@@ -35,8 +35,8 @@ import lombok.extern.slf4j.Slf4j;
  *
  * <p>Build pipeline:
  * <ol>
- *   <li>{@code node build-plugins.js} — esbuild + obfuscate → .min.js</li>
- *   <li>{@code node encrypt-plugins.js} — AES-256-GCM encrypt → .min.enc</li>
+ *   <li>{@code node build-plugins.js} - esbuild + obfuscate → .min.js</li>
+ *   <li>{@code node encrypt-plugins.js} - AES-256-GCM encrypt → .min.enc</li>
  *   <li>Distribute .enc files only (never .min.js)</li>
  *   <li>Java decrypts in memory at runtime → injects into browser</li>
  * </ol>
@@ -52,10 +52,10 @@ public class EncryptedPluginLoader {
     private static final int TAG_LENGTH_BITS = 128; // 16 bytes * 8
     private static final int TAG_LENGTH_BYTES = 16;
 
-    /** Cached decrypted scripts — cleared by reloadAll() */
+    /** Cached decrypted scripts - cleared by reloadAll() */
     private final ConcurrentHashMap<String, String> cache = new ConcurrentHashMap<>();
 
-    /** The AES-256 key — loaded once, kept in memory */
+    /** The AES-256 key - loaded once, kept in memory */
     private byte[] key;
 
     private EncryptedPluginLoader() {}
@@ -99,7 +99,7 @@ public class EncryptedPluginLoader {
             String jsPath = relativePath.replace(".min.enc", ".min.js");
             Path plainPath = Paths.get(pluginsDir).resolve(jsPath);
             if (Files.exists(plainPath)) {
-                log.info("EncryptedPluginLoader — no .enc found, falling back to plain .min.js: {}", jsPath);
+                log.info("EncryptedPluginLoader - no .enc found, falling back to plain .min.js: {}", jsPath);
                 try {
                     String js = Files.readString(plainPath, StandardCharsets.UTF_8);
                     cache.put(relativePath, js);
@@ -118,7 +118,7 @@ public class EncryptedPluginLoader {
             byte[] fileData = Files.readAllBytes(encPath);
             String js = decrypt(fileData);
             cache.put(relativePath, js);
-            log.info("EncryptedPluginLoader — decrypted {} ({} chars)", relativePath, js.length());
+            log.info("EncryptedPluginLoader - decrypted {} ({} chars)", relativePath, js.length());
             return js;
         } catch (Exception e) {
             throw new PerformPreLoad.PluginLoadException(
@@ -137,14 +137,14 @@ public class EncryptedPluginLoader {
     public void reloadAll() {
         cache.clear();
         key = null; // force re-authentication on next load
-        log.info("EncryptedPluginLoader — cache and key cleared");
+        log.info("EncryptedPluginLoader - cache and key cleared");
     }
 
     // ── Decryption ──────────────────────────────────────────────────────────
 
     private String decrypt(byte[] fileData) throws Exception {
         if (fileData.length < IV_LENGTH + TAG_LENGTH_BYTES) {
-            throw new IllegalArgumentException("Encrypted file too short — invalid format");
+            throw new IllegalArgumentException("Encrypted file too short - invalid format");
         }
 
         // Parse: [IV (12)] [Tag (16)] [Encrypted Data]
@@ -175,13 +175,13 @@ public class EncryptedPluginLoader {
         synchronized (this) {
             if (key != null) return;
 
-            // Use PluginKeyManager — handles password prompt + license binding
+            // Use PluginKeyManager - handles password prompt + license binding
             key = PluginKeyManager.getInstance().getPluginKey();
 
             if (key != null) {
-                log.info("EncryptedPluginLoader — key loaded via PluginKeyManager ({} bytes)", key.length);
+                log.info("EncryptedPluginLoader - key loaded via PluginKeyManager ({} bytes)", key.length);
             } else {
-                log.warn("EncryptedPluginLoader — no key available, encrypted plugins will fail to load");
+                log.warn("EncryptedPluginLoader - no key available, encrypted plugins will fail to load");
             }
         }
     }

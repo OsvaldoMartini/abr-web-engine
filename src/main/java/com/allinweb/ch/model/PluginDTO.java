@@ -3,7 +3,7 @@ package com.allinweb.ch.model;
 /**
  * Represents a single plugin entry from the remote manifest.json.
  *
- * JSON shape (must match manifest exactly — Gson field-name mapping):
+ * JSON shape (must match manifest exactly - Gson field-name mapping):
  * {
  *   "id":          "pageScanner",
  *   "name":        "Page Scanner",
