@@ -59,13 +59,13 @@ public class ARPropertyManager {
         } else {
             // Use application directory as default
             String appDir = System.getProperty("user.dir"); // root folder where app is running
-            configurationFileName = appDir + File.separator + "Config-4.7" + File.separator + "TESTS.config";
+            configurationFileName = appDir + File.separator + "Config-4.2" + File.separator + "TESTS.config";
 
             // Ensure directories exist
             File config = new File(configurationFileName);
             if (!config.exists()) {
                 try {
-                    config.getParentFile().mkdirs(); // create Config-4.7 folder
+                    config.getParentFile().mkdirs(); // create Config-4.2 folder
                     config.createNewFile(); // create TESTS.config
                 } catch (IOException e) {
                     log.error("Failed to create default config file in app directory: {}", configurationFileName, e);
@@ -163,8 +163,8 @@ public class ARPropertyManager {
 
             missingMandatoryPats();
 
-            setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.7g Beta Test");
-            setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 29/01/2026");
+            setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.2g Beta Test");
+            setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 09/04/2026");
         } catch (IOException error) {
             log.error("Error creating \"ARWeb.config\": {} -> {}", configurationFileName, error.getMessage());
             //            performMessage.errorMessage(
@@ -305,7 +305,7 @@ public class ARPropertyManager {
             setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), "54525");
             setProperty(ARPropertyEnum.PATH_ENGINE.getValue(), ARConstantsEngine.USER_PATH);
             setProperty(ARPropertyEnum.PATH_WEBDRIVER.getValue(), ARConstantsEngine.USER_PATH + "\\driver");
-            setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH + "\\appium");
+            // setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH + "\\appium");
             setProperty(ARPropertyEnum.PATH_PLUGINS.getValue(), ARConstantsEngine.USER_PATH + "\\plugins");
             setProperty(ARPropertyEnum.URL_PLUGINS.getValue(), "");
             setProperty(ARPropertyEnum.LOG_LEVEL.getValue(), Level.INFO.getName());
@@ -336,7 +336,7 @@ public class ARPropertyManager {
             //            "db_url",
             //            "db_user",
             //            "db_pwd",
-            "path_appium",
+            // "path_appium",
             "path_plugins",
             "navigation_time",
             "path_excel",
@@ -402,9 +402,9 @@ public class ARPropertyManager {
 
             for (String prop : missingProperties) {
                 // appium
-                if ("path_appium".equals(prop)) {
-                    setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH + "\\appium");
-                }
+                // if ("path_appium".equals(prop)) {
+                //    setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH + "\\appium");
+                // }
 
                 // plugins
                 if ("path_plugins".equals(prop)) {

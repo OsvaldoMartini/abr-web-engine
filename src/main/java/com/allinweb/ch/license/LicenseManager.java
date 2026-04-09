@@ -32,7 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 public class LicenseManager {
     private static final String KEY = "0123456789abcdef"; // 16-byte key for AES-128
     public static final String API_URL = "https://multiplugins.ch/api";
-    public static final String APP_VERSION = "4.7";
+    public static final String APP_VERSION = "4.2";
     private static final PerformMessage performMessage;
     private static final ARPropertyManager arPropertyManager;
 
