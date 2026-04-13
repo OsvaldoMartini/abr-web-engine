@@ -256,27 +256,23 @@ public class PerformPreLoad {
         try {
             log.info(">> Injecting plugin [pageScanner] - session={}, botJob={}", sessionId, botJobId);
             JavascriptExecutor executor = (JavascriptExecutor) driver;
-            executor.executeScript(
-                    getJsScanner(),
-                    dataList, // arguments[0] - searchTerms
-                    searchHiddenFields, // arguments[1] - searchHiddenFields
-                    port, // arguments[2] - WS port
-                    sessionId, // arguments[3] - sessionId
-                    destination, // arguments[4] - destination
-                    operationId, // arguments[5] - operationId
-                    homeBankingId, // arguments[6] - homeBankingId
-                    botJobId); // arguments[7] - botJobId
+            PluginContext ctx = PluginContext.forPageScanner(
+                    dataList, searchHiddenFields, port, sessionId, destination, operationId, homeBankingId, botJobId);
+            executor.executeScript(getJsScanner(), ctx.toJsContext());
             return null;
         } catch (PluginLoadException ple) {
-            log.error("PerformPreLoad - plugin load failed: {}", ple.getUserTitle(), ple);
+            log.error("PerformPreLoad — plugin [pageScanner] load failed: {}", ple.getUserTitle());
             return new ErrorMessage(
                     ple.getUserTitle(),
                     "Page Scanner Plugin",
                     ple.getMsg1() + "\n" + (ple.getMsg2() != null ? ple.getMsg2() : "") + "\n"
                             + (ple.getMsg3() != null ? ple.getMsg3() : ""));
         } catch (Exception error) {
-            log.error("PerformPreLoad - scanner injection failed: {}", error.getMessage(), error);
-            return new ErrorMessage("Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage());
+            log.error("PerformPreLoad — plugin [pageScanner] injection failed: {}", error.getMessage(), error);
+            return new ErrorMessage(
+                    "Plugin injection failed",
+                    "Page Scanner Plugin",
+                    "The pageScanner plugin could not be injected into the page. " + error.getMessage());
         }
     }
 }

@@ -90,7 +90,10 @@ public class PluginKeyManager {
 
             Path licFile = Paths.get(licensePath, "ARWeb.lic");
             if (!Files.exists(licFile)) {
-                log.error("PluginKeyManager — ARWeb.lic not found: {}", licFile);
+                log.error(
+                        "PluginKeyManager — ARWeb.lic not found at: {}. "
+                                + "Encrypted plugins cannot load without a valid license file.",
+                        licFile);
                 return null;
             }
 
@@ -101,14 +104,39 @@ public class PluginKeyManager {
             byte[] decrypted = cipher.doFinal(Base64.getDecoder().decode(content));
             String plain = new String(decrypted, StandardCharsets.UTF_8);
             String[] parts = plain.split("\\|");
+
             if (parts.length >= 5) {
-                log.info("PluginKeyManager — org key found in ARWeb.lic");
+                // Log license version if present (part[6] or part[5] depending on format)
+                String licVersion = parts.length >= 7 ? parts[6] : (parts.length >= 6 ? parts[5] : "unknown");
+                String appVersion = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.VERSION);
+                log.info("PluginKeyManager — org key found in ARWeb.lic (license version: {})", licVersion);
+
+                if (appVersion != null && !licVersion.equals("unknown") && !appVersion.contains(licVersion)) {
+                    log.warn(
+                            "PluginKeyManager — version mismatch: app is '{}' but license is for '{}'. "
+                                    + "If plugins fail to decrypt, the license may need to be regenerated for this app version.",
+                            appVersion,
+                            licVersion);
+                }
+
                 return parts[4];
             }
-            log.warn("PluginKeyManager — ARWeb.lic has {} parts (need >= 5 for org key)", parts.length);
+
+            log.error(
+                    "PluginKeyManager — ARWeb.lic does not contain an org key. "
+                            + "License has {} fields, but encrypted plugins require at least 5 (with org key). "
+                            + "Request a new license from the admin portal.",
+                    parts.length);
+            return null;
+        } catch (IllegalArgumentException e) {
+            log.error("PluginKeyManager — ARWeb.lic is corrupted or not a valid license file. "
+                    + "Re-download the license from the admin portal.");
             return null;
         } catch (Exception e) {
-            log.debug("PluginKeyManager — could not extract org key: {}", e.getMessage());
+            log.error(
+                    "PluginKeyManager — failed to read ARWeb.lic: {}. "
+                            + "The license file may be corrupted or incompatible with this version.",
+                    e.getMessage());
             return null;
         }
     }

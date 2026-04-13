@@ -1,6 +1,5 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -89,29 +88,45 @@ public class EncryptedPluginLoader {
         // Load key if not yet loaded
         ensureKey();
 
-        // Resolve file path
-        String pluginsDir = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PATH_PLUGINS);
+        // Resolve file path using resolvePluginsDir (with fallback logic)
+        String pluginsDir = ARPropertyManager.getInstance().resolvePluginsDir();
         if (pluginsDir == null || pluginsDir.isBlank()) {
+            log.error("EncryptedPluginLoader — plugins folder not configured. Set path_plugins in ARWeb.config.");
             throw new PerformPreLoad.PluginLoadException(
-                    "Plugins folder not configured", "path_plugins is not set in ARWeb.config", null, null);
+                    "Plugins folder not configured",
+                    "path_plugins is not set in ARWeb.config",
+                    "Open Settings and set the path_plugins property.",
+                    null);
         }
 
         Path pluginsDirPath = Paths.get(pluginsDir);
+        String pluginId = relativePath.split("[/\\\\]")[0];
+
+        if (!Files.isDirectory(pluginsDirPath)) {
+            log.error("EncryptedPluginLoader — plugins directory does not exist: {}", pluginsDirPath);
+            throw new PerformPreLoad.PluginLoadException(
+                    "Plugins directory not found",
+                    "Directory does not exist: " + pluginsDirPath,
+                    "Verify that path_plugins in ARWeb.config points to a valid folder.",
+                    null);
+        }
+
         Path encPath = pluginsDirPath.resolve(relativePath);
 
         // Auto-extract: if .enc not found, try extracting from .zip
         if (!Files.exists(encPath)) {
-            String pluginId = relativePath.split("[/\\\\]")[0];
             Path zipFile = pluginsDirPath.resolve(pluginId + ".zip");
             Path pluginDir = pluginsDirPath.resolve(pluginId);
             if (Files.exists(zipFile)) {
-                log.info("EncryptedPluginLoader — auto-extracting {}.zip", pluginId);
+                log.info("EncryptedPluginLoader — auto-extracting {}.zip to {}", pluginId, pluginDir);
                 try {
                     Files.createDirectories(pluginDir);
                     extractZip(zipFile, pluginDir);
                 } catch (Exception e) {
                     log.warn("EncryptedPluginLoader — failed to extract {}: {}", zipFile.getFileName(), e.getMessage());
                 }
+            } else {
+                log.warn("EncryptedPluginLoader — no zip found for plugin '{}' at: {}", pluginId, zipFile);
             }
         }
 
@@ -120,7 +135,7 @@ public class EncryptedPluginLoader {
             String jsPath = relativePath.replace(".min.enc", ".min.js");
             Path plainPath = pluginsDirPath.resolve(jsPath);
             if (Files.exists(plainPath)) {
-                log.info("EncryptedPluginLoader — falling back to plain .min.js: {}", jsPath);
+                log.info("EncryptedPluginLoader — encrypted file not available, using plain .min.js: {}", jsPath);
                 try {
                     String js = Files.readString(plainPath, StandardCharsets.UTF_8);
                     cache.put(relativePath, js);
@@ -130,8 +145,20 @@ public class EncryptedPluginLoader {
                             "Failed to read plugin", e.getMessage(), null, null, e);
                 }
             }
+
+            // Log a clear diagnosis before throwing
+            log.error(
+                    "EncryptedPluginLoader — plugin '{}' not found. "
+                            + "Looked in: {}. Neither .enc nor .min.js exists. "
+                            + "Ensure the plugin zip was downloaded and extracted.",
+                    pluginId,
+                    pluginsDirPath);
+
             throw new PerformPreLoad.PluginLoadException(
-                    "Encrypted plugin not found", "File not found: " + encPath.toAbsolutePath(), null, null);
+                    "Plugin not found: " + pluginId,
+                    "Expected file: " + encPath.toAbsolutePath(),
+                    "Plugin '" + pluginId + "' is not installed in: " + pluginsDirPath,
+                    "Use the Plugin Update button to download and install plugins.");
         }
 
         // Read and decrypt
@@ -139,13 +166,26 @@ public class EncryptedPluginLoader {
             byte[] fileData = Files.readAllBytes(encPath);
             String js = decrypt(fileData);
             cache.put(relativePath, js);
-            log.info("EncryptedPluginLoader - decrypted {} ({} chars)", relativePath, js.length());
+            log.info("EncryptedPluginLoader — decrypted '{}' ({} chars) from {}", pluginId, js.length(), pluginsDir);
             return js;
-        } catch (Exception e) {
+        } catch (javax.crypto.AEADBadTagException e) {
+            log.error(
+                    "EncryptedPluginLoader — decryption key mismatch for plugin '{}'. "
+                            + "The org key in ARWeb.lic does not match the key used to encrypt this plugin. "
+                            + "Re-download the plugin from the portal or request a new license.",
+                    pluginId);
             throw new PerformPreLoad.PluginLoadException(
-                    "Plugin decryption failed",
-                    "Could not decrypt: " + encPath.toAbsolutePath(),
-                    e.getMessage(),
+                    "Plugin key mismatch: " + pluginId,
+                    "The encryption key in ARWeb.lic does not match this plugin.",
+                    "The plugin was encrypted with a different org key than the one in your license.",
+                    "Re-download the plugin from the portal, or request a new license for your organization.",
+                    e);
+        } catch (Exception e) {
+            log.error("EncryptedPluginLoader — failed to decrypt plugin '{}': {}", pluginId, e.getMessage());
+            throw new PerformPreLoad.PluginLoadException(
+                    "Plugin decryption failed: " + pluginId,
+                    "Could not decrypt: " + encPath.getFileName(),
+                    "Check that ARWeb.lic is valid and the plugin was downloaded correctly.",
                     null,
                     e);
         }
@@ -196,13 +236,14 @@ public class EncryptedPluginLoader {
         synchronized (this) {
             if (key != null) return;
 
-            // Use PluginKeyManager - handles password prompt + license binding
             key = PluginKeyManager.getInstance().getPluginKey();
 
             if (key != null) {
-                log.info("EncryptedPluginLoader - key loaded via PluginKeyManager ({} bytes)", key.length);
+                log.info("EncryptedPluginLoader — key loaded via PluginKeyManager ({} bytes)", key.length);
             } else {
-                log.warn("EncryptedPluginLoader - no key available, encrypted plugins will fail to load");
+                log.error("EncryptedPluginLoader — no decryption key available. "
+                        + "ARWeb.lic may be missing, expired, or does not contain an org key. "
+                        + "Encrypted plugins will not load.");
             }
         }
     }

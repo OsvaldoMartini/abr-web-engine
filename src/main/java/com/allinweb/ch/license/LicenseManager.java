@@ -248,13 +248,13 @@ public class LicenseManager {
 
         // orgKey at [4] (64-char hex), organization at [5], version at [6]
         if (parts.length >= 5) {
-            arPropertyManager.setProperty("license.orgKey", parts[4]);
+            arPropertyManager.setProperty(ARPropertyEnum.LICENSE_ORG_KEY.getValue(), parts[4]);
         }
         if (parts.length >= 6) {
-            arPropertyManager.setProperty("license.organization", parts[5]);
+            arPropertyManager.setProperty(ARPropertyEnum.LICENSE_EMAIL.getValue(), parts[5]);
         }
         if (parts.length >= 7) {
-            arPropertyManager.setProperty("license.version", parts[6]);
+            arPropertyManager.setProperty(ARPropertyEnum.LICENSE_VERSION.getValue(), parts[6]);
         }
 
         if (LocalDate.now().isAfter(expiryDate)) return LicenceVal.EXPIRED;
