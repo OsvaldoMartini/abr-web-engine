@@ -1,8 +1,8 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.util.ARPropertyManager;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -122,44 +122,55 @@ public class EncryptedPluginLoader {
         }
 
         Path encPath = pluginsDirPath.resolve(relativePath);
+        Path zipFile = pluginsDirPath.resolve(pluginId + ".zip");
 
-        // Auto-extract: if .enc not found, try extracting from .zip
-        if (!Files.exists(encPath)) {
-            Path zipFile = pluginsDirPath.resolve(pluginId + ".zip");
-            Path pluginDir = pluginsDirPath.resolve(pluginId);
-            if (Files.exists(zipFile)) {
-                log.info("EncryptedPluginLoader — auto-extracting {}.zip to {}", pluginId, pluginDir);
-                try {
-                    Files.createDirectories(pluginDir);
-                    extractZip(zipFile, pluginDir);
-                } catch (Exception e) {
-                    log.warn("EncryptedPluginLoader — failed to extract {}: {}", zipFile.getFileName(), e.getMessage());
-                }
-            } else {
-                log.warn("EncryptedPluginLoader — no zip found for plugin '{}' at: {}", pluginId, zipFile);
+        // Read the encrypted bytes — prefer a loose .enc file if already present
+        // (legacy layout), otherwise pull the entry straight out of the .zip in
+        // memory. No extraction to disk, ever.
+        byte[] fileData = null;
+        String source = null;
+        if (Files.exists(encPath)) {
+            try {
+                fileData = Files.readAllBytes(encPath);
+                source = encPath.toString();
+            } catch (IOException e) {
+                throw new PerformPreLoad.PluginLoadException("Failed to read plugin", e.getMessage(), null, null, e);
+            }
+        } else if (Files.exists(zipFile)) {
+            String encEntryName = encPath.getFileName().toString(); // e.g. "hoverPick.min.enc"
+            try {
+                fileData = readEncFromZip(zipFile, encEntryName);
+                source = zipFile.getFileName() + "!/" + encEntryName;
+            } catch (IOException e) {
+                throw new PerformPreLoad.PluginLoadException(
+                        "Failed to read plugin zip",
+                        "Error reading " + zipFile.getFileName() + ": " + e.getMessage(),
+                        null,
+                        null,
+                        e);
             }
         }
 
-        if (!Files.exists(encPath)) {
+        if (fileData == null) {
             log.error(
-                    "EncryptedPluginLoader — plugin '{}' not found. Looked in: {}. "
-                            + "Ensure the plugin zip was downloaded and extracted.",
+                    "EncryptedPluginLoader — plugin '{}' not found. Looked for {} and {} in {}.",
                     pluginId,
+                    encPath.getFileName(),
+                    zipFile.getFileName(),
                     pluginsDirPath);
 
             throw new PerformPreLoad.PluginLoadException(
                     "Plugin not found: " + pluginId,
-                    "Expected file: " + encPath.toAbsolutePath(),
+                    "Expected: " + encPath.toAbsolutePath() + "  or  " + zipFile.toAbsolutePath(),
                     "Plugin '" + pluginId + "' is not installed in: " + pluginsDirPath,
                     "Use the Plugin Update button to download and install plugins.");
         }
 
-        // Read and decrypt
+        // Decrypt in memory
         try {
-            byte[] fileData = Files.readAllBytes(encPath);
             String js = decrypt(fileData);
             cache.put(relativePath, js);
-            log.info("EncryptedPluginLoader — decrypted '{}' ({} chars) from {}", pluginId, js.length(), pluginsDir);
+            log.info("EncryptedPluginLoader — decrypted '{}' ({} chars) from {}", pluginId, js.length(), source);
             return js;
         } catch (javax.crypto.AEADBadTagException e) {
             log.error(
@@ -241,32 +252,36 @@ public class EncryptedPluginLoader {
         }
     }
 
-    // ── Auto-extract ZIP ────────────────────────────────────────────────────
+    // ── In-memory ZIP read ──────────────────────────────────────────────────
 
-    private void extractZip(Path zipFile, Path targetDir) throws IOException {
+    /**
+     * Stream the zip and return the bytes of the first entry matching the
+     * requested file name. Matches by basename so the entry can be at the zip
+     * root ({@code hoverPick.min.enc}) or nested ({@code build/hoverPick.min.enc}) —
+     * whichever packaging the encryption script produced. Nothing is written
+     * to disk.
+     */
+    private byte[] readEncFromZip(Path zipFile, String entryBasename) throws IOException {
         try (ZipInputStream zis = new ZipInputStream(Files.newInputStream(zipFile), StandardCharsets.UTF_8)) {
             ZipEntry entry;
-            int count = 0;
             while ((entry = zis.getNextEntry()) != null) {
-                Path target = targetDir.resolve(entry.getName()).normalize();
-                if (!target.startsWith(targetDir)) {
-                    log.warn("EncryptedPluginLoader — zip-slip blocked: {}", entry.getName());
+                if (entry.isDirectory()) {
+                    zis.closeEntry();
                     continue;
                 }
-                if (entry.isDirectory()) {
-                    Files.createDirectories(target);
-                } else {
-                    Files.createDirectories(target.getParent());
-                    try (OutputStream out = Files.newOutputStream(target)) {
-                        byte[] buf = new byte[8192];
-                        int len;
-                        while ((len = zis.read(buf)) != -1) out.write(buf, 0, len);
-                    }
-                    count++;
+                String name = entry.getName();
+                int slash = Math.max(name.lastIndexOf('/'), name.lastIndexOf('\\'));
+                String base = slash >= 0 ? name.substring(slash + 1) : name;
+                if (base.equalsIgnoreCase(entryBasename)) {
+                    ByteArrayOutputStream buf = new ByteArrayOutputStream(Math.max(1024, (int) entry.getSize()));
+                    byte[] chunk = new byte[8192];
+                    int len;
+                    while ((len = zis.read(chunk)) != -1) buf.write(chunk, 0, len);
+                    return buf.toByteArray();
                 }
                 zis.closeEntry();
             }
-            log.info("EncryptedPluginLoader — extracted {} files from {}", count, zipFile.getFileName());
         }
+        throw new IOException("Entry '" + entryBasename + "' not found in " + zipFile.getFileName());
     }
 }
