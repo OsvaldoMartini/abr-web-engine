@@ -37,7 +37,15 @@ public class PerformPreLoad {
     private static volatile String jsScanner = null;
 
     /** Relative path within the plugins folder */
-    private static final String SCANNER_RELATIVE_PATH = "pageScanner/scanner.min.enc";
+    private static final boolean useNoEncrypted = false;
+
+    public static final String SCANNER_RELATIVE_PATH = "pageScanner/scanner.min.enc";
+    public static final String SCANNER_RELATIVE_PATH_MIN = "pageScanner/build/scanner.min.js";
+    public static final String SCANNER_RELATIVE_PATH_MIN_ASYNC = "pageScanner/build/script-search-in-use-async.min.js";
+    public static final String SCANNER_RELATIVE_PATH_ASYNC = "pageScanner/build/script-search-in-use-async.js";
+    public static final String SCANNER_RELATIVE_PATH_ORIG_MIN = "pageScanner/build/script-search-in-use.min.js";
+    public static final String SCANNER_RELATIVE_PATH_NOT_MIN = "pageScanner/build/script-search-in-use.js";
+    public static final String SCANNER_RELATIVE_PATH_MANUAL = "pageScanner/build/script-search-in-use-manual.js";
 
     /**
      * Loads (and caches) the minified scanner bundle from the PATH_PLUGINS folder.
@@ -50,7 +58,8 @@ public class PerformPreLoad {
         if (jsScanner == null) {
             synchronized (PerformPreLoad.class) {
                 if (jsScanner == null) {
-                    jsScanner = EncryptedPluginLoader.getInstance().loadPlugin(SCANNER_RELATIVE_PATH);
+                    jsScanner = EncryptedPluginLoader.getInstance()
+                            .loadPlugin(useNoEncrypted ? SCANNER_RELATIVE_PATH_MIN : SCANNER_RELATIVE_PATH);
                     log.info(
                             "PerformPreLoad - scanner script loaded from plugins folder ({} chars)",
                             jsScanner.length());
@@ -97,7 +106,7 @@ public class PerformPreLoad {
      * @return the file content as a UTF-8 String
      * @throws PluginLoadException if the plugins folder or the script file cannot be resolved
      */
-    static String loadPluginScript(String relativePath) {
+    public static String loadPluginScript(String relativePath) {
         // ── 1. Read the raw path_plugins property ───────────────────────────
         String configured = arPropertyManager.getProperty(ARPropertyEnum.PATH_PLUGINS);
         boolean isConfigured = configured != null && !configured.isBlank();
@@ -256,9 +265,19 @@ public class PerformPreLoad {
         try {
             log.info(">> Injecting plugin [pageScanner] - session={}, botJob={}", sessionId, botJobId);
             JavascriptExecutor executor = (JavascriptExecutor) driver;
-            PluginContext ctx = PluginContext.forPageScanner(
-                    dataList, searchHiddenFields, port, sessionId, destination, operationId, homeBankingId, botJobId);
-            executor.executeScript(getJsScanner(), ctx.toJsContext());
+            // scanner.min.js (and script-search-in-use.js) is an IIFE that ends with
+            //   })( arguments[0], arguments[1], ..., arguments[7] );
+            // so it expects 8 positional executeScript args, not a single ctx object.
+            executor.executeScript(
+                    getJsScanner(),
+                    dataList, // searchTerms
+                    searchHiddenFields, // hiddenFields
+                    port, // socketPort
+                    sessionId, // sessionId
+                    destination, // destination
+                    operationId, // operationId
+                    homeBankingId, // homeBankingId
+                    botJobId); // botJobId
             return null;
         } catch (PluginLoadException ple) {
             log.error("PerformPreLoad — plugin [pageScanner] load failed: {}", ple.getUserTitle());

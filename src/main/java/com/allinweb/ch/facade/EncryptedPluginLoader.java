@@ -85,6 +85,16 @@ public class EncryptedPluginLoader {
         String cached = cache.get(relativePath);
         if (cached != null) return cached;
 
+        // Only encrypted .enc bundles are supported. Plain .min.js loading
+        // has been removed — callers must pass the .enc path.
+        if (!relativePath.endsWith(".enc")) {
+            throw new PerformPreLoad.PluginLoadException(
+                    "Unsupported plugin path: " + relativePath,
+                    "Only encrypted .enc bundles are supported.",
+                    "Set useNoEncrypted = false in the plugin facade and pass the .enc path.",
+                    null);
+        }
+
         // Load key if not yet loaded
         ensureKey();
 
@@ -131,25 +141,8 @@ public class EncryptedPluginLoader {
         }
 
         if (!Files.exists(encPath)) {
-            // Fallback: try plain .min.js (for backward compatibility)
-            String jsPath = relativePath.replace(".min.enc", ".min.js");
-            Path plainPath = pluginsDirPath.resolve(jsPath);
-            if (Files.exists(plainPath)) {
-                log.info("EncryptedPluginLoader — encrypted file not available, using plain .min.js: {}", jsPath);
-                try {
-                    String js = Files.readString(plainPath, StandardCharsets.UTF_8);
-                    cache.put(relativePath, js);
-                    return js;
-                } catch (IOException e) {
-                    throw new PerformPreLoad.PluginLoadException(
-                            "Failed to read plugin", e.getMessage(), null, null, e);
-                }
-            }
-
-            // Log a clear diagnosis before throwing
             log.error(
-                    "EncryptedPluginLoader — plugin '{}' not found. "
-                            + "Looked in: {}. Neither .enc nor .min.js exists. "
+                    "EncryptedPluginLoader — plugin '{}' not found. Looked in: {}. "
                             + "Ensure the plugin zip was downloaded and extracted.",
                     pluginId,
                     pluginsDirPath);
