@@ -94,12 +94,14 @@ public class ARConstants {
     public static final String ICON_RIGHT = "/right.png";
     public static final String ICON_DOCS = "/docs.png";
     public static final String ICON_CUBES = "/Cubes.png";
+    public static final String ICON_ORGS = "/organization-6.png";
     public static final String ICON_SCREEN = "/screen.png";
     public static final String ICON_TICK = "/tick.png";
     public static final String ICON_EQUAL = "/equal.png";
     public static final String ICON_GREATER = "/greater.png";
     public static final String ICON_LESS = "/less.png";
     public static final String ICON_DIFFERENT = "/different.png";
+    public static final String ICON_CONTAINS = "/contains.png";
     // ACTION CODES
     public static final String EXIT = "EXIT";
     public static final String IGNORE = "IGNORE";
@@ -109,7 +111,6 @@ public class ARConstants {
     public static final String SEND_KEYS = "SEND_KEYS";
     public static final String INSERT = "I";
     public static final String ENTER = "E";
-    public static final String INSERT_ENTER = "I:E";
     public static final String CLICK = "C";
     public static final String FOCUS = "FOCUS";
     public static final String SELECT = "SELECT";

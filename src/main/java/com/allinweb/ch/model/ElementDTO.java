@@ -31,8 +31,16 @@ public class ElementDTO {
     private String attributeValue;
     private String attributeType;
     private String searchAttributeValue;
-    private String autoScroll;
-    private String autoEnter;
+    // One sentinel per bit in force_coordinates, so downstream code can branch on
+    // a single flag without parsing the full string. Value is the flag letter
+    // ("S" / "E" / "T" / "N" / "F") when the bit is set, null when cleared.
+    // Source of truth is still InstructionLoad.forceCoordinates - these fields
+    // are derived in SplitDTO.applyInstructionToSplit and must stay in sync.
+    private String autoScroll; // "S" when set
+    private String autoEnter; // "E" when set
+    private String autoTab; // "T" when set
+    private String autoNext; // "N" when set
+    private String autoForceCoords; // "F" when set
 
     // >>> MINIMAL ADD: Android-specific nested data <<<
     private AndroidNodeDTO[] androidData;
@@ -65,6 +73,9 @@ public class ElementDTO {
         this.searchAttributeValue = other.searchAttributeValue;
         this.autoScroll = other.autoScroll;
         this.autoEnter = other.autoEnter;
+        this.autoTab = other.autoTab;
+        this.autoNext = other.autoNext;
+        this.autoForceCoords = other.autoForceCoords;
 
         // >>> MINIMAL ADD: copy androidData array <<<
         if (other.androidData != null) {
@@ -102,6 +113,9 @@ public class ElementDTO {
         copy.setSearchAttributeValue(this.searchAttributeValue);
         copy.setAutoScroll(this.autoScroll);
         copy.setAutoEnter(this.autoEnter);
+        copy.setAutoTab(this.autoTab);
+        copy.setAutoNext(this.autoNext);
+        copy.setAutoForceCoords(this.autoForceCoords);
 
         // >>> MINIMAL ADD: deep copy androidData array <<<
         if (this.androidData != null) {

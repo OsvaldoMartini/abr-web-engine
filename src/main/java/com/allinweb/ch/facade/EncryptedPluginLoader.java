@@ -1,8 +1,8 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.util.ARPropertyManager;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,32 +17,28 @@ import javax.crypto.spec.SecretKeySpec;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Decrypts and loads encrypted plugin scripts (.enc files) at runtime.
+ * Decrypts and loads encrypted plugin scripts at runtime.
+ *
+ * <p><b>Lookup order</b> (first match wins) — designed so devs can override
+ * production artefacts without touching the zip:
+ * <ol>
+ *   <li><b>Loose encrypted file</b> —
+ *       {@code {plugins}/{pluginId}/{pluginId}.min.enc} (directly under the plugin
+ *       folder, no {@code build/} hop). Used as-is (AES-256-GCM decrypt).
+ *       Triggers a <b>DEV ALERT</b>: "UNZIPPED encrypted file".</li>
+ *   <li><b>Loose plaintext fallback</b> —
+ *       {@code {plugins}/{pluginId}/build/{pluginId}.min.js}. Injected verbatim,
+ *       no key required. Triggers a <b>DEV ALERT</b>: "NON-ENCRYPTED (dev) file".</li>
+ *   <li><b>Production</b> — {@code {plugins}/{pluginId}.zip} containing the
+ *       {@code .min.enc} entry. Streamed + decrypted in memory. No alert.</li>
+ * </ol>
+ * </p>
  *
  * <p>Encryption: AES-256-GCM with 12-byte IV and 16-byte auth tag.
  * File format: [IV (12 bytes)] [Auth Tag (16 bytes)] [Encrypted Data]</p>
  *
- * <p>The encryption key is loaded from:
- *   1. System property: {@code arweb.plugin.key}
- *   2. Environment variable: {@code ARWEB_PLUGIN_KEY}
- *   3. Key file: {@code {path_plugins}/plugins.key}
- * </p>
- *
- * <p>Usage by plugin loaders:
- * <pre>
- *   String js = EncryptedPluginLoader.getInstance().loadPlugin("hoverPick/build/hoverPick.min.enc");
- *   // js contains the decrypted JavaScript, ready for Selenium.executeScript()
- * </pre>
- * </p>
- *
- * <p>Build pipeline:
- * <ol>
- *   <li>{@code node build-plugins.js} - esbuild + obfuscate → .min.js</li>
- *   <li>{@code node encrypt-plugins.js} - AES-256-GCM encrypt → .min.enc</li>
- *   <li>Distribute .enc files only (never .min.js)</li>
- *   <li>Java decrypts in memory at runtime → injects into browser</li>
- * </ol>
- * </p>
+ * <p>The AES-256 key is resolved by {@link PluginKeyManager} — typically
+ * the org key embedded in {@code ARWeb.lic}.</p>
  */
 @Slf4j
 public class EncryptedPluginLoader {
@@ -85,8 +81,15 @@ public class EncryptedPluginLoader {
         String cached = cache.get(relativePath);
         if (cached != null) return cached;
 
-        // Load key if not yet loaded
-        ensureKey();
+        // Only encrypted .enc bundles are supported. Plain .min.js loading
+        // has been removed — callers must pass the .enc path.
+        if (!relativePath.endsWith(".enc")) {
+            throw new PerformPreLoad.PluginLoadException(
+                    "Unsupported plugin path: " + relativePath,
+                    "Only encrypted .enc bundles are supported.",
+                    "Set useNoEncrypted = false in the plugin facade and pass the .enc path.",
+                    null);
+        }
 
         // Resolve file path using resolvePluginsDir (with fallback logic)
         String pluginsDir = ARPropertyManager.getInstance().resolvePluginsDir();
@@ -111,62 +114,126 @@ public class EncryptedPluginLoader {
                     null);
         }
 
-        Path encPath = pluginsDirPath.resolve(relativePath);
+        // Layout (fixed, regardless of what relativePath's subfolder looks like):
+        //   Loose .enc  → {plugins}/{pluginId}/{basename}.min.enc     (no build/)
+        //   Plain .min.js → {plugins}/{pluginId}/build/{basename}.min.js  (always build/)
+        //   Zip         → {plugins}/{pluginId}.zip
+        int lastSep = Math.max(relativePath.lastIndexOf('/'), relativePath.lastIndexOf('\\'));
+        String encBasename = lastSep >= 0 ? relativePath.substring(lastSep + 1) : relativePath;
+        String jsBasename = encBasename.replaceAll("\\.min\\.enc$", ".min.js");
+        Path encPath = pluginsDirPath.resolve(pluginId).resolve(encBasename);
+        Path plainPath = pluginsDirPath.resolve(pluginId).resolve("build").resolve(jsBasename);
+        Path zipFile = pluginsDirPath.resolve(pluginId + ".zip");
 
-        // Auto-extract: if .enc not found, try extracting from .zip
-        if (!Files.exists(encPath)) {
-            Path zipFile = pluginsDirPath.resolve(pluginId + ".zip");
-            Path pluginDir = pluginsDirPath.resolve(pluginId);
-            if (Files.exists(zipFile)) {
-                log.info("EncryptedPluginLoader — auto-extracting {}.zip to {}", pluginId, pluginDir);
-                try {
-                    Files.createDirectories(pluginDir);
-                    extractZip(zipFile, pluginDir);
-                } catch (Exception e) {
-                    log.warn("EncryptedPluginLoader — failed to extract {}: {}", zipFile.getFileName(), e.getMessage());
-                }
-            } else {
-                log.warn("EncryptedPluginLoader — no zip found for plugin '{}' at: {}", pluginId, zipFile);
+        // ── Tier 1: loose .enc on disk (dev convenience: unzipped encrypted) ──
+        if (Files.exists(encPath)) {
+            alertDeveloper(
+                    "UNZIPPED ENCRYPTED FILE",
+                    pluginId,
+                    encPath,
+                    "Production flow reads the same .enc from " + zipFile.getFileName() + " in memory.");
+            ensureKey();
+            byte[] looseData;
+            try {
+                looseData = Files.readAllBytes(encPath);
+            } catch (IOException e) {
+                throw new PerformPreLoad.PluginLoadException("Failed to read plugin", e.getMessage(), null, null, e);
+            }
+            try {
+                String js = decrypt(looseData);
+                // Intentionally NOT cached — dev mode, we want the alert to fire every call.
+                log.info(
+                        "EncryptedPluginLoader — decrypted '{}' ({} chars) from {} [unzipped, dev]",
+                        pluginId,
+                        js.length(),
+                        encPath);
+                return js;
+            } catch (javax.crypto.AEADBadTagException e) {
+                log.error(
+                        "EncryptedPluginLoader — key mismatch for loose .enc '{}'. "
+                                + "The org key in ARWeb.lic does not match the key used to encrypt this file.",
+                        pluginId);
+                throw new PerformPreLoad.PluginLoadException(
+                        "Plugin key mismatch: " + pluginId,
+                        "The encryption key in ARWeb.lic does not match this plugin.",
+                        "The .enc file at " + encPath + " was encrypted with a different org key.",
+                        "Re-export the plugin with the matching org key, or request a new license.",
+                        e);
+            } catch (Exception e) {
+                log.error("EncryptedPluginLoader — failed to decrypt loose .enc '{}': {}", pluginId, e.getMessage());
+                throw new PerformPreLoad.PluginLoadException(
+                        "Plugin decryption failed: " + pluginId,
+                        "Could not decrypt: " + encPath,
+                        "Check that ARWeb.lic is valid and the .enc file is not corrupted.",
+                        null,
+                        e);
             }
         }
 
-        if (!Files.exists(encPath)) {
-            // Fallback: try plain .min.js (for backward compatibility)
-            String jsPath = relativePath.replace(".min.enc", ".min.js");
-            Path plainPath = pluginsDirPath.resolve(jsPath);
-            if (Files.exists(plainPath)) {
-                log.info("EncryptedPluginLoader — encrypted file not available, using plain .min.js: {}", jsPath);
-                try {
-                    String js = Files.readString(plainPath, StandardCharsets.UTF_8);
-                    cache.put(relativePath, js);
-                    return js;
-                } catch (IOException e) {
-                    throw new PerformPreLoad.PluginLoadException(
-                            "Failed to read plugin", e.getMessage(), null, null, e);
-                }
-            }
-
-            // Log a clear diagnosis before throwing
-            log.error(
-                    "EncryptedPluginLoader — plugin '{}' not found. "
-                            + "Looked in: {}. Neither .enc nor .min.js exists. "
-                            + "Ensure the plugin zip was downloaded and extracted.",
+        // ── Tier 2: loose plaintext .min.js on disk (dev fallback, NO decrypt) ──
+        if (Files.exists(plainPath)) {
+            alertDeveloper(
+                    "NON-ENCRYPTED (dev) FILE",
                     pluginId,
+                    plainPath,
+                    "Script will be injected without decryption. DO NOT ship this layout to production.");
+            try {
+                String js = Files.readString(plainPath, StandardCharsets.UTF_8);
+                // Intentionally NOT cached — dev mode, we want the alert to fire every call.
+                log.info(
+                        "EncryptedPluginLoader — loaded plaintext '{}' ({} chars) from {} [dev]",
+                        pluginId,
+                        js.length(),
+                        plainPath);
+                return js;
+            } catch (IOException e) {
+                throw new PerformPreLoad.PluginLoadException(
+                        "Failed to read plain plugin", e.getMessage(), null, null, e);
+            }
+        }
+
+        // ── Tier 3: production — unzip the .enc from {pluginId}.zip in memory ──
+        ensureKey();
+        byte[] fileData = null;
+        String source = null;
+        if (Files.exists(zipFile)) {
+            String encEntryName = encPath.getFileName().toString(); // e.g. "hoverPick.min.enc"
+            try {
+                fileData = readEncFromZip(zipFile, encEntryName);
+                source = zipFile.getFileName() + "!/" + encEntryName;
+            } catch (IOException e) {
+                throw new PerformPreLoad.PluginLoadException(
+                        "Failed to read plugin zip",
+                        "Error reading " + zipFile.getFileName() + ": " + e.getMessage(),
+                        null,
+                        null,
+                        e);
+            }
+        }
+
+        if (fileData == null) {
+            log.error(
+                    "EncryptedPluginLoader — plugin '{}' not found. Looked for {}, {} and {} in {}.",
+                    pluginId,
+                    encPath.getFileName(),
+                    plainPath.getFileName(),
+                    zipFile.getFileName(),
                     pluginsDirPath);
 
             throw new PerformPreLoad.PluginLoadException(
                     "Plugin not found: " + pluginId,
-                    "Expected file: " + encPath.toAbsolutePath(),
+                    "Expected one of:\n  " + encPath.toAbsolutePath()
+                            + "\n  " + plainPath.toAbsolutePath()
+                            + "\n  " + zipFile.toAbsolutePath(),
                     "Plugin '" + pluginId + "' is not installed in: " + pluginsDirPath,
                     "Use the Plugin Update button to download and install plugins.");
         }
 
-        // Read and decrypt
+        // Decrypt in memory
         try {
-            byte[] fileData = Files.readAllBytes(encPath);
             String js = decrypt(fileData);
             cache.put(relativePath, js);
-            log.info("EncryptedPluginLoader — decrypted '{}' ({} chars) from {}", pluginId, js.length(), pluginsDir);
+            log.info("EncryptedPluginLoader — decrypted '{}' ({} chars) from {}", pluginId, js.length(), source);
             return js;
         } catch (javax.crypto.AEADBadTagException e) {
             log.error(
@@ -189,6 +256,35 @@ public class EncryptedPluginLoader {
                     null,
                     e);
         }
+    }
+
+    // ── Developer alert banner ──────────────────────────────────────────────
+
+    /**
+     * Pop a developer-visible dialog when a non-production plugin layout is
+     * being used (loose .enc, or plain .min.js fallback). Fires on EVERY call
+     * so the developer always knows they are not running the production flow.
+     * Only the zip-in-memory production path is silent.
+     */
+    private void alertDeveloper(String mode, String pluginId, Path path, String detail) {
+        String fileName = path.getFileName() != null ? path.getFileName().toString() : path.toString();
+        String folder = path.getParent() != null ? path.getParent().toString() : "";
+
+        PerformMessage.getInstance()
+                .showCustomModalDialogDragWin11(
+                        "Developer Mode Active ⚠️",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Unzipped plugin files detected — "
+                                + mode + "</span>",
+                        "<span style='color: #1565C0; font-weight: bold;'>DEVELOPER MODE ACTIVATED.</span> "
+                                + "Do NOT forget to delete these files for production.",
+                        "<span style='color: #6A1B9A; font-weight: bold;'>Plugin:</span> " + pluginId + "<br/>"
+                                + "<span style='color: #6A1B9A; font-weight: bold;'>File:</span> " + fileName,
+                        "<span style='color: #6A1B9A; font-weight: bold;'>Folder:</span> " + folder + "<br/>"
+                                + "<span style='color: #E65100; font-weight: bold;'>💡 Note:</span> " + detail,
+                        false,
+                        "OK",
+                        null,
+                        0);
     }
 
     /**
@@ -248,32 +344,36 @@ public class EncryptedPluginLoader {
         }
     }
 
-    // ── Auto-extract ZIP ────────────────────────────────────────────────────
+    // ── In-memory ZIP read ──────────────────────────────────────────────────
 
-    private void extractZip(Path zipFile, Path targetDir) throws IOException {
+    /**
+     * Stream the zip and return the bytes of the first entry matching the
+     * requested file name. Matches by basename so the entry can be at the zip
+     * root ({@code hoverPick.min.enc}) or nested ({@code build/hoverPick.min.enc}) —
+     * whichever packaging the encryption script produced. Nothing is written
+     * to disk.
+     */
+    private byte[] readEncFromZip(Path zipFile, String entryBasename) throws IOException {
         try (ZipInputStream zis = new ZipInputStream(Files.newInputStream(zipFile), StandardCharsets.UTF_8)) {
             ZipEntry entry;
-            int count = 0;
             while ((entry = zis.getNextEntry()) != null) {
-                Path target = targetDir.resolve(entry.getName()).normalize();
-                if (!target.startsWith(targetDir)) {
-                    log.warn("EncryptedPluginLoader — zip-slip blocked: {}", entry.getName());
+                if (entry.isDirectory()) {
+                    zis.closeEntry();
                     continue;
                 }
-                if (entry.isDirectory()) {
-                    Files.createDirectories(target);
-                } else {
-                    Files.createDirectories(target.getParent());
-                    try (OutputStream out = Files.newOutputStream(target)) {
-                        byte[] buf = new byte[8192];
-                        int len;
-                        while ((len = zis.read(buf)) != -1) out.write(buf, 0, len);
-                    }
-                    count++;
+                String name = entry.getName();
+                int slash = Math.max(name.lastIndexOf('/'), name.lastIndexOf('\\'));
+                String base = slash >= 0 ? name.substring(slash + 1) : name;
+                if (base.equalsIgnoreCase(entryBasename)) {
+                    ByteArrayOutputStream buf = new ByteArrayOutputStream(Math.max(1024, (int) entry.getSize()));
+                    byte[] chunk = new byte[8192];
+                    int len;
+                    while ((len = zis.read(chunk)) != -1) buf.write(chunk, 0, len);
+                    return buf.toByteArray();
                 }
                 zis.closeEntry();
             }
-            log.info("EncryptedPluginLoader — extracted {} files from {}", count, zipFile.getFileName());
         }
+        throw new IOException("Entry '" + entryBasename + "' not found in " + zipFile.getFileName());
     }
 }

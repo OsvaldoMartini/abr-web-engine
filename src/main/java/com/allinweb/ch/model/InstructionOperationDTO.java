@@ -28,5 +28,13 @@ public class InstructionOperationDTO {
     private Boolean blockActive;
     private Boolean refreshLoop;
     private Boolean loopOnly;
-    private Boolean forceCoordinates;
+    // Combinable post-input flags (any subset, any order). The engines split this
+    // down to individual bits (via InputFlags) only at execution time.
+    //   F = force coordinates (use elementFromPoint even when XPath matches)
+    //   E = press ENTER after input
+    //   T = press TAB after input
+    //   N = press NEXT after input (mobile IME "Next"; cascades N-T-E when solo)
+    //   S = scroll target into view before typing
+    // Examples: "", "S", "FE", "FETN", "ETNFS".
+    private String forceCoordinates;
 }

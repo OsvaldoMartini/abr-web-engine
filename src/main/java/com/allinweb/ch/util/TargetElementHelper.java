@@ -187,7 +187,7 @@ public class TargetElementHelper {
         WebElement elementValid = null;
         if (!Strings.isNullOrEmpty(target.getCurrentXPath())) {
 
-            if (target.getForceCoordinates() != null && target.getForceCoordinates()) {
+            if (InputFlags.of(target.getForceCoordinates()).hasForce()) {
                 // Try by coordinates
                 try {
                     FieldData filedData = new FieldData("&EMPTY", "&EMPTY");
@@ -305,6 +305,21 @@ public class TargetElementHelper {
             targetDefine.setNestedShadow(elemenDTO.getNestedShadow());
 
             targetDefine.setSearchAttributeValue(elemenDTO.getSearchAttributeValue());
+
+            targetDefine.setAutoScroll(elemenDTO.getAutoScroll());
+            targetDefine.setAutoEnter(elemenDTO.getAutoEnter());
+
+            // Compose target.forceCoordinates from the five per-bit sentinels on
+            // the ElementDTO. Without this the target would keep its default
+            // (empty) value and the engine's InputFlags parse would miss every
+            // flag the user had toggled. Canonical order: F → E → T → N → S.
+            StringBuilder fc = new StringBuilder();
+            if ("F".equals(elemenDTO.getAutoForceCoords())) fc.append('F');
+            if ("E".equals(elemenDTO.getAutoEnter())) fc.append('E');
+            if ("T".equals(elemenDTO.getAutoTab())) fc.append('T');
+            if ("N".equals(elemenDTO.getAutoNext())) fc.append('N');
+            if ("S".equals(elemenDTO.getAutoScroll())) fc.append('S');
+            targetDefine.setForceCoordinates(fc.toString());
 
             targetDefine.setAttributeData(elemenDTO.getAttributeData());
             targetDefine.setCustomXPath(elemenDTO.getCustomXPath());

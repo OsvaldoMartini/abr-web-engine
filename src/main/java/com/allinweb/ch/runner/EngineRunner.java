@@ -63,6 +63,8 @@ public class EngineRunner {
     private static final PerformActions performActions = PerformActions.getInstance();
     private static final ARWebDriver currentARWebDriver = ARWebDriver.getInstance();
     private static final PerformListElements performListElements = PerformListElements.getInstance();
+    private static final PerformActionExecutorLoad performActionExecutorLoad = PerformActionExecutorLoad.getInstance();
+    private static final ActionExecutorClient actionExecutorClient = ActionExecutorClient.getInstance();
     WebDriverWait waitXPath = null;
 
     static final String EXECUTE_JOB = "execute/j";
@@ -780,6 +782,9 @@ public class EngineRunner {
                             performLists.resetListElements();
                             pushUpdateListElements();
 
+                            // Inject actionExecutor plugin (once per page)
+                            injectActionExecutor();
+
                             logOperations.info("Total Target Elements: "
                                     + performLists.getListTargetElements().size());
 
@@ -1212,12 +1217,11 @@ public class EngineRunner {
                             }
 
                             // Case for Inputs
+                            // Post-migration 2026-04-26, INSERT actions are always "I:<reference>".
+                            // The legacy "I:E:<reference>" shape (ENTER-after-input) no longer
+                            // exists in actions — ENTER is a bit in force_coordinates now.
                             String valueInsert = "CHANGE ME";
-                            if (actions[0].equals(ARConstantsEngine.INSERT)
-                                    && actions[1].equals(ARConstantsEngine.ENTER)) {
-                                String reference = actions[2];
-                                valueInsert = dataExcel.get(reference);
-                            } else if (actions[0].equals(ARConstantsEngine.INSERT)) {
+                            if (actions[0].equals(ARConstantsEngine.INSERT)) {
                                 String reference = actions[1];
                                 valueInsert = dataExcel.get(reference);
                             }
@@ -1729,8 +1733,10 @@ public class EngineRunner {
                                             currentInstruction.getCodified());
 
                                     //                                    webElementFound = null;
-                                    boolean forceCoordinates = currentInstruction.getForceCoordinates() != null
-                                            && currentInstruction.getForceCoordinates();
+                                    // force_coordinates is a flag string now (e.g. "FETNS"), not a boolean.
+                                    // Read the F bit via InputFlags so behaviour matches the scanner project.
+                                    boolean forceCoordinates = InputFlags.of(currentInstruction.getForceCoordinates())
+                                            .hasForce();
 
                                     if (!isMobileApp) {
 
@@ -1829,11 +1835,11 @@ public class EngineRunner {
 
                                     if (webElementFound == null && forceCoordinates && !isMobileApp) {
 
-                                        Boolean pressEnterAfter = false;
-                                        if (actions[0].equals(ARConstantsEngine.INSERT)
-                                                && actions[1].equals(ARConstantsEngine.ENTER)) {
-                                            pressEnterAfter = true;
-                                        }
+                                        // Enter-after-input flag now lives in force_coordinates,
+                                        // not in the actions string. See migration 2026-04-26.
+                                        Boolean pressEnterAfter = InputFlags.of(
+                                                        currentInstruction.getForceCoordinates())
+                                                .hasEnter();
                                         if (actions[0].equalsIgnoreCase(ARConstantsEngine.VISUALIZE)
                                                 || actions[0].equalsIgnoreCase(ARConstantsEngine.CLICK)
                                                 || actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT)) {
@@ -2051,6 +2057,16 @@ public class EngineRunner {
                                                 isOperationValid = false;
                                                 invalidValues = "Invalid Numbers";
                                             }
+                                        } else if (operations[1].equalsIgnoreCase("contains")) {
+                                            // Case-insensitive substring match — consistent with "=" / "!="
+                                            // which compare via equalsIgnoreCase above.
+                                            String actual = mapOperators
+                                                    .get(variableField)
+                                                    .trim()
+                                                    .toLowerCase();
+                                            String expected =
+                                                    operations[2].trim().toLowerCase();
+                                            isOperationValid = actual.contains(expected);
                                         }
 
                                         if (isOperationValid) {
@@ -3147,5 +3163,34 @@ public class EngineRunner {
     public void setCurrentColumns(List<String> columns) {
         currentColumnsCSV.clear();
         currentColumnsCSV.addAll(columns);
+    }
+
+    private void injectActionExecutor() {
+        if (performActions == null || performActions.getCurrentDriver() == null) return;
+
+        String sessionId = String.valueOf(this.currentBotJob.getHomeBankingId());
+        String destination = "engine-perform-bot-job";
+
+        ErrorMessage error = performActionExecutorLoad.injectActionExecutor(
+                performActions.getCurrentDriver(),
+                portSocketInitial,
+                sessionId,
+                destination,
+                this.currentBotJob.getHomeBankingId(),
+                this.currentBotJob.getId());
+
+        if (error != null) {
+            logOperations.warn(
+                    "actionExecutor injection failed: {} - falling back to Selenium", error.getErrorMessage());
+        } else {
+            // Configure the client so performWebActions can use it
+            actionExecutorClient.configure(this.currentBotJob.getHomeBankingId(), sessionId);
+        }
+
+        // Wire callbacks so the plugin is re-injected automatically:
+        // 1. After refreshPage() - page reload kills the JS plugin
+        performActions.setOnPageRefresh(this::injectActionExecutor);
+        // 2. Before any action step - ensureActionExecutor() checks if alive, re-injects if not
+        performActions.setActionExecutorInjector(this::injectActionExecutor);
     }
 }

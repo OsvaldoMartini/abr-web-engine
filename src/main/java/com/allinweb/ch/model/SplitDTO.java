@@ -29,6 +29,15 @@ public class SplitDTO {
     private Boolean instructionActive;
 
     private String actions;
+    // Combinable post-input flags (any subset, any order). The engines split this
+    // down to individual bits (via InputFlags) only at execution time.
+    //   F = force coordinates (use elementFromPoint even when XPath matches)
+    //   E = press ENTER after input
+    //   T = press TAB after input
+    //   N = press NEXT after input (mobile IME "Next"; cascades N→T→E when solo)
+    //   S = scroll target into view before typing
+    // Examples: "", "S", "FE", "FETN", "ETNFS".
+    private String forceCoordinates;
     private String operation;
 
     private Integer variableId;
@@ -238,6 +247,13 @@ public class SplitDTO {
         if (hasText(src.getActions())) splitDTO.setActions(src.getActions());
         if (hasText(src.getOperation())) splitDTO.setOperation(src.getOperation());
 
+        // Propagate the full F/E/T/N/S flag string so any consumer that reads
+        // splitDTO.getForceCoordinates() (the frontend, the scanner pane, etc.)
+        // sees the same source of truth as the DB row.
+        if (src.getForceCoordinates() != null) {
+            splitDTO.setForceCoordinates(src.getForceCoordinates());
+        }
+
         if (src.getVariableId() != null) splitDTO.setVariableId(src.getVariableId());
         if (src.getParentId() != null) splitDTO.setParentId(src.getParentId());
         if (src.getParentBlockId() != null) splitDTO.setParentBlockId(src.getParentBlockId());
@@ -262,22 +278,18 @@ public class SplitDTO {
         if (hasText(src.getShadowRoot())) el.setShadowRoot(src.getShadowRoot());
         if (hasText(src.getCssSelector())) el.setCssSelector(src.getCssSelector());
 
-        // Auto Scroll & Auto Enter
-        if (hasText(src.getActions())) {
-
-            String[] actions = src.getActions().split(":");
-
-            for (String action : actions) {
-                switch (action.trim()) {
-                    case "A":
-                        el.setAutoScroll("A");
-                        break;
-                    case "E":
-                        el.setAutoEnter("E");
-                        break;
-                }
-            }
-        }
+        // One sentinel per bit in force_coordinates. Each sentinel carries the flag
+        // letter when the bit is set, null when cleared — so the ElementDTO always
+        // reflects the current flag state (a toggled-off bit can't leave a stale
+        // sentinel behind). Source of truth remains InstructionLoad.forceCoordinates;
+        // these are a convenience projection.
+        String fc = src.getForceCoordinates();
+        String upper = fc == null ? "" : fc.toUpperCase();
+        el.setAutoScroll(upper.indexOf('S') >= 0 ? "S" : null);
+        el.setAutoEnter(upper.indexOf('E') >= 0 ? "E" : null);
+        el.setAutoTab(upper.indexOf('T') >= 0 ? "T" : null);
+        el.setAutoNext(upper.indexOf('N') >= 0 ? "N" : null);
+        el.setAutoForceCoords(upper.indexOf('F') >= 0 ? "F" : null);
 
         // Fields without a clear mapping from InstructionLoad are left untouched:
         // someText, attribId, attribName, attributeData, customXPath, nestedShadow,

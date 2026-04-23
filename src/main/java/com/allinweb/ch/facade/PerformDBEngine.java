@@ -370,7 +370,7 @@ public class PerformDBEngine {
                     instruction.setName(rs.getString("instruction_name"));
                     instruction.setXpath(rs.getString("xpath"));
                     instruction.setCoordinates(rs.getString("coordinates"));
-                    instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
+                    instruction.setForceCoordinates(rs.getString("force_coordinates"));
                     instruction.setIFrameXPath(rs.getString("iframe_xpath"));
 
                     instruction.setTagName(rs.getString("tag_name"));
@@ -588,7 +588,7 @@ public class PerformDBEngine {
                     instructionLoad.setOptional(rs.getBoolean("optional"));
                     instructionLoad.setXpath(rs.getString("xpath"));
                     instructionLoad.setCoordinates(rs.getString("coordinates"));
-                    instructionLoad.setForceCoordinates(rs.getBoolean("force_coordinates"));
+                    instructionLoad.setForceCoordinates(rs.getString("force_coordinates"));
                     instructionLoad.setIFrameXPath(rs.getString("iframe_xpath"));
 
                     instructionLoad.setTagName(rs.getString("tag_name"));

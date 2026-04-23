@@ -456,10 +456,10 @@ public class PerformActions {
                 switchedToIframe = true;
             }
 
-            Boolean pressEnterAfter = false;
-            if (actions[0].equals(ARConstantsEngine.INSERT) && actions[1].equals(ARConstantsEngine.ENTER)) {
-                pressEnterAfter = true;
-            }
+            // The legacy "I:E:..." token in actions is gone; Enter is now a bit in
+            // force_coordinates. See InputFlags + migration 2026-04-26.
+            Boolean pressEnterAfter =
+                    InputFlags.of(currentInstruction.getForceCoordinates()).hasEnter();
 
             if (instructionElement != null) {
                 boolean passed = true;
@@ -549,7 +549,8 @@ public class PerformActions {
                                             data.getValue(),
                                             currentInstruction.getDefaultValue(),
                                             currentInstruction.getCodified(),
-                                            pressEnterAfter);
+                                            InputFlags.ofLegacy(
+                                                    currentInstruction.getForceCoordinates(), pressEnterAfter));
                                 } catch (Exception insertEx) {
                                     logOperations.warn(
                                             "Selenium insert threw: {} - trying fallbacks", insertEx.getMessage());
@@ -1322,7 +1323,7 @@ public class PerformActions {
             String dataFieldValue,
             String defaultValue,
             boolean isEncrypted,
-            boolean pressEnterAfter)
+            InputFlags flags)
             throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
 
@@ -1358,20 +1359,12 @@ public class PerformActions {
                     element.sendKeys(dataFieldValue);
                     // Waits component reaction
                     onHoldInSeconds(1);
-                    if (!pressEnterAfter) {
-                        element.sendKeys(Keys.TAB);
-                    } else {
-                        element.sendKeys(Keys.ENTER);
-                    }
+                    pressAfter(element, flags);
                 } else {
                     element.sendKeys(UtilsMethods.generateRandomID(10));
                     // Waits component reaction
                     onHoldInSeconds(1);
-                    if (!pressEnterAfter) {
-                        element.sendKeys(Keys.TAB);
-                    } else {
-                        element.sendKeys(Keys.ENTER);
-                    }
+                    pressAfter(element, flags);
                 }
             } else {
                 dataFieldValue = defaultValue;
@@ -1382,11 +1375,7 @@ public class PerformActions {
                 element.sendKeys(dataFieldValue);
                 // Waits component reaction
                 onHoldInSeconds(1);
-                if (!pressEnterAfter) {
-                    element.sendKeys(Keys.TAB);
-                } else {
-                    element.sendKeys(Keys.ENTER);
-                }
+                pressAfter(element, flags);
             }
         } catch (Exception e) {
 
@@ -1398,6 +1387,150 @@ public class PerformActions {
         }
 
         return true;
+    }
+
+    // ── Post-input key dispatch ──────────────────────────────────────────────
+
+    /**
+     * Fire the post-input keys for the given flag set.
+     * <ul>
+     *   <li>N solo (no E, no T)        → cascade N → T → E with failure fallback
+     *   <li>Any explicit combination   → fire each key in order N, E, T, NO cascade
+     *   <li>E alone                    → pressEnterStrong
+     *   <li>T alone                    → Keys.TAB
+     *   <li>nothing                    → default to TAB (legacy behaviour)
+     * </ul>
+     */
+    private void pressAfter(WebElement element, InputFlags flags) {
+        if (flags == null) flags = InputFlags.of(0);
+        if (flags.isNextSolo()) {
+            pressNextWithFallback(element);
+            return;
+        }
+        boolean anyExplicit = flags.hasNext() || flags.hasEnter() || flags.hasTab();
+        if (!anyExplicit) {
+            // Legacy default: TAB to move focus and commit the field.
+            try {
+                element.sendKeys(Keys.TAB);
+            } catch (Exception ignored) {
+            }
+            return;
+        }
+        if (flags.hasNext()) tryPressNext(element); // explicit combo: no cascade
+        if (flags.hasEnter()) pressEnterStrong(element);
+        if (flags.hasTab()) {
+            try {
+                element.sendKeys(Keys.TAB);
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    /**
+     * Stronger ENTER than bare {@code sendKeys(Keys.ENTER)}.
+     *   1) Native sendKeys — best-effort WebDriver keyboard input.
+     *   2) JS-dispatched KeyboardEvent (keydown + keypress + keyup) — fires the exact
+     *      sequence framework handlers (Angular, React) listen for even when the
+     *      WebDriver input stack is intercepted by custom onkeydown handlers.
+     *   3) {@code form.requestSubmit()} if the element is inside a &lt;form&gt;.
+     */
+    private void pressEnterStrong(WebElement element) {
+        try {
+            element.sendKeys(Keys.ENTER);
+        } catch (Exception ignored) {
+        }
+        try {
+            ((JavascriptExecutor) currentDriver)
+                    .executeScript(
+                            "var el = arguments[0];"
+                                    + "var opts = {key:'Enter', code:'Enter', keyCode:13, which:13, bubbles:true, cancelable:true};"
+                                    + "el.dispatchEvent(new KeyboardEvent('keydown', opts));"
+                                    + "el.dispatchEvent(new KeyboardEvent('keypress', opts));"
+                                    + "el.dispatchEvent(new KeyboardEvent('keyup', opts));"
+                                    + "try { if (el.form && el.form.requestSubmit) el.form.requestSubmit(); } catch(_) {}",
+                            element);
+        } catch (Exception e) {
+            logOperations.debug("pressEnterStrong JS dispatch failed: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * N-solo cascade: try NEXT, fall back to TAB, finally pressEnterStrong.
+     * Fallback triggers on exception OR unchanged focus after the attempt.
+     */
+    private void pressNextWithFallback(WebElement element) {
+        WebElement before = safeActiveElement();
+        if (tryPressNext(element) && focusMoved(before)) return;
+        if (tryPressTab(element) && focusMoved(before)) return;
+        pressEnterStrong(element);
+    }
+
+    /**
+     * Attempt the platform "Next" action.
+     *   • Appium mobile drivers use the on-screen IME "Next" button (accessibility id "Next")
+     *     when available; otherwise fall back to a TAB key event.
+     *   • Desktop Selenium falls back to a JS focus shift to the next form control.
+     * Returns true if the attempt ran without throwing.
+     */
+    private boolean tryPressNext(WebElement element) {
+        try {
+            String driverClass =
+                    currentDriver == null ? "" : currentDriver.getClass().getSimpleName();
+            if (driverClass.contains("Android") || driverClass.contains("IOS") || driverClass.contains("Appium")) {
+                try {
+                    // Try tapping an on-screen "Next" button (iOS/Android soft keyboards commonly expose this).
+                    WebElement nextBtn = currentDriver.findElement(org.openqa.selenium.By.xpath(
+                            "//*[@name='Next' or @content-desc='Next' or @accessibility-id='Next']"));
+                    nextBtn.click();
+                    return true;
+                } catch (Exception ignored) {
+                    // Fall through to TAB as the platform key proxy.
+                    element.sendKeys(Keys.TAB);
+                    return true;
+                }
+            }
+            // Desktop: move focus to the next form element via JS.
+            ((JavascriptExecutor) currentDriver)
+                    .executeScript(
+                            "var el = arguments[0], f = el.form;"
+                                    + "if (f) { var els = Array.from(f.elements), i = els.indexOf(el);"
+                                    + "  for (var k = i + 1; k < els.length; k++) {"
+                                    + "    var n = els[k]; if (n && !n.disabled && n.offsetParent !== null) { n.focus(); return; }"
+                                    + "  }"
+                                    + "}",
+                            element);
+            return true;
+        } catch (Exception e) {
+            logOperations.debug("tryPressNext failed: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    private boolean tryPressTab(WebElement element) {
+        try {
+            element.sendKeys(Keys.TAB);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private WebElement safeActiveElement() {
+        try {
+            return currentDriver.switchTo().activeElement();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private boolean focusMoved(WebElement before) {
+        WebElement after = safeActiveElement();
+        if (before == null || after == null) return false;
+        try {
+            return !before.equals(after);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     /**
@@ -4065,11 +4198,9 @@ public class PerformActions {
     }
 
     private String buildInsertAction(WebElementTagNameEnum forceTag, String nameLabel) {
-        if (forceTag.equals(WebElementTagNameEnum.INPUT_ENTER)) {
-            return ARConstantsEngine.INSERT_ENTER + ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
-        } else {
-            return ARConstantsEngine.INSERT + ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
-        }
+        // Action is always plain "I:<field>". The "press ENTER after" behaviour now lives
+        // in the force_coordinates flag column ('E' bit), not the action code.
+        return ARConstantsEngine.INSERT + ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
     }
 
     private String handleTargetBuildAction(

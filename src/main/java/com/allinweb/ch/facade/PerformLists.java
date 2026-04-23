@@ -862,6 +862,73 @@ public class PerformLists {
         }
     }
 
+    public void updateMemoryInstructionForceCoordinatesUpdate(
+            String tableName, Integer whereId, Integer instructionId, String forceCoordinates) {
+        try {
+            if ("instruction".equalsIgnoreCase(tableName)) {
+
+                for (InstructionLoad instr : getListInstruction()) {
+                    if (Objects.equals(instr.getId(), instructionId) && Objects.equals(instr.getBotJobId(), whereId)) {
+                        instr.setForceCoordinates(forceCoordinates);
+                        break;
+                    }
+                }
+
+                for (BotJobLoadDTO botJob : getListBotJob()) {
+                    if (Objects.equals(botJob.getId(), whereId)) {
+                        if (botJob.getBlockLoadDTOList() != null) {
+                            for (BlockLoadDTO block : botJob.getBlockLoadDTOList()) {
+                                if (block.getInstructionLoad() != null) {
+                                    for (InstructionLoad instr : block.getInstructionLoad()) {
+                                        if (Objects.equals(instr.getId(), instructionId)) {
+                                            instr.setForceCoordinates(forceCoordinates);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+            } else if ("component_instruction".equalsIgnoreCase(tableName)) {
+
+                for (InstructionLoad instr : getListInstructionComp()) {
+                    if (Objects.equals(instr.getId(), instructionId)
+                            && Objects.equals(instr.getHomeBankingId(), whereId)) {
+                        instr.setForceCoordinates(forceCoordinates);
+                        break;
+                    }
+                }
+
+                for (BotJobLoadDTO botJob : getListBotJobComp()) {
+                    if (Objects.equals(botJob.getHomeBankingId(), whereId)) {
+                        if (botJob.getBlockLoadDTOList() != null) {
+                            for (BlockLoadDTO block : botJob.getBlockLoadDTOList()) {
+                                if (block.getInstructionLoad() != null) {
+                                    for (InstructionLoad instr : block.getInstructionLoad()) {
+                                        if (Objects.equals(instr.getId(), instructionId)) {
+                                            instr.setForceCoordinates(forceCoordinates);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+            } else {
+                throw new IllegalArgumentException("Invalid tableName: " + tableName);
+            }
+
+        } catch (Exception error) {
+
+            log.error("Error: Memory Update failed for 'updateMemoryInstructionForceCoordinatesUpdate': "
+                    + error.getMessage());
+        }
+    }
+
     public void updateMemoryBlockExcelExport(String tableName, Integer whereId, Integer blockId, String exportFile) {
         try {
             if ("block".equalsIgnoreCase(tableName)) {
@@ -1477,7 +1544,13 @@ public class PerformLists {
                                         loopInstLoad.getOperation(),
                                         loopInstLoad.getDefaultValue(),
                                         itemBlock.getExportFile(),
-                                        loopInstLoad.getTagName())))
+                                        loopInstLoad.getTagName(),
+                                        // Normalise null "" so Gson actually emits the field and
+                                        // the frontend toggle can accumulate F/E/T/N/S flags instead
+                                        // of reading undefined and overwriting on every click.
+                                        loopInstLoad.getForceCoordinates() == null
+                                                ? ""
+                                                : loopInstLoad.getForceCoordinates())))
                         .collect(Collectors.toList());
 
                 // Step 1: Filter rows where actions = "REFRESH_LOOP" and collect their parent IDs
