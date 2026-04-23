@@ -17,28 +17,32 @@ import javax.crypto.spec.SecretKeySpec;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Decrypts and loads encrypted plugin scripts at runtime.
- *
- * <p><b>Lookup order</b> (first match wins) — designed so devs can override
- * production artefacts without touching the zip:
- * <ol>
- *   <li><b>Loose encrypted file</b> —
- *       {@code {plugins}/{pluginId}/{pluginId}.min.enc} (directly under the plugin
- *       folder, no {@code build/} hop). Used as-is (AES-256-GCM decrypt).
- *       Triggers a <b>DEV ALERT</b>: "UNZIPPED encrypted file".</li>
- *   <li><b>Loose plaintext fallback</b> —
- *       {@code {plugins}/{pluginId}/build/{pluginId}.min.js}. Injected verbatim,
- *       no key required. Triggers a <b>DEV ALERT</b>: "NON-ENCRYPTED (dev) file".</li>
- *   <li><b>Production</b> — {@code {plugins}/{pluginId}.zip} containing the
- *       {@code .min.enc} entry. Streamed + decrypted in memory. No alert.</li>
- * </ol>
- * </p>
+ * Decrypts and loads encrypted plugin scripts (.enc files) at runtime.
  *
  * <p>Encryption: AES-256-GCM with 12-byte IV and 16-byte auth tag.
  * File format: [IV (12 bytes)] [Auth Tag (16 bytes)] [Encrypted Data]</p>
  *
- * <p>The AES-256 key is resolved by {@link PluginKeyManager} — typically
- * the org key embedded in {@code ARWeb.lic}.</p>
+ * <p>The encryption key is loaded from:
+ *   1. System property: {@code arweb.plugin.key}
+ *   2. Environment variable: {@code ARWEB_PLUGIN_KEY}
+ *   3. Key file: {@code {path_plugins}/plugins.key}
+ * </p>
+ *
+ * <p>Usage by plugin loaders:
+ * <pre>
+ *   String js = EncryptedPluginLoader.getInstance().loadPlugin("hoverPick/build/hoverPick.min.enc");
+ *   // js contains the decrypted JavaScript, ready for Selenium.executeScript()
+ * </pre>
+ * </p>
+ *
+ * <p>Build pipeline:
+ * <ol>
+ *   <li>{@code node build-plugins.js} - esbuild + obfuscate → .min.js</li>
+ *   <li>{@code node encrypt-plugins.js} - AES-256-GCM encrypt → .min.enc</li>
+ *   <li>Distribute .enc files only (never .min.js)</li>
+ *   <li>Java decrypts in memory at runtime → injects into browser</li>
+ * </ol>
+ * </p>
  */
 @Slf4j
 public class EncryptedPluginLoader {
@@ -91,6 +95,9 @@ public class EncryptedPluginLoader {
                     null);
         }
 
+        // Load key if not yet loaded
+        ensureKey();
+
         // Resolve file path using resolvePluginsDir (with fallback logic)
         String pluginsDir = ARPropertyManager.getInstance().resolvePluginsDir();
         if (pluginsDir == null || pluginsDir.isBlank()) {
@@ -114,89 +121,22 @@ public class EncryptedPluginLoader {
                     null);
         }
 
-        // Layout (fixed, regardless of what relativePath's subfolder looks like):
-        //   Loose .enc  → {plugins}/{pluginId}/{basename}.min.enc     (no build/)
-        //   Plain .min.js → {plugins}/{pluginId}/build/{basename}.min.js  (always build/)
-        //   Zip         → {plugins}/{pluginId}.zip
-        int lastSep = Math.max(relativePath.lastIndexOf('/'), relativePath.lastIndexOf('\\'));
-        String encBasename = lastSep >= 0 ? relativePath.substring(lastSep + 1) : relativePath;
-        String jsBasename = encBasename.replaceAll("\\.min\\.enc$", ".min.js");
-        Path encPath = pluginsDirPath.resolve(pluginId).resolve(encBasename);
-        Path plainPath = pluginsDirPath.resolve(pluginId).resolve("build").resolve(jsBasename);
+        Path encPath = pluginsDirPath.resolve(relativePath);
         Path zipFile = pluginsDirPath.resolve(pluginId + ".zip");
 
-        // ── Tier 1: loose .enc on disk (dev convenience: unzipped encrypted) ──
+        // Read the encrypted bytes — prefer a loose .enc file if already present
+        // (legacy layout), otherwise pull the entry straight out of the .zip in
+        // memory. No extraction to disk, ever.
+        byte[] fileData = null;
+        String source = null;
         if (Files.exists(encPath)) {
-            alertDeveloper(
-                    "UNZIPPED ENCRYPTED FILE",
-                    pluginId,
-                    encPath,
-                    "Production flow reads the same .enc from " + zipFile.getFileName() + " in memory.");
-            ensureKey();
-            byte[] looseData;
             try {
-                looseData = Files.readAllBytes(encPath);
+                fileData = Files.readAllBytes(encPath);
+                source = encPath.toString();
             } catch (IOException e) {
                 throw new PerformPreLoad.PluginLoadException("Failed to read plugin", e.getMessage(), null, null, e);
             }
-            try {
-                String js = decrypt(looseData);
-                // Intentionally NOT cached — dev mode, we want the alert to fire every call.
-                log.info(
-                        "EncryptedPluginLoader — decrypted '{}' ({} chars) from {} [unzipped, dev]",
-                        pluginId,
-                        js.length(),
-                        encPath);
-                return js;
-            } catch (javax.crypto.AEADBadTagException e) {
-                log.error(
-                        "EncryptedPluginLoader — key mismatch for loose .enc '{}'. "
-                                + "The org key in ARWeb.lic does not match the key used to encrypt this file.",
-                        pluginId);
-                throw new PerformPreLoad.PluginLoadException(
-                        "Plugin key mismatch: " + pluginId,
-                        "The encryption key in ARWeb.lic does not match this plugin.",
-                        "The .enc file at " + encPath + " was encrypted with a different org key.",
-                        "Re-export the plugin with the matching org key, or request a new license.",
-                        e);
-            } catch (Exception e) {
-                log.error("EncryptedPluginLoader — failed to decrypt loose .enc '{}': {}", pluginId, e.getMessage());
-                throw new PerformPreLoad.PluginLoadException(
-                        "Plugin decryption failed: " + pluginId,
-                        "Could not decrypt: " + encPath,
-                        "Check that ARWeb.lic is valid and the .enc file is not corrupted.",
-                        null,
-                        e);
-            }
-        }
-
-        // ── Tier 2: loose plaintext .min.js on disk (dev fallback, NO decrypt) ──
-        if (Files.exists(plainPath)) {
-            alertDeveloper(
-                    "NON-ENCRYPTED (dev) FILE",
-                    pluginId,
-                    plainPath,
-                    "Script will be injected without decryption. DO NOT ship this layout to production.");
-            try {
-                String js = Files.readString(plainPath, StandardCharsets.UTF_8);
-                // Intentionally NOT cached — dev mode, we want the alert to fire every call.
-                log.info(
-                        "EncryptedPluginLoader — loaded plaintext '{}' ({} chars) from {} [dev]",
-                        pluginId,
-                        js.length(),
-                        plainPath);
-                return js;
-            } catch (IOException e) {
-                throw new PerformPreLoad.PluginLoadException(
-                        "Failed to read plain plugin", e.getMessage(), null, null, e);
-            }
-        }
-
-        // ── Tier 3: production — unzip the .enc from {pluginId}.zip in memory ──
-        ensureKey();
-        byte[] fileData = null;
-        String source = null;
-        if (Files.exists(zipFile)) {
+        } else if (Files.exists(zipFile)) {
             String encEntryName = encPath.getFileName().toString(); // e.g. "hoverPick.min.enc"
             try {
                 fileData = readEncFromZip(zipFile, encEntryName);
@@ -213,18 +153,15 @@ public class EncryptedPluginLoader {
 
         if (fileData == null) {
             log.error(
-                    "EncryptedPluginLoader — plugin '{}' not found. Looked for {}, {} and {} in {}.",
+                    "EncryptedPluginLoader — plugin '{}' not found. Looked for {} and {} in {}.",
                     pluginId,
                     encPath.getFileName(),
-                    plainPath.getFileName(),
                     zipFile.getFileName(),
                     pluginsDirPath);
 
             throw new PerformPreLoad.PluginLoadException(
                     "Plugin not found: " + pluginId,
-                    "Expected one of:\n  " + encPath.toAbsolutePath()
-                            + "\n  " + plainPath.toAbsolutePath()
-                            + "\n  " + zipFile.toAbsolutePath(),
+                    "Expected: " + encPath.toAbsolutePath() + "  or  " + zipFile.toAbsolutePath(),
                     "Plugin '" + pluginId + "' is not installed in: " + pluginsDirPath,
                     "Use the Plugin Update button to download and install plugins.");
         }
@@ -256,35 +193,6 @@ public class EncryptedPluginLoader {
                     null,
                     e);
         }
-    }
-
-    // ── Developer alert banner ──────────────────────────────────────────────
-
-    /**
-     * Pop a developer-visible dialog when a non-production plugin layout is
-     * being used (loose .enc, or plain .min.js fallback). Fires on EVERY call
-     * so the developer always knows they are not running the production flow.
-     * Only the zip-in-memory production path is silent.
-     */
-    private void alertDeveloper(String mode, String pluginId, Path path, String detail) {
-        String fileName = path.getFileName() != null ? path.getFileName().toString() : path.toString();
-        String folder = path.getParent() != null ? path.getParent().toString() : "";
-
-        PerformMessage.getInstance()
-                .showCustomModalDialogDragWin11(
-                        "Developer Mode Active ⚠️",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Unzipped plugin files detected — "
-                                + mode + "</span>",
-                        "<span style='color: #1565C0; font-weight: bold;'>DEVELOPER MODE ACTIVATED.</span> "
-                                + "Do NOT forget to delete these files for production.",
-                        "<span style='color: #6A1B9A; font-weight: bold;'>Plugin:</span> " + pluginId + "<br/>"
-                                + "<span style='color: #6A1B9A; font-weight: bold;'>File:</span> " + fileName,
-                        "<span style='color: #6A1B9A; font-weight: bold;'>Folder:</span> " + folder + "<br/>"
-                                + "<span style='color: #E65100; font-weight: bold;'>💡 Note:</span> " + detail,
-                        false,
-                        "OK",
-                        null,
-                        0);
     }
 
     /**
