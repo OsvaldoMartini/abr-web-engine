@@ -458,11 +458,25 @@ public class PerformActions {
 
             // The legacy "I:E:..." token in actions is gone; Enter is now a bit in
             // force_coordinates. See InputFlags + migration 2026-04-26.
-            Boolean pressEnterAfter =
-                    InputFlags.of(currentInstruction.getForceCoordinates()).hasEnter();
+            InputFlags flags = InputFlags.of(currentInstruction.getForceCoordinates());
+            Boolean pressEnterAfter = flags.hasEnter();
 
             if (instructionElement != null) {
                 boolean passed = true;
+
+                // S bit (was the legacy "I:S:" token before the 2026-04-26 migration):
+                // force-scroll the element into view BEFORE the action runs. Applies
+                // uniformly to CLICK / INSERT / OUTPUT / OTHER — the VISUALIZE branch
+                // already does its own scroll via scrollToElement. Failure here is
+                // non-fatal — the downstream action may still succeed.
+                if (flags.hasScroll() && !ARConstantsEngine.VISUALIZE.equals(actions[0])) {
+                    try {
+                        scrollToElement(true, instructionElement);
+                    } catch (Exception scrollEx) {
+                        logOperations.debug("hasScroll pre-scroll failed (non-fatal): {}", scrollEx.getMessage());
+                    }
+                }
+
                 switch (actions[0]) {
                     case ARConstantsEngine.VISUALIZE:
                         passed = scrollToElement(byPassNotFound, instructionElement);
