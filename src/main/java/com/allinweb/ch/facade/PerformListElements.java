@@ -122,6 +122,11 @@ public class PerformListElements {
      *   arguments[5]  operationId        - operation label string
      *   arguments[6]  homeBankingId      - int
      *   arguments[7]  botJobId           - int
+     *   arguments[8]  extendedRules      - List&lt;String&gt; optional Match rules
+     *                                       (tagPrefix:, tagSuffix:, attr:, attrPrefix:)
+     *                                       from the new "Match rules:" field in
+     *                                       ARScannedElementPane. Empty list = no extra
+     *                                       rules (identical to legacy behaviour).
      *
      * @return null on success, or an ErrorMessage on failure.
      */
@@ -135,6 +140,31 @@ public class PerformListElements {
             String operationId,
             int homeBankingId,
             int botJobId) {
+        return dynamicLoadElementsDTO(
+                driver,
+                dataArray,
+                searchHiddenFields,
+                port,
+                sessionId,
+                destination,
+                operationId,
+                homeBankingId,
+                botJobId,
+                Collections.emptyList());
+    }
+
+    /** Overload accepting extended "Match rules:" entries. */
+    public ErrorMessage dynamicLoadElementsDTO(
+            WebDriver driver,
+            String[] dataArray,
+            boolean searchHiddenFields,
+            int port,
+            String sessionId,
+            String destination,
+            String operationId,
+            int homeBankingId,
+            int botJobId,
+            List<String> extendedRules) {
         return runScan(
                         driver,
                         dataArray,
@@ -144,7 +174,8 @@ public class PerformListElements {
                         destination,
                         operationId,
                         homeBankingId,
-                        botJobId)
+                        botJobId,
+                        extendedRules)
                 .error;
     }
 
@@ -166,6 +197,31 @@ public class PerformListElements {
             String operationId,
             int homeBankingId,
             int botJobId) {
+        return scanElements(
+                driver,
+                dataArray,
+                searchHiddenFields,
+                port,
+                sessionId,
+                destination,
+                operationId,
+                homeBankingId,
+                botJobId,
+                Collections.emptyList());
+    }
+
+    /** Overload accepting extended "Match rules:" entries. */
+    public ScanResult scanElements(
+            WebDriver driver,
+            String[] dataArray,
+            boolean searchHiddenFields,
+            int port,
+            String sessionId,
+            String destination,
+            String operationId,
+            int homeBankingId,
+            int botJobId,
+            List<String> extendedRules) {
         return runScan(
                 driver,
                 dataArray,
@@ -175,7 +231,8 @@ public class PerformListElements {
                 destination,
                 operationId,
                 homeBankingId,
-                botJobId);
+                botJobId,
+                extendedRules);
     }
 
     private ScanResult runScan(
@@ -187,9 +244,11 @@ public class PerformListElements {
             String destination,
             String operationId,
             int homeBankingId,
-            int botJobId) {
+            int botJobId,
+            List<String> extendedRules) {
 
         List<String> dataList = Arrays.asList(dataArray);
+        List<String> rulesList = extendedRules == null ? Collections.emptyList() : extendedRules;
         try {
             if (!loggedFirstCall) {
                 log.info(">> Injecting plugin [searchListAsync] - session={}, botJob={}", sessionId, botJobId);
@@ -202,9 +261,10 @@ public class PerformListElements {
 
             // searchListAsync (script-search-in-use-list-async.min.js) is an async IIFE that
             // captures the Selenium callback via `arguments[arguments.length-1]` and ends with
-            //   })( arguments[0], arguments[1], ..., arguments[7] );
-            // so it expects 8 positional executeAsyncScript args, not a single ctx object.
-            // (Selenium appends the async callback as arguments[8] automatically.)
+            //   })( arguments[0], arguments[1], ..., arguments[8] );
+            // so it expects 9 positional executeAsyncScript args, not a single ctx object.
+            // (Selenium appends the async callback as arguments[9] automatically.)
+            //   [8] = extendedRules new Match rules: field (tagPrefix:/tagSuffix:/attr:/attrPrefix:)
             Object result = executor.executeAsyncScript(
                     getJsSearchListAsync(),
                     dataList, // searchTerms
@@ -214,7 +274,8 @@ public class PerformListElements {
                     destination, // destination
                     operationId, // operationId
                     homeBankingId, // homeBankingId
-                    botJobId); // botJobId
+                    botJobId, // botJobId
+                    rulesList); // extendedRules (tagPrefix / tagSuffix / attr / attrPrefix)
 
             if (result == null || !(result instanceof String)) {
                 logOperations.warn("Cannot return any elements from the page");

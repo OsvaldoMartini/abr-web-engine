@@ -42,6 +42,12 @@ public class ElementDTO {
     private String autoNext; // "N" when set
     private String autoForceCoords; // "F" when set
 
+    // Combined F/E/T/N/S bitstring sent from GridItemScann so the user can set
+    // per-element flags before the DTO is promoted to an InstructionLoad on
+    // NEW_ELEMENT_DTO / SEND_ALL_ELEMENTS_DTO. Empty/null means "no flags
+    // fall back to the pane's checkbox state".
+    private String forceCoordinates;
+
     // >>> MINIMAL ADD: Android-specific nested data <<<
     private AndroidNodeDTO[] androidData;
 

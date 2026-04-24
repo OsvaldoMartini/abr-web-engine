@@ -127,11 +127,6 @@ public class EncryptedPluginLoader {
 
         // ── Tier 1: loose .enc on disk (dev convenience: unzipped encrypted) ──
         if (Files.exists(encPath)) {
-            alertDeveloper(
-                    "UNZIPPED ENCRYPTED FILE",
-                    pluginId,
-                    encPath,
-                    "Production flow reads the same .enc from " + zipFile.getFileName() + " in memory.");
             ensureKey();
             byte[] looseData;
             try {
@@ -139,16 +134,47 @@ public class EncryptedPluginLoader {
             } catch (IOException e) {
                 throw new PerformPreLoad.PluginLoadException("Failed to read plugin", e.getMessage(), null, null, e);
             }
+
+            // Attempt decryption FIRST so we can report ORG KEY VALID / INVALID
+            // inside the single dev-mode alert. The user's fast-check workflow
+            // is: drop a freshly-built .enc next to the plugin folder, reload —
+            // one modal answers "did ARWeb.lic's org key decrypt this file?".
+            String decrypted = null;
+            boolean keyValid = false;
+            Exception otherDecryptFailure = null;
             try {
-                String js = decrypt(looseData);
-                // Intentionally NOT cached — dev mode, we want the alert to fire every call.
-                log.info(
-                        "EncryptedPluginLoader — decrypted '{}' ({} chars) from {} [unzipped, dev]",
-                        pluginId,
-                        js.length(),
-                        encPath);
-                return js;
+                decrypted = decrypt(looseData);
+                keyValid = true;
             } catch (javax.crypto.AEADBadTagException e) {
+                // Bad tag = wrong AES key. This is the org-key-mismatch case.
+                keyValid = false;
+            } catch (Exception e) {
+                // Something else is wrong with the file (truncated, non-.enc bytes, etc.)
+                // — not a key issue. Skip the "valid/invalid key" line and
+                // throw with the corruption message below.
+                otherDecryptFailure = e;
+            }
+
+            alertDeveloper(
+                    "UNZIPPED ENCRYPTED FILE",
+                    pluginId,
+                    encPath,
+                    "Production flow reads the same .enc from " + zipFile.getFileName() + " in memory.",
+                    otherDecryptFailure == null ? Boolean.valueOf(keyValid) : null);
+
+            if (otherDecryptFailure != null) {
+                log.error(
+                        "EncryptedPluginLoader — failed to decrypt loose .enc '{}': {}",
+                        pluginId,
+                        otherDecryptFailure.getMessage());
+                throw new PerformPreLoad.PluginLoadException(
+                        "Plugin decryption failed: " + pluginId,
+                        "Could not decrypt: " + encPath,
+                        "Check that ARWeb.lic is valid and the .enc file is not corrupted.",
+                        null,
+                        otherDecryptFailure);
+            }
+            if (!keyValid) {
                 log.error(
                         "EncryptedPluginLoader — key mismatch for loose .enc '{}'. "
                                 + "The org key in ARWeb.lic does not match the key used to encrypt this file.",
@@ -158,16 +184,15 @@ public class EncryptedPluginLoader {
                         "The encryption key in ARWeb.lic does not match this plugin.",
                         "The .enc file at " + encPath + " was encrypted with a different org key.",
                         "Re-export the plugin with the matching org key, or request a new license.",
-                        e);
-            } catch (Exception e) {
-                log.error("EncryptedPluginLoader — failed to decrypt loose .enc '{}': {}", pluginId, e.getMessage());
-                throw new PerformPreLoad.PluginLoadException(
-                        "Plugin decryption failed: " + pluginId,
-                        "Could not decrypt: " + encPath,
-                        "Check that ARWeb.lic is valid and the .enc file is not corrupted.",
-                        null,
-                        e);
+                        null);
             }
+            // Intentionally NOT cached — dev mode, we want the alert to fire every call.
+            log.info(
+                    "EncryptedPluginLoader — decrypted '{}' ({} chars) from {} [unzipped, dev]",
+                    pluginId,
+                    decrypted.length(),
+                    encPath);
+            return decrypted;
         }
 
         // ── Tier 2: loose plaintext .min.js on disk (dev fallback, NO decrypt) ──
@@ -176,7 +201,8 @@ public class EncryptedPluginLoader {
                     "NON-ENCRYPTED (dev) FILE",
                     pluginId,
                     plainPath,
-                    "Script will be injected without decryption. DO NOT ship this layout to production.");
+                    "Script will be injected without decryption. DO NOT ship this layout to production.",
+                    null);
             try {
                 String js = Files.readString(plainPath, StandardCharsets.UTF_8);
                 // Intentionally NOT cached — dev mode, we want the alert to fire every call.
@@ -266,17 +292,53 @@ public class EncryptedPluginLoader {
      * so the developer always knows they are not running the production flow.
      * Only the zip-in-memory production path is silent.
      */
-    private void alertDeveloper(String mode, String pluginId, Path path, String detail) {
+    /**
+     * Dev-mode modal for unzipped plugin files.
+     *
+     * @param mode     short label for the mode (e.g. "UNZIPPED ENCRYPTED FILE",
+     *                 "NON-ENCRYPTED (dev) FILE")
+     * @param pluginId plugin folder name
+     * @param path     path to the loose file that was read
+     * @param detail   one-line note shown near the bottom
+     * @param keyValid ternary: {@code null} if key validation is not applicable
+     *                 (plaintext dev), {@code TRUE} if the .enc decrypted with
+     *                 the current ARWeb.lic org key, {@code FALSE} if
+     *                 AES-GCM rejected the tag (wrong key). When non-null this
+     *                 is rendered as a big "ORG KEY VALID ✅" / "ORG KEY INVALID ❌"
+     *                 banner at the top of the modal so the dev gets a single
+     *                 pass/fail on their freshly-built .enc.
+     */
+    private void alertDeveloper(String mode, String pluginId, Path path, String detail, Boolean keyValid) {
         String fileName = path.getFileName() != null ? path.getFileName().toString() : path.toString();
         String folder = path.getParent() != null ? path.getParent().toString() : "";
 
+        String title = "Developer Mode Active ⚠️";
+        String header;
+        if (keyValid == null) {
+            header =
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Unzipped plugin files detected — "
+                            + mode + "</span>";
+        } else if (keyValid) {
+            title = "Developer Mode — ORG KEY VALID ✅";
+            header = "<span style='color: #2E7D32; font-weight: bold; font-size: 1.2em;'>ORG KEY VALID ✅</span>"
+                    + "<br/><span style='color: #D32F2F; font-weight: bold; font-size: 1.0em;'>Unzipped plugin files detected — "
+                    + mode + "</span>";
+        } else {
+            title = "Developer Mode — ORG KEY INVALID ❌";
+            header = "<span style='color: #D32F2F; font-weight: bold; font-size: 1.2em;'>ORG KEY INVALID ❌</span>"
+                    + "<br/><span style='color: #D32F2F; font-weight: bold; font-size: 1.0em;'>The .enc was encrypted with a different AES key than the one in ARWeb.lic.</span>";
+        }
+
+        String subHeader = (keyValid != null && !keyValid)
+                ? "<span style='color: #E65100; font-weight: bold;'>Re-export the plugin with the matching org key, or request a new license.</span>"
+                : "<span style='color: #1565C0; font-weight: bold;'>DEVELOPER MODE ACTIVATED.</span> "
+                        + "Do NOT forget to delete these files for production.";
+
         PerformMessage.getInstance()
                 .showCustomModalDialogDragWin11(
-                        "Developer Mode Active ⚠️",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Unzipped plugin files detected — "
-                                + mode + "</span>",
-                        "<span style='color: #1565C0; font-weight: bold;'>DEVELOPER MODE ACTIVATED.</span> "
-                                + "Do NOT forget to delete these files for production.",
+                        title,
+                        header,
+                        subHeader,
                         "<span style='color: #6A1B9A; font-weight: bold;'>Plugin:</span> " + pluginId + "<br/>"
                                 + "<span style='color: #6A1B9A; font-weight: bold;'>File:</span> " + fileName,
                         "<span style='color: #6A1B9A; font-weight: bold;'>Folder:</span> " + folder + "<br/>"

@@ -726,7 +726,7 @@ public class PerformActions {
             WebElement instructionElement) {
 
         try {
-            onHoldInSeconds(1);
+            Thread.sleep(100);
         } catch (Exception ignore) {
         }
 
@@ -1052,7 +1052,7 @@ public class PerformActions {
                     if (isInterceptBotJob()) {
                         break;
                     }
-                    //                    onHoldInSeconds(1);
+                    //                    Thread.sleep(100);
 
                     logOperations.warn(String.format(
                             "Re-try %d Locate Web Element TagName \"%s\"", attempts, currentInstruction.getName()));
@@ -1344,6 +1344,9 @@ public class PerformActions {
         try {
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception e) {
+            if (waitForAction == null) {
+                logOperations.warn("WaitForAction is null");
+            }
 
             logOperations.warn(
                     String.format("Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
@@ -1372,12 +1375,12 @@ public class PerformActions {
 
                     element.sendKeys(dataFieldValue);
                     // Waits component reaction
-                    onHoldInSeconds(1);
+                    Thread.sleep(100);
                     pressAfter(element, flags);
                 } else {
                     element.sendKeys(UtilsMethods.generateRandomID(10));
                     // Waits component reaction
-                    onHoldInSeconds(1);
+                    Thread.sleep(100);
                     pressAfter(element, flags);
                 }
             } else {
@@ -1388,7 +1391,7 @@ public class PerformActions {
                 }
                 element.sendKeys(dataFieldValue);
                 // Waits component reaction
-                onHoldInSeconds(1);
+                Thread.sleep(100);
                 pressAfter(element, flags);
             }
         } catch (Exception e) {
@@ -1425,7 +1428,7 @@ public class PerformActions {
         if (!anyExplicit) {
             // Legacy default: TAB to move focus and commit the field.
             try {
-                element.sendKeys(Keys.TAB);
+                // element.sendKeys(Keys.TAB);
             } catch (Exception ignored) {
             }
             return;
