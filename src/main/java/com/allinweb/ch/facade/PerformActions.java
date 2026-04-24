@@ -298,18 +298,19 @@ public class PerformActions {
     }
 
     public static String truncateAndNormalize(String someText, int limit) {
-        if (someText == null || someText.isEmpty()) {
-            return someText;
-        }
-
-        // Remove extra spaces and trim
-        String normalizedText = someText.trim().replaceAll("\\s+", " ");
-
-        if (normalizedText.length() <= limit) {
-            return normalizedText;
-        }
-
-        return normalizedText.substring(0, limit) + "...";
+        return someText;
+        //        if (someText == null || someText.isEmpty()) {
+        //            return someText;
+        //        }
+        //
+        //        // Remove extra spaces and trim
+        //        String normalizedText = someText.trim().replaceAll("\\s+", " ");
+        //
+        //        if (normalizedText.length() <= limit) {
+        //            return normalizedText;
+        //        }
+        //
+        //        return normalizedText.substring(0, limit) + "...";
     }
 
     /**
@@ -4033,7 +4034,7 @@ public class PerformActions {
                 || !Strings.isNullOrEmpty(target.getAttribName())
                 || !Strings.isNullOrEmpty(target.getSomeText())) {
             nameDefinedPriority = (!Strings.isNullOrEmpty(target.getSomeText())
-                    ? PerformActions.truncateAndNormalize(target.getSomeText(), 30)
+                    ? PerformActions.truncateAndNormalize(target.getSomeText(), 250)
                     : !Strings.isNullOrEmpty(target.getAttribId())
                             ? target.getAttribId()
                             : !Strings.isNullOrEmpty(target.getAttribName())

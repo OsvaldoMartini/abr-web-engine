@@ -524,7 +524,7 @@ public class TargetElementHelper {
                 || !Strings.isNullOrEmpty(target.getAttribName())
                 || !Strings.isNullOrEmpty(target.getSomeText())) {
             nameDefinedPriority = (!Strings.isNullOrEmpty(target.getSomeText())
-                    ? PerformActions.truncateAndNormalize(target.getSomeText(), 30)
+                    ? PerformActions.truncateAndNormalize(target.getSomeText(), 250)
                     : !Strings.isNullOrEmpty(target.getAttribId())
                             ? target.getAttribId()
                             : !Strings.isNullOrEmpty(target.getAttribName())
