@@ -4,6 +4,7 @@ import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.util.ARExecution;
 import com.allinweb.ch.util.ErrorMessage;
+import com.allinweb.ch.util.PageDiagnosticDumper;
 import com.google.common.base.Strings;
 import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;
@@ -13,6 +14,9 @@ import java.awt.*;
 import java.awt.event.*;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -1132,11 +1136,22 @@ public class PerformMessage {
 
     public void outputJsonElementDTO(
             ElementDTO[] elementDTO, List<String> fieldsToExclude, String fileName, String jsonPath) {
-        // Define Gson ExclusionStrategy to ignore specific fields
+        outputJsonElementDTO(elementDTO, fieldsToExclude, fileName, jsonPath, false);
+    }
+
+    /**
+     * Write the elementDTO array to {@code <PATH_DB>/page_diagnostics/{fileName}.json}.
+     *
+     * <p>When {@code append == true}, the existing JSON array (if any) is read first and the
+     * new elements are concatenated, deduped by xPath. This is the cumulative hover-pick mode:
+     * each click adds to the running list rather than overwriting it. The picker UI's
+     * "Clear Grid All" button (with the Hover Pick option checked) is what truncates the file.
+     */
+    public void outputJsonElementDTO(
+            ElementDTO[] elementDTO, List<String> fieldsToExclude, String fileName, String jsonPath, boolean append) {
         ExclusionStrategy strategy = new ExclusionStrategy() {
             @Override
             public boolean shouldSkipField(FieldAttributes f) {
-                // Skip fields if their name is in the list of fields to exclude
                 return fieldsToExclude.contains(f.getName());
             }
 
@@ -1146,24 +1161,83 @@ public class PerformMessage {
             }
         };
 
-        // Initialize Gson with pretty printing for better readability
         Gson gson = new GsonBuilder()
                 .setExclusionStrategies(strategy)
                 .setPrettyPrinting()
                 .create();
 
-        // Serialize the list of elementDTO to JSON
-        String jsonData = gson.toJson(elementDTO);
+        String outputFilePath;
+        try {
+            Path diagDir = Paths.get(jsonPath, PageDiagnosticDumper.SUBFOLDER);
+            Files.createDirectories(diagDir);
+            outputFilePath = diagDir.resolve(fileName + ".json").toString();
+        } catch (IOException dirEx) {
+            log.error("Could not create diagnostics folder, falling back to root: " + dirEx.getMessage());
+            outputFilePath = jsonPath + "/" + fileName + ".json";
+        }
 
-        // Create the file path
-        String outputFilePath = jsonPath + "/" + fileName + ".json";
+        ElementDTO[] toWrite = elementDTO == null ? new ElementDTO[0] : elementDTO;
 
-        // Write the JSON data to the file
+        if (append) {
+            try {
+                Path existing = Paths.get(outputFilePath);
+                if (Files.exists(existing) && Files.size(existing) > 0) {
+                    String prevJson = new String(Files.readAllBytes(existing), java.nio.charset.StandardCharsets.UTF_8);
+                    ElementDTO[] previous = gson.fromJson(prevJson, ElementDTO[].class);
+                    if (previous != null && previous.length > 0) {
+                        java.util.LinkedHashMap<String, ElementDTO> merged = new java.util.LinkedHashMap<>();
+                        for (ElementDTO el : previous) {
+                            if (el == null) continue;
+                            String key = el.getXPath() == null ? "" : el.getXPath();
+                            merged.put(key, el);
+                        }
+                        for (ElementDTO el : toWrite) {
+                            if (el == null) continue;
+                            String key = el.getXPath() == null ? "" : el.getXPath();
+                            merged.put(key, el);
+                        }
+                        // Re-id sequentially so the merged file always has 1..N ids without gaps.
+                        ElementDTO[] mergedArr = merged.values().toArray(new ElementDTO[0]);
+                        for (int i = 0; i < mergedArr.length; i++) mergedArr[i].setId(i + 1);
+                        toWrite = mergedArr;
+                    }
+                }
+            } catch (IOException | RuntimeException ex) {
+                log.warn(
+                        "Append mode: could not merge with existing {} ({}), overwriting.",
+                        outputFilePath,
+                        ex.getMessage());
+            }
+        }
+
         try (FileWriter writer = new FileWriter(outputFilePath)) {
-            writer.write(jsonData);
-            log.info("JSON file saved to: " + outputFilePath);
+            writer.write(gson.toJson(toWrite));
+            log.info(
+                    "JSON file saved to: {} ({} entries, mode={})",
+                    outputFilePath,
+                    toWrite.length,
+                    append ? "append" : "overwrite");
         } catch (IOException e) {
             log.error("Error writing JSON to file: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Truncate (delete) the {@code elementDTO-HP.json} (and {@code AI-ElementDTO-HP.json})
+     * file under {@code <PATH_DB>/page_diagnostics/}. Called by the picker's "Clear Grid All"
+     * button when Hover Pick mode is on.
+     */
+    public void clearHoverPickJson(String jsonPath) {
+        String[] names = {"elementDTO-HP.json", "AI-ElementDTO-HP.json"};
+        for (String name : names) {
+            try {
+                Path p = Paths.get(jsonPath, PageDiagnosticDumper.SUBFOLDER, name);
+                if (Files.deleteIfExists(p)) {
+                    log.info("Cleared hover-pick file: {}", p);
+                }
+            } catch (IOException e) {
+                log.warn("Could not delete hover-pick file {}: {}", name, e.getMessage());
+            }
         }
     }
 

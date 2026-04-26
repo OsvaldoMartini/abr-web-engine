@@ -3806,6 +3806,12 @@ public class PerformActions {
             targetDefine.setTagName(elemenDTO.getTagName());
             targetDefine.setSomeText(elemenDTO.getSomeText());
             targetDefine.setCoordinates(elemenDTO.getCoordinates());
+            // Roadmap 3 Phase 3d: carry the user's display-only override straight from the
+            // React picker payload through to the TargetElement so both extractPickClone
+            // overloads (single-arg + bot-job-context) end up with it. prepareToInsertElementDTO
+            // then writes it onto InstructionLoad.clientNamed and persistInstructionsBatch
+            // sends it to the instruction.client_named column on save.
+            targetDefine.setClientNamed(elemenDTO.getClientNamed());
 
             targetDefine.setXPath(elemenDTO.getXPath());
             targetDefine.setCurrentXPath(elemenDTO.getXPath());

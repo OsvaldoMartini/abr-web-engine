@@ -25,6 +25,10 @@ public class SplitDTO {
 
     private Integer instructionId;
     private String instructionName;
+    // Roadmap 3 Phase 3d. Display-only override of `name` typed by the user in the React grid.
+    // Travels alongside instructionName in ROW_UPDATE / NEW_ELEMENT_DTO payloads. The backend
+    // persists this into instruction.client_named and never uses it for matching/recovery.
+    private String clientNamed;
     private Integer instructionOrderNumber;
     private Boolean instructionActive;
 
@@ -91,6 +95,7 @@ public class SplitDTO {
         instruction.setInstructionOrderNumber(split.getInstructionOrderNumber());
         instruction.setBlockOrderNumber(split.getBlockOrderNumber());
         instruction.setName(split.getInstructionName());
+        instruction.setClientNamed(split.getClientNamed());
         instruction.setBlockName(split.getBlockName() != null ? split.getBlockName() : split.getBotJobName());
 
         // Optional element details mapping (if needed)

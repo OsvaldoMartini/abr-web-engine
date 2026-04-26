@@ -1733,8 +1733,6 @@ public class EngineRunner {
                                             currentInstruction.getCodified());
 
                                     //                                    webElementFound = null;
-                                    // force_coordinates is a flag string now (e.g. "FETNS"), not a boolean.
-                                    // Read the F bit via InputFlags so behaviour matches the scanner project.
                                     boolean forceCoordinates = InputFlags.of(currentInstruction.getForceCoordinates())
                                             .hasForce();
 
@@ -1763,7 +1761,7 @@ public class EngineRunner {
                                                     }
                                                 }
 
-                                                // VERY IMPORTANT TO VALIDAE IF THE ELEMENT IS ON TEH PAGE FIRST
+                                                // VERY IMPORTANT TO VALIDATE IF THE ELEMENT IS ON TEH PAGE FIRST
                                                 //                                            if (matchXPath != null ||
                                                 // matchScanned != null || match != null) {
                                                 if (webElementFound == null) {
@@ -1773,44 +1771,50 @@ public class EngineRunner {
                                                             forceCoordinates,
                                                             byPassFlagLoop);
                                                 }
-                                                // Roadmap 3 Phase 3c-iii cross-repo: final fallback via the
-                                                // saved-locator + recovery ladder. Fires only when the
-                                                // existing 3-step matcher (xPath -> scanned -> searchElement)
-                                                // returned nothing, so it adds zero overhead on the happy path.
-                                                if (webElementFound == null) {
+                                                // ── Roadmap 3 Phase 3c-iii ────────────────────────────────
+                                                // Last-resort fallback: if every existing strategy
+                                                // (xpath match, name/text match, priorities ladder) failed,
+                                                // try the persisted locator via ElementRecoveryService.
+                                                // The recovery service walks its own ladder
+                                                // (XPATH_CURRENT > XPATH_ORIGINAL > CSS_SELECTOR >
+                                                //  ATTRIB_ID > ATTRIB_NAME > TEXT_FUZZY > COORDS) and
+                                                // writes an audit row when a non-direct strategy wins.
+                                                if (webElementFound == null
+                                                        && currentInstruction.getName() != null
+                                                        && !currentInstruction
+                                                                .getName()
+                                                                .isBlank()) {
                                                     try {
+                                                        Integer hbId = this.currentBotJob.getHomeBankingId();
+                                                        Integer homeUrlId = this.currentBotJob.getHomeUrlId();
                                                         com.allinweb.ch.model.ElementLocatorEntity loc =
-                                                                com.allinweb.ch.facade.ElementLocatorRepository.getInstance()
+                                                                ElementLocatorRepository.getInstance()
                                                                         .findByKey(
-                                                                                this.currentBotJob.getHomeBankingId(),
-                                                                                this.currentBotJob.getHomeUrlId(),
+                                                                                hbId,
+                                                                                homeUrlId,
                                                                                 currentInstruction.getName());
                                                         if (loc != null) {
-                                                            com.allinweb.ch.facade.ElementRecoveryService.Recovery rec =
-                                                                    com.allinweb.ch.facade.ElementRecoveryService.getInstance()
+                                                            ElementRecoveryService.Recovery r =
+                                                                    ElementRecoveryService.getInstance()
                                                                             .findOrRecover(
-                                                                                    performActions.getCurrentDriver(), loc);
-                                                            if (rec.found()) {
-                                                                webElementFound = rec.element;
-                                                                log.info(
-                                                                        "Bot-run recovery: locatorId={} strategy={} confidence={} defined='{}'",
-                                                                        loc.getId(),
-                                                                        rec.strategy,
-                                                                        String.format("%.1f", rec.confidence),
-                                                                        loc.getDefinedName());
+                                                                                    performActions.getCurrentDriver(),
+                                                                                    loc);
+                                                            if (r.found()) {
+                                                                webElementFound = r.element;
+                                                                logOperations.info(
+                                                                        "ElementRecoveryService recovered '{}'"
+                                                                                + " via {} (confidence={})",
+                                                                        currentInstruction.getName(),
+                                                                        r.strategy,
+                                                                        String.format("%.1f", r.confidence));
                                                             }
                                                         }
                                                     } catch (Exception recoveryEx) {
-                                                        log.debug(
-                                                                "Recovery service skipped: {}", recoveryEx.getMessage());
+                                                        logOperations.warn(
+                                                                "ElementRecoveryService failed (non-fatal): {}",
+                                                                recoveryEx.getMessage());
                                                     }
                                                 }
-                                                //                                            } else {
-                                                //                                                webElementFound =
-                                                // null;
-                                                //                                                forceCoordinates =
-                                                // false;
-                                                //                                            }
                                             } catch (Exception ex) {
                                                 success = false;
                                             }

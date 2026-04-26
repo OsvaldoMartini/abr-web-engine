@@ -35,6 +35,11 @@ public class TargetElement {
     String attributeValue;
     String tagName;
     String definedName;
+    // Roadmap 3 Phase 3d. Display-only label set by the user in the React picker, carried
+    // through ElementDTO → TargetElement → InstructionLoad and persisted into
+    // instruction.client_named on save. Never used for matching/recovery — name keys stay
+    // on definedName/someText.
+    String clientNamed;
     WebElementTagNameEnum tagType;
     WebElementIcon iconType;
     WebElement element;
@@ -81,6 +86,7 @@ public class TargetElement {
         this.attributeValue = origin.attributeValue;
         this.tagName = origin.tagName;
         this.definedName = origin.definedName;
+        this.clientNamed = origin.clientNamed;
         this.tagType = origin.tagType;
         this.iconType = origin.iconType;
         this.element = origin.element;
@@ -115,6 +121,7 @@ public class TargetElement {
         this.attributeValue = null;
         this.tagName = null;
         this.definedName = null;
+        this.clientNamed = null;
         this.tagType = null;
         this.iconType = null;
         this.element = null;
@@ -162,6 +169,7 @@ public class TargetElement {
         copy.attributeValue = this.attributeValue;
         copy.tagName = this.tagName;
         copy.definedName = this.definedName;
+        copy.clientNamed = this.clientNamed;
         copy.tagType = this.tagType;
         copy.iconType = this.iconType;
 

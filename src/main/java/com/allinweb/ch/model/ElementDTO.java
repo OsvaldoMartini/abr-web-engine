@@ -15,6 +15,10 @@ public class ElementDTO {
     private String nameLabel;
     private String nameField;
     private String definedName;
+    // Roadmap 3 Phase 3d. User-set display label arriving from the React picker.
+    // The backend persists this into instruction.client_named on save and never uses it
+    // for matching/recovery the canonical key stays definedName / someText.
+    private String clientNamed;
     private String xPath;
     private String someText;
     private String attribId;
@@ -56,6 +60,10 @@ public class ElementDTO {
         this.id = other.id;
         this.typeElement = other.typeElement;
         this.tagName = other.tagName;
+        this.nameLabel = other.nameLabel;
+        this.nameField = other.nameField;
+        this.definedName = other.definedName;
+        this.clientNamed = other.clientNamed;
         this.xPath = other.xPath;
         this.someText = other.someText;
         this.attribId = other.attribId;
@@ -97,6 +105,10 @@ public class ElementDTO {
         copy.setSomeText(this.someText);
         copy.setTypeElement(this.typeElement);
         copy.setTagName(this.tagName);
+        copy.setNameLabel(this.nameLabel);
+        copy.setNameField(this.nameField);
+        copy.setDefinedName(this.definedName);
+        copy.setClientNamed(this.clientNamed);
         copy.setXPath(this.xPath);
         copy.setAttribId(this.attribId);
         copy.setAttribName(this.attribName);

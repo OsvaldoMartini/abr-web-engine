@@ -16,7 +16,7 @@ import org.openqa.selenium.WebDriver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// SEARCH IN USE (SENDER: scannerTool) -> UPDATE_LIST_ELEMENTS_ASYNC
+// SEARCH IN USE (SENDER: scannerTool)  UPDATE_LIST_ELEMENTS_ASYNC
 @Slf4j
 public class PerformListElements {
     private static final Logger logOperations = LoggerFactory.getLogger("com.allinweb.operations");
@@ -296,8 +296,6 @@ public class PerformListElements {
             performLists.resetListElements();
             performLists.addMapElementsTarget(elements);
 
-            // Mirror the hoverPick pipeline (SimpleWebSocketServer case "SEARCH_TOOL"):
-            // persist the element list to disk as JSON for the UI / AI pipelines.
             if (!elements.isEmpty()) {
                 try {
                     ElementDTO[] asArray = elements.toArray(new ElementDTO[0]);

@@ -18,6 +18,14 @@ public class InstructionLoad {
     private Integer instructionOrderNumber;
     private String actions;
     private String name;
+    /**
+     * Roadmap 3 Phase 3d display-only override. When non-null, the React grid shows this
+     * value instead of {@link #name}. The backend (matchers, locator lookup, recovery service,
+     * bot run) ALWAYS uses {@link #name} as the canonical identifier this column is purely
+     * a UI label so users can rename elements without breaking resolution.
+     */
+    private String clientNamed;
+
     private String xpath;
     private String coordinates;
     // Combinable post-input flags (any subset, any order). The engines split this
@@ -86,7 +94,8 @@ public class InstructionLoad {
             String defaultValue,
             String exportFile,
             String tagName,
-            String forceCoordinates) {
+            String forceCoordinates,
+            String clientNamed) {
         this.homeBankingId = homeBankingId;
         this.botJobId = botJobId;
         this.botJobName = botJobName;
@@ -109,5 +118,6 @@ public class InstructionLoad {
         this.exportFile = exportFile;
         this.tagName = tagName;
         this.forceCoordinates = forceCoordinates;
+        this.clientNamed = clientNamed;
     }
 }

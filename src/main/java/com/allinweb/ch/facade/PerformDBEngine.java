@@ -287,7 +287,7 @@ public class PerformDBEngine {
                 + " b.id AS block_id, b.block_order_number, b.name AS block_name, "
                 + " b.description AS block_description, bot.priority AS bot_job_priority, b.type_id, "
                 + " bli.id AS instruction_id, bli.instruction_order_number, "
-                + " bli.actions, bli.name AS instruction_name, bli.xpath, bli.coordinates,  bli.iframe_xpath, "
+                + " bli.actions, bli.name AS instruction_name, bli.client_named, bli.xpath, bli.coordinates,  bli.iframe_xpath, "
                 + " bli.tag_name, bli.shadow_host, bli.shadow_root, bli.css_selector, "
                 + " bli.description AS instruction_description, bli.force_coordinates, "
                 + " bli.optional, bli.block_marked, bli.default_value, bli.action_custom_max_wait_sec, "
@@ -368,6 +368,7 @@ public class PerformDBEngine {
                     instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
                     instruction.setActions(rs.getString("actions"));
                     instruction.setName(rs.getString("instruction_name"));
+                    instruction.setClientNamed(rs.getString("client_named"));
                     instruction.setXpath(rs.getString("xpath"));
                     instruction.setCoordinates(rs.getString("coordinates"));
                     instruction.setForceCoordinates(rs.getString("force_coordinates"));
@@ -583,6 +584,7 @@ public class PerformDBEngine {
                     instructionLoad.setExportToABR(rs.getBoolean("export_to_abr"));
                     instructionLoad.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
                     instructionLoad.setName(rs.getString("name"));
+                    instructionLoad.setClientNamed(rs.getString("client_named"));
                     instructionLoad.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
                     instructionLoad.setOperation(rs.getString("operation"));
                     instructionLoad.setOptional(rs.getBoolean("optional"));

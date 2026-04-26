@@ -574,7 +574,9 @@ public class PerformLists {
                 for (InstructionLoad updateInstr : listToUpdate) {
                     for (InstructionLoad instr : getListInstruction()) {
                         if (instr.getId().equals(updateInstr.getId())) {
-                            instr.setName(updateInstr.getName());
+                            // Roadmap 3 Phase 3d: name is immutable post-INSERT.
+                            // Rename only mutates clientNamed in DB + memory.
+                            instr.setClientNamed(updateInstr.getClientNamed());
                             break;
                         }
                     }
@@ -589,7 +591,9 @@ public class PerformLists {
                                     for (InstructionLoad updateInstr : listToUpdate) {
                                         for (InstructionLoad instr : block.getInstructionLoad()) {
                                             if (instr.getId().equals(updateInstr.getId())) {
-                                                instr.setName(updateInstr.getName());
+                                                // Roadmap 3 Phase 3d: name is immutable post-INSERT.
+                                                // Rename only mutates clientNamed in DB + memory.
+                                                instr.setClientNamed(updateInstr.getClientNamed());
                                                 break;
                                             }
                                         }
@@ -605,7 +609,9 @@ public class PerformLists {
                 for (InstructionLoad updateInstr : listToUpdate) {
                     for (InstructionLoad instr : getListInstructionComp()) {
                         if (instr.getId().equals(updateInstr.getId())) {
-                            instr.setName(updateInstr.getName());
+                            // Roadmap 3 Phase 3d: name is immutable post-INSERT.
+                            // Rename only mutates clientNamed in DB + memory.
+                            instr.setClientNamed(updateInstr.getClientNamed());
                             break;
                         }
                     }
@@ -620,7 +626,9 @@ public class PerformLists {
                                     for (InstructionLoad updateInstr : listToUpdate) {
                                         for (InstructionLoad instr : block.getInstructionLoad()) {
                                             if (instr.getId().equals(updateInstr.getId())) {
-                                                instr.setName(updateInstr.getName());
+                                                // Roadmap 3 Phase 3d: name is immutable post-INSERT.
+                                                // Rename only mutates clientNamed in DB + memory.
+                                                instr.setClientNamed(updateInstr.getClientNamed());
                                                 break;
                                             }
                                         }
@@ -1550,7 +1558,8 @@ public class PerformLists {
                                         // of reading undefined and overwriting on every click.
                                         loopInstLoad.getForceCoordinates() == null
                                                 ? ""
-                                                : loopInstLoad.getForceCoordinates())))
+                                                : loopInstLoad.getForceCoordinates(),
+                                        loopInstLoad.getClientNamed())))
                         .collect(Collectors.toList());
 
                 // Step 1: Filter rows where actions = "REFRESH_LOOP" and collect their parent IDs
