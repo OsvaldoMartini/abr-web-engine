@@ -1773,6 +1773,38 @@ public class EngineRunner {
                                                             forceCoordinates,
                                                             byPassFlagLoop);
                                                 }
+                                                // Roadmap 3 Phase 3c-iii cross-repo: final fallback via the
+                                                // saved-locator + recovery ladder. Fires only when the
+                                                // existing 3-step matcher (xPath -> scanned -> searchElement)
+                                                // returned nothing, so it adds zero overhead on the happy path.
+                                                if (webElementFound == null) {
+                                                    try {
+                                                        com.allinweb.ch.model.ElementLocatorEntity loc =
+                                                                com.allinweb.ch.facade.ElementLocatorRepository.getInstance()
+                                                                        .findByKey(
+                                                                                this.currentBotJob.getHomeBankingId(),
+                                                                                this.currentBotJob.getHomeUrlId(),
+                                                                                currentInstruction.getName());
+                                                        if (loc != null) {
+                                                            com.allinweb.ch.facade.ElementRecoveryService.Recovery rec =
+                                                                    com.allinweb.ch.facade.ElementRecoveryService.getInstance()
+                                                                            .findOrRecover(
+                                                                                    performActions.getCurrentDriver(), loc);
+                                                            if (rec.found()) {
+                                                                webElementFound = rec.element;
+                                                                log.info(
+                                                                        "Bot-run recovery: locatorId={} strategy={} confidence={} defined='{}'",
+                                                                        loc.getId(),
+                                                                        rec.strategy,
+                                                                        String.format("%.1f", rec.confidence),
+                                                                        loc.getDefinedName());
+                                                            }
+                                                        }
+                                                    } catch (Exception recoveryEx) {
+                                                        log.debug(
+                                                                "Recovery service skipped: {}", recoveryEx.getMessage());
+                                                    }
+                                                }
                                                 //                                            } else {
                                                 //                                                webElementFound =
                                                 // null;
