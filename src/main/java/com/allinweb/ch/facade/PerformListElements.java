@@ -5,6 +5,7 @@ import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ErrorMessage;
 import com.allinweb.ch.util.JsScanResultDTO;
+import com.allinweb.ch.util.PageDiagnosticDumper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import java.util.Arrays;
@@ -255,6 +256,9 @@ public class PerformListElements {
                 loggedFirstCall = true;
             }
 
+            PageDiagnosticDumper.dumpAll(
+                    driver, ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PATH_DB), "page-HP");
+
             JavascriptExecutor executor = (JavascriptExecutor) driver;
 
             driver.manage().timeouts().setScriptTimeout(java.time.Duration.ofSeconds(25));
@@ -296,11 +300,59 @@ public class PerformListElements {
             performLists.resetListElements();
             performLists.addMapElementsTarget(elements);
 
+            // Mirror the hoverPick pipeline (SimpleWebSocketServer case "SEARCH_TOOL"):
+            // 1) rects  2) OCR  3) text resolvers 4) persist enriched DTOs.
             if (!elements.isEmpty()) {
                 try {
                     ElementDTO[] asArray = elements.toArray(new ElementDTO[0]);
                     String jsonPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PATH_DB);
                     PerformMessage performMessage = PerformMessage.getInstance();
+
+                    PageDiagnosticDumper.dumpRectsFromElements(driver, asArray, jsonPath, "page-HP");
+                    //                    PageOcrDumper.runAndDump(driver, asArray, jsonPath, "page-HP");
+
+                    //                    {
+                    //                        Integer cfgHbId = homeBankingId > 0 ? homeBankingId : null;
+                    //                        Integer cfgHomeUrlId = null;
+                    //                        try {
+                    //                            com.allinweb.ch.component.scene.ARScannedElementScene scene =
+                    //
+                    // com.allinweb.ch.component.scene.ARScannedElementScene.getInstance();
+                    //                            if (scene != null && scene.getCurrentBotJob() != null) {
+                    //                                cfgHomeUrlId = scene.getCurrentBotJob().getHomeUrlId();
+                    //                            }
+                    //                        } catch (Throwable ignore) {
+                    //                            // scene unavailable bank-level scope only
+                    //                        }
+                    //                        com.allinweb.ch.model.OcrConfig resolverCfg =
+                    //                                OcrConfigService.getInstance().resolveFor(cfgHbId, cfgHomeUrlId);
+                    //                        ElementTextResolver.resolveAll(
+                    //                                asArray,
+                    //                                java.nio.file.Paths.get(
+                    //                                        jsonPath,
+                    //                                        com.allinweb.ch.util.PageDiagnosticDumper.SUBFOLDER,
+                    //                                        "ocr-correlation-HP.json"),
+                    //                                resolverCfg);
+                    //                    }
+
+                    // Persist locators for Roadmap 3 recovery (defined_name now stable post-resolver).
+                    try {
+                        Integer hbId = homeBankingId > 0 ? homeBankingId : null;
+                        Integer homeUrlId = null;
+                        try {
+                            //                            com.allinweb.ch.component.scene.ARScannedElementScene scene =
+                            //
+                            // com.allinweb.ch.component.scene.ARScannedElementScene.getInstance();
+                            //                            if (scene != null && scene.getCurrentBotJob() != null) {
+                            //                                homeUrlId = scene.getCurrentBotJob().getHomeUrlId();
+                            //                            }
+                        } catch (Throwable ignore) {
+                            // scene unavailable bank-level scope only
+                        }
+                        ElementLocatorRepository.getInstance().upsertOnPickBatch(asArray, hbId, homeUrlId);
+                    } catch (Exception locEx) {
+                        log.warn("Locator upsert failed (non-fatal): {}", locEx.getMessage());
+                    }
 
                     List<String> excludeList = List.of("optional", "blockMarked", "editMode");
                     performMessage.outputJsonElementDTO(asArray, excludeList, "elementDTO-PS", jsonPath);

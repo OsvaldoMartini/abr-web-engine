@@ -17,6 +17,7 @@ public class ExcelReader {
 
     private static final ARPropertyManager arPropertyManager;
     private static final DataFormatter formatter = new DataFormatter();
+    private static final int EXCEL_BLOCK_NAME_ROW = 0;
     private static final int EXCEL_DATA_COLUMN_INTESTATION_ROW = 1;
     private static String executed = "EXECUTED";
     private static String OUTCOME = "outcome";
@@ -31,31 +32,25 @@ public class ExcelReader {
     private static String getCellValue(Cell cell) {
         if (cell == null) return null;
         return formatter.formatCellValue(cell);
-
-        //        String cellValue = null;
-        //        CellType type = cell.getCellType();
-        //        switch (type) {
-        //            case STRING -> {
-        //                String val = cell.getStringCellValue();
-        //                if (!val.isBlank()) {
-        //                    cellValue = val;
-        //                }
-        //            }
-        //            case NUMERIC -> {
-        //                cellValue = String.valueOf(cell.getNumericCellValue());
-        //                //                if (cellValue.contains(".0")) {
-        //                //                    cellValue = cellValue.substring(0, cellValue.indexOf(".0"));
-        //                //                }
-        //                return cellValue;
-        //            }
-        //            case BOOLEAN, BLANK, FORMULA, ERROR -> {}
-        //        }
-        //        return cellValue;
     }
 
+    /** Backward-compat wrapper. Prefer the overload that accepts an aliasOfCanonical map. */
     public ExtractedData extractData(String paymentsFilePath, List<String> allActions) throws Exception {
-        // Initialize the extracted data
+        return extractData(paymentsFilePath, allActions, Collections.emptyMap());
+    }
+
+    /**
+     * @param aliasOfCanonical map of canonical instruction name -> clientNamed display label
+     *     (only entries where clientNamed is set). Used so the missing-fields check accepts an
+     *     Excel column header that matches EITHER the canonical name OR the user-set display
+     *     label, avoiding false positives after a rename.
+     */
+    public ExtractedData extractData(
+            String paymentsFilePath, List<String> allActions, Map<String, String> aliasOfCanonical) throws Exception {
         ExtractedData extractedDataWithMissingFields = new ExtractedData();
+        if (aliasOfCanonical == null) {
+            aliasOfCanonical = Collections.emptyMap();
+        }
 
         try (InputStream in = Files.newInputStream(Paths.get(paymentsFilePath));
                 Workbook workbook = WorkbookFactory.create(in)) {
@@ -69,21 +64,18 @@ public class ExcelReader {
                 throw new Exception(errorMessage);
             }
 
+            Row blockNamesRow = firstSheet.getRow(EXCEL_BLOCK_NAME_ROW);
             Row fieldNamesRow = firstSheet.getRow(EXCEL_DATA_COLUMN_INTESTATION_ROW);
             if (fieldNamesRow == null) {
                 String errorMessage = "Field names row is missing in the Excel sheet";
                 extractedDataWithMissingFields.setErrorTitle("Missing Field Names Row");
                 extractedDataWithMissingFields.setErrorMessage(errorMessage);
-                throw new Exception(errorMessage); // Throwing exception if field row is missing
+                throw new Exception(errorMessage);
             }
 
-            // Extract block fields from actions
-            // Initialize a Set to hold block fields
+            // Collect canonical INPUT field names from the bot job's actions.
             Set<String> blockFields = new HashSet<>();
-
-            // Iterate over each action in allActions
             for (String action : allActions) {
-                // Check if action contains ARConstants.INSERT and ARConstants.ACTION_SPECIFICATIONS_SPLITTER
                 if (action.contains(ARConstantsEngine.INSERT)
                         && action.contains(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER)) {
 
@@ -98,13 +90,36 @@ public class ExcelReader {
                 }
             }
 
-            // Cache field names and values from extractedData
-            for (int i = fieldNamesRow.getFirstCellNum(); i < fieldNamesRow.getLastCellNum(); i++) {
+            // Build per-column block context: row 0 holds block names ("#BlockName"), but only
+            // at the leftmost column of each block group. Carry the most recent non-empty block
+            // name forward across columns so every column knows which block it belongs to.
+            // Strip the "#" prefix and trim whitespace so the stored block matches
+            // blockLoad.getName() at lookup time.
+            int firstCol = fieldNamesRow.getFirstCellNum();
+            int lastCol = fieldNamesRow.getLastCellNum();
+            String[] columnToBlock = new String[Math.max(0, lastCol)];
+            String currentBlock = null;
+            for (int i = 0; i < lastCol; i++) {
+                String cellBlock = blockNamesRow != null ? getCellValue(blockNamesRow.getCell(i)) : null;
+                if (cellBlock != null && !cellBlock.isBlank()) {
+                    String trimmed = cellBlock.trim();
+                    if (trimmed.startsWith("#")) {
+                        trimmed = trimmed.substring(1).trim();
+                    }
+                    currentBlock = trimmed;
+                }
+                columnToBlock[i] = currentBlock;
+            }
+            log.debug("ExcelReader columnToBlock map: {}", java.util.Arrays.toString(columnToBlock));
+
+            // Register all column headers under their block bucket.
+            for (int i = firstCol; i < lastCol; i++) {
                 String fieldName = getCellValue(fieldNamesRow.getCell(i));
-                extractedDataWithMissingFields.addField(fieldName);
+                if (fieldName == null) continue;
+                extractedDataWithMissingFields.addField(columnToBlock[i], fieldName);
             }
 
-            // Cache existing field values from extractedData and add them to extractedDataWithMissingFields
+            // Read data rows. Cell values are bucketed by (block, fieldName) -> row -> value.
             for (int currentRowIndex = EXCEL_DATA_COLUMN_INTESTATION_ROW + 1;
                     currentRowIndex <= firstSheet.getLastRowNum();
                     currentRowIndex++) {
@@ -113,36 +128,44 @@ public class ExcelReader {
                     continue;
                 }
 
+                int rowPosition = currentRowIndex - EXCEL_DATA_COLUMN_INTESTATION_ROW - 1;
                 boolean rowHasData = false;
-                Map<String, String> rowValues = new HashMap<>();
+                Map<Integer, String> pendingByCol = new LinkedHashMap<>();
 
                 for (int currentCellIndex = currentRow.getFirstCellNum();
                         currentCellIndex < currentRow.getLastCellNum();
                         currentCellIndex++) {
-                    String fieldName = getCellValue(fieldNamesRow.getCell(currentCellIndex));
                     String value = getCellValue(currentRow.getCell(currentCellIndex));
-
                     if (value != null && !value.trim().isEmpty()) {
-                        rowHasData = true; // at least one non-empty value
+                        rowHasData = true;
                     }
-                    rowValues.put(fieldName, value);
+                    pendingByCol.put(currentCellIndex, value);
+                }
 
-                    // Only add the row if it has some data
-                    if (rowHasData) {
-                        int rowPosition = currentRowIndex - EXCEL_DATA_COLUMN_INTESTATION_ROW - 1;
-                        for (Map.Entry<String, String> entry : rowValues.entrySet()) {
-                            extractedDataWithMissingFields.addFieldValue(entry.getKey(), entry.getValue(), rowPosition);
-                        }
-                    }
+                if (!rowHasData) continue;
+
+                for (Map.Entry<Integer, String> e : pendingByCol.entrySet()) {
+                    int col = e.getKey();
+                    String fieldName = getCellValue(fieldNamesRow.getCell(col));
+                    if (fieldName == null) continue;
+                    String blockForCol = (col < columnToBlock.length) ? columnToBlock[col] : null;
+                    extractedDataWithMissingFields.addFieldValue(blockForCol, fieldName, e.getValue(), rowPosition);
                 }
             }
 
-            // Extract missing fields from actions
+            // Missing-fields check. Accept either the canonical name or the clientNamed alias
+            // as a valid Excel column header. Block scoping isn't enforced here (the writer
+            // takes care of producing block-scoped columns); we just verify presence somewhere
+            // in the workbook.
+            Set<String> allExtracted = extractedDataWithMissingFields.getExtractedFields();
             Set<String> missingFields = new HashSet<>();
             for (String blockField : blockFields) {
+                String alias = aliasOfCanonical.get(blockField);
                 boolean found = false;
-                for (String extractedField : extractedDataWithMissingFields.getExtractedFields()) {
-                    if (blockField.equalsIgnoreCase(extractedField)) {
+                for (String extractedField : allExtracted) {
+                    if (extractedField == null) continue;
+                    if (blockField.equalsIgnoreCase(extractedField)
+                            || (alias != null && alias.equalsIgnoreCase(extractedField))) {
                         found = true;
                         break;
                     }
@@ -150,13 +173,14 @@ public class ExcelReader {
 
                 if (!found) {
                     missingFields.add(blockField);
+                    // Register the field name so callers that introspect getExtractedFields()
+                    // still see it. Do NOT synthesize a "CHANGE ME" data row at
+                    // getNumberOfDataRows(): doing so inflated the row count by one and caused
+                    // executeJob to iterate one row past real data.
                     extractedDataWithMissingFields.addField(blockField);
-                    extractedDataWithMissingFields.addFieldValue(
-                            blockField, "CHANGE ME", extractedDataWithMissingFields.getNumberOfDataRows());
                 }
             }
 
-            // Set the error message for missing fields if any
             if (!missingFields.isEmpty()) {
                 extractedDataWithMissingFields.setMissingFields(
                         "Fields in the Excel do not match the Bot Job requirements. Missing fields: "
@@ -166,7 +190,6 @@ public class ExcelReader {
             return extractedDataWithMissingFields;
 
         } catch (FileNotFoundException e) {
-            // Handle FileNotFoundException and set an appropriate error message
             if (isFileInUse(e)) {
                 extractedDataWithMissingFields.setErrorTitle("File In Use");
                 extractedDataWithMissingFields.setErrorMessage("The file is currently in use by another process.");
@@ -175,67 +198,17 @@ public class ExcelReader {
                 extractedDataWithMissingFields.setErrorMessage("The file does not exist.");
             }
         } catch (IOException e) {
-            // Handle IOException and set an appropriate error message
             extractedDataWithMissingFields.setErrorTitle("IOException");
             extractedDataWithMissingFields.setErrorMessage(
                     "An unexpected error occurred while processing the file: " + e.getMessage());
         } catch (Exception e) {
-            // Handle other exceptions
-            // extractedDataWithMissingFields.setErrorTitle("An error occurred");
-            // extractedDataWithMissingFields.setErrorMessage(e.getMessage());
+            // swallow: error info already populated where relevant
         }
 
         return extractedDataWithMissingFields;
     }
 
-    // Helper method to check if the file is in use
     private boolean isFileInUse(FileNotFoundException e) {
-        // Check if the exception message contains 'being used by another process'
         return e.getMessage().contains("being used by another process");
     }
-
-    /* TODO: To be removed
-    public File createPaymentsExcelLogFile(String paymentsFilePath) {
-
-
-    	File paymentsFile = new File(paymentsFilePath);
-    	File logDirectory = new File(paymentsFile.getParent() + logFolderName);
-    	logDirectory.mkdir();
-
-    	String paymentsFileName = paymentsFile.getName();
-    	int lastPeriodPos = paymentsFileName.lastIndexOf('.');
-    	paymentsFileName = paymentsFileName.substring(0, lastPeriodPos);
-    	String logExcelFilePath = logDirectory + "\\" + paymentsFileName + executed + executedExcelFileExtension;
-
-
-    	try {
-    		Workbook workbookPayments = WorkbookFactory.create(paymentsFile);
-    		Row intestationRow = workbookPayments.getSheetAt(0).getRow(0);
-
-    		Workbook logExcelWorkbook = new XSSFWorkbook();
-    		Sheet page0 = logExcelWorkbook.createSheet();
-    		Row intestationRowLog = page0.createRow(0);
-
-    		Cell logCell;
-    		int maxColumn = 0;
-    		for (int i = 0; i < intestationRow.getLastCellNum(); i++) {
-    			logCell = intestationRowLog.createCell(i);
-    			logCell.setCellValue(intestationRow.getCell(i).getStringCellValue());
-    			maxColumn = i;
-    		}
-    		logCell = intestationRowLog.createCell(maxColumn);
-    		logCell.setCellValue(OUTCOME);
-
-    		FileOutputStream outputStream = new FileOutputStream(logExcelFilePath);
-    		logExcelWorkbook.write(outputStream);
-    		outputStream.close();
-    		logExcelWorkbook.close();
-
-    	} catch (Exception e) {
-    		log.info(e.getMessage());
-    		System.exit(0);
-    	}
-    	return new File(logExcelFilePath);
-    }
-    */
 }

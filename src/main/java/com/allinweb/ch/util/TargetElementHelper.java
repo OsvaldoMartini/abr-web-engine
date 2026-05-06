@@ -172,10 +172,20 @@ public class TargetElementHelper {
                         ? elementDTO.getTagName()
                         : elementDTO.getSomeText().trim().replaceAll("\\s+", " "));
 
-        targetLocal.setDefinedName(
-                elementDTO.getSomeText() == null
-                        ? elementDTO.getTagName()
-                        : elementDTO.getSomeText().trim().replaceAll("\\s+", " "));
+        // Roadmap 3 Phase 3d: prefer the resolver-provided definedName when it travels back
+        // from the React picker — that's the canonical slug ElementTextResolver computed at
+        // pick time. Fall back to someText / tagName only when definedName is empty.
+        String inboundDefined = elementDTO.getDefinedName();
+        if (inboundDefined != null && !inboundDefined.trim().isEmpty()) {
+            targetLocal.setDefinedName(inboundDefined.trim());
+        } else {
+            targetLocal.setDefinedName(
+                    elementDTO.getSomeText() == null
+                            ? elementDTO.getTagName()
+                            : elementDTO.getSomeText().trim().replaceAll("\\s+", " "));
+        }
+
+        // clientNamed is now propagated centrally inside defineSearchReturn — no extra setter needed here.
 
         // Validate Shadow DOM or regular CSS selectors
         targetLocal.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);
@@ -285,6 +295,11 @@ public class TargetElementHelper {
             targetDefine.setNameLabel(elemenDTO.getNameLabel());
             targetDefine.setNameField(elemenDTO.getNameField());
             targetDefine.setDefinedName(elemenDTO.getDefinedName());
+            // Roadmap 3 Phase 3d: carry the user's display-only override through every
+            // extractPickClone path, including DETAILS_ELEMENT_DTO. Null is a valid value
+            // (means: no override). Without this the single-arg extractPickClone dropped
+            // clientNamed and the read-only label fell back to definedName.
+            targetDefine.setClientNamed(elemenDTO.getClientNamed());
 
             // Reset Previous Values
             targetDefine.setAttribId(elemenDTO.getAttribId());

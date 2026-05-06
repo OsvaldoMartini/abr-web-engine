@@ -71,6 +71,15 @@ public class InstructionLoad {
 
     private List<ReferenceLoadDTO> referenceLoadDTOList;
 
+    /**
+     * Excel column header / lookup key. Returns clientNamed when the user has set a display
+     * override; otherwise the canonical name. Both the Excel writer and executeJob use this
+     * so writer and reader stay symmetric across renames.
+     */
+    public String displayKey() {
+        return (clientNamed != null && !clientNamed.isBlank()) ? clientNamed : name;
+    }
+
     // Custom constructor
     public InstructionLoad(
             Integer homeBankingId,
